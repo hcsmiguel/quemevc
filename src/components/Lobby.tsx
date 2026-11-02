@@ -17,6 +17,8 @@ import {
   Layers,
   Lock,
   LogOut,
+  Globe,
+  Gamepad2,
 } from 'lucide-react';
 import { sounds } from '../utils/sound';
 import type { GameMode, DifficultyCount, RoomConfig } from '../types/game';
@@ -27,9 +29,10 @@ import { Avatar } from './Avatar';
 
 interface LobbyProps {
   onJoinRoom: (roomCode: string, playerName: string, isHost: boolean, config: RoomConfig) => void;
-  onOpenDeckBuilder: (targetCount: DifficultyCount) => void;
+  onOpenDeckBuilder: (targetCount: DifficultyCount, isSecret?: boolean, password?: string) => void;
   onOpenLogin: () => void;
   onOpenProfile: () => void;
+  onOpenPublicLobbies: () => void;
   onSelectSavedDeck: (deck: SavedDeck) => void;
   onAbandonWaiting?: () => void;
   currentUser: AppUser | null;
@@ -45,6 +48,7 @@ export const Lobby: FC<LobbyProps> = ({
   onOpenDeckBuilder,
   onOpenLogin,
   onOpenProfile,
+  onOpenPublicLobbies,
   onSelectSavedDeck,
   onAbandonWaiting,
   currentUser,
@@ -63,8 +67,8 @@ export const Lobby: FC<LobbyProps> = ({
   // Configurações da Partida
   const [mode, setMode] = useState<GameMode>('standard');
   const [customDifficulty, setCustomDifficulty] = useState<DifficultyCount>(30);
-
-  const activeDifficulty: DifficultyCount = mode === 'standard' ? 15 : customDifficulty;
+  const [isSecretRoom, setIsSecretRoom] = useState(false);
+  const [secretPassword, setSecretPassword] = useState('');
 
   // Carregar baralhos salvos do usuário logado (Ponto 2.b)
   useEffect(() => {
@@ -103,6 +107,10 @@ export const Lobby: FC<LobbyProps> = ({
 
   const handleCreateRoom = async () => {
     if (!name.trim()) return;
+    if (isSecretRoom && !secretPassword.trim()) {
+      sounds.playWrong();
+      return;
+    }
     sounds.playClick();
     localStorage.setItem('cara_player_name', name.trim());
 
@@ -112,15 +120,17 @@ export const Lobby: FC<LobbyProps> = ({
         onOpenLogin();
         return;
       }
-      onOpenDeckBuilder(customDifficulty);
+      onOpenDeckBuilder(customDifficulty, isSecretRoom, isSecretRoom ? secretPassword.trim() : undefined);
       return;
     }
 
-    // PONTO 1.a: Código da sala com 6 números
+    // PONTO 1.a: Código da sala com 6 números e suporte a sala secreta
     const newCode = await network.generateUniqueRoomCode();
     onJoinRoom(newCode, name.trim(), true, {
       mode: 'standard',
       cardCount: 15,
+      isSecret: isSecretRoom,
+      password: isSecretRoom ? secretPassword.trim() : undefined,
     });
   };
 
@@ -548,19 +558,94 @@ export const Lobby: FC<LobbyProps> = ({
                 </div>
               )}
 
-              {/* Botão Principal de Criação (Relevo Tátil 3D) */}
-              <button
-                onClick={handleCreateRoom}
-                disabled={!name.trim() || isConnecting}
-                className="w-full flex items-center justify-center gap-2 py-3.5 px-4 rounded-2xl bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white font-extrabold text-sm shadow-[0_4px_0_#059669] active:translate-y-1 active:shadow-none transition-all cursor-pointer"
-              >
-                {isConnecting ? <Loader2 size={18} className="animate-spin" /> : <Play size={18} />}
-                <span>
-                  {mode === 'custom'
-                    ? `Montar Baralho (${activeDifficulty} Caras)`
-                    : 'Criar Partida (15 Caras)'}
-                </span>
-              </button>
+              {/* Opção de Sala Pública vs Sala Secreta (Ponto 4.a) */}
+              <div className="bg-slate-50 border border-slate-200 p-3.5 rounded-2xl space-y-3 text-xs">
+                <label className="block text-[11px] font-extrabold text-slate-700 uppercase tracking-wider">
+                  Visibilidade da Sala:
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      sounds.playClick();
+                      setIsSecretRoom(false);
+                    }}
+                    className={`py-2 px-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                      !isSecretRoom
+                        ? 'bg-white border-emerald-500 text-emerald-800 shadow-sm font-black'
+                        : 'bg-white/60 border-slate-200 text-slate-600 hover:bg-white'
+                    }`}
+                  >
+                    <Globe size={14} className={!isSecretRoom ? 'text-emerald-600' : 'text-slate-400'} />
+                    <span>Sala Pública</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      sounds.playClick();
+                      setIsSecretRoom(true);
+                    }}
+                    className={`py-2 px-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                      isSecretRoom
+                        ? 'bg-white border-amber-500 text-amber-900 shadow-sm font-black'
+                        : 'bg-white/60 border-slate-200 text-slate-600 hover:bg-white'
+                    }`}
+                  >
+                    <Lock size={14} className={isSecretRoom ? 'text-amber-600' : 'text-slate-400'} />
+                    <span>Sala Secreta</span>
+                  </button>
+                </div>
+
+                {isSecretRoom && (
+                  <div className="pt-1 animate-in fade-in">
+                    <label className="block text-[11px] font-extrabold text-amber-900 mb-1">
+                      Defina uma Senha Numérica:
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        maxLength={6}
+                        placeholder="Ex: 1234"
+                        value={secretPassword}
+                        onChange={(e) => setSecretPassword(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                        className="w-full bg-white border-2 border-amber-300 text-slate-900 font-mono font-bold text-sm rounded-xl px-3 py-2 focus:outline-none focus:border-amber-500"
+                      />
+                      <KeyRound size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-amber-500" />
+                    </div>
+                    <span className="text-[10px] text-amber-700 block mt-1">
+                      🔒 Requerida para que outros jogadores possam entrar.
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* PONTO 4: Dois botões - Criar Partida e Buscar Lobbies */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+                <button
+                  type="button"
+                  onClick={handleCreateRoom}
+                  disabled={!name.trim() || isConnecting || (isSecretRoom && !secretPassword.trim())}
+                  className="w-full flex items-center justify-center gap-2 py-3.5 px-4 rounded-2xl bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white font-extrabold text-sm shadow-[0_4px_0_#059669] active:translate-y-1 active:shadow-none transition-all cursor-pointer"
+                >
+                  {isConnecting ? <Loader2 size={18} className="animate-spin" /> : <Play size={18} />}
+                  <span>{mode === 'custom' ? 'Montar Baralho' : 'Criar Partida'}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    sounds.playClick();
+                    onOpenPublicLobbies();
+                  }}
+                  className="w-full flex items-center justify-center gap-2 py-3.5 px-4 rounded-2xl bg-sky-500 hover:bg-sky-600 text-white font-extrabold text-sm shadow-[0_4px_0_#0284c7] active:translate-y-1 active:shadow-none transition-all cursor-pointer"
+                >
+                  <Gamepad2 size={18} />
+                  <span>Buscar Lobbies</span>
+                </button>
+              </div>
             </div>
           )}
 

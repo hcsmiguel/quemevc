@@ -35,6 +35,8 @@ export interface RoomConfig {
   cardCount: DifficultyCount;
   deckName?: string;
   customCards?: Character[];
+  isSecret?: boolean;
+  password?: string;
 }
 
 export type GamePhase = 
@@ -42,7 +44,8 @@ export type GamePhase =
   | 'CHOOSING_SECRET' 
   | 'PLAYING' 
   | 'GAME_OVER'
-  | 'PROFILE';
+  | 'PROFILE'
+  | 'PUBLIC_LOBBIES';
 
 export interface Question {
   id: string;
@@ -83,6 +86,8 @@ export interface NetworkMessage {
     | 'MAKE_GUESS' 
     | 'GUESS_RESULT' 
     | 'REMATCH' 
+    | 'REQUEST_REMATCH'
+    | 'START_REMATCH'
     | 'ABANDON_GAME'
     | 'CHAT';
   senderId: string;

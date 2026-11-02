@@ -11,6 +11,8 @@ interface GameOverModalProps {
   mySecretCharacter: Character;
   opponentSecretCharacter: Character;
   opponentName: string;
+  rematchRequestedByMe?: boolean;
+  rematchRequestedByOpponent?: boolean;
   onRematch: () => void;
   onExit?: () => void;
 }
@@ -21,6 +23,8 @@ export const GameOverModal: FC<GameOverModalProps> = ({
   mySecretCharacter,
   opponentSecretCharacter,
   opponentName,
+  rematchRequestedByMe = false,
+  rematchRequestedByOpponent = false,
   onRematch,
   onExit,
 }) => {
@@ -97,12 +101,39 @@ export const GameOverModal: FC<GameOverModalProps> = ({
         </div>
 
         <div className="space-y-2.5">
+          {rematchRequestedByOpponent && !rematchRequestedByMe && (
+            <div className="bg-emerald-50 border border-emerald-300 rounded-2xl p-2.5 text-xs text-emerald-800 font-bold animate-bounce flex items-center justify-center gap-2">
+              <span>⚔️ {opponentName} pediu uma revanche!</span>
+            </div>
+          )}
+
           <button
             onClick={onRematch}
-            className="w-full flex items-center justify-center gap-2 py-3.5 px-6 rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-white font-extrabold text-sm shadow-[0_4px_0_#059669] active:translate-y-1 active:shadow-none transition-all cursor-pointer"
+            disabled={rematchRequestedByMe}
+            className={`w-full flex items-center justify-center gap-2 py-3.5 px-6 rounded-2xl font-extrabold text-sm transition-all cursor-pointer ${
+              rematchRequestedByMe
+                ? 'bg-amber-100 text-amber-800 border-2 border-amber-300 cursor-not-allowed opacity-90'
+                : rematchRequestedByOpponent
+                ? 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-[0_4px_0_#059669] active:translate-y-1'
+                : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-[0_4px_0_#4338ca] active:translate-y-1'
+            }`}
           >
-            <RotateCcw size={18} />
-            Jogar Outra Partida!
+            {rematchRequestedByMe ? (
+              <>
+                <RotateCcw size={18} className="animate-spin text-amber-600" />
+                <span>Aguardando {opponentName} aceitar revanche...</span>
+              </>
+            ) : rematchRequestedByOpponent ? (
+              <>
+                <RotateCcw size={18} />
+                <span>Aceitar Revanche!</span>
+              </>
+            ) : (
+              <>
+                <RotateCcw size={18} />
+                <span>Revanche</span>
+              </>
+            )}
           </button>
 
           {onExit && (

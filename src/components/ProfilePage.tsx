@@ -19,6 +19,9 @@ import {
   ArrowLeft,
   Check,
   Smile,
+  KeyRound,
+  LogOut,
+  AlertTriangle,
 } from 'lucide-react';
 import { sounds } from '../utils/sound';
 import { ImageCropperModal } from './ImageCropperModal';
@@ -49,6 +52,59 @@ export const ProfilePage: FC<ProfilePageProps> = ({
 
   // Feedback de link copiado por ID do baralho
   const [copiedDeckId, setCopiedDeckId] = useState<string | null>(null);
+
+  // Gerenciamento de Perfil (Ponto 3.a)
+  const [passwordModalOpen, setPasswordModalOpen] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [newPasswordConfirm, setNewPasswordConfirm] = useState('');
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [passwordSuccess, setPasswordSuccess] = useState(false);
+  const [isSavingPassword, setIsSavingPassword] = useState(false);
+
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+
+  const handleUpdatePassword = async () => {
+    setPasswordError(null);
+    if (!newPassword || newPassword.length < 6) {
+      setPasswordError('A senha deve conter no mínimo 6 caracteres.');
+      return;
+    }
+    if (newPassword !== newPasswordConfirm) {
+      setPasswordError('As senhas não coincidem. Verifique a digitação.');
+      return;
+    }
+    try {
+      setIsSavingPassword(true);
+      await auth.updatePassword(newPassword);
+      sounds.playWin();
+      setPasswordSuccess(true);
+      setTimeout(() => {
+        setPasswordModalOpen(false);
+        setPasswordSuccess(false);
+        setNewPassword('');
+        setNewPasswordConfirm('');
+      }, 1800);
+    } catch (err: any) {
+      setPasswordError(err.message || 'Falha ao alterar senha.');
+      sounds.playWrong();
+    } finally {
+      setIsSavingPassword(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    try {
+      setIsDeletingAccount(true);
+      await auth.deleteAccount(currentUser.id);
+      sounds.playClick();
+      onBackToLobby();
+    } catch (err: any) {
+      alert('Erro ao apagar conta: ' + err.message);
+    } finally {
+      setIsDeletingAccount(false);
+    }
+  };
 
   useEffect(() => {
     loadUserData();
@@ -138,8 +194,43 @@ export const ProfilePage: FC<ProfilePageProps> = ({
                 )}
               </div>
               <p className="text-xs text-slate-500 font-medium">
-                Página Exclusiva de Perfil • Baralhos, Caras e Estatísticas
+                Gerencie seu perfil, baralhos e caras
               </p>
+
+              {/* Opções Sutis de Gerência de Perfil (Ponto 3.a) */}
+              <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 mt-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setPasswordModalOpen(true)}
+                  className="flex items-center gap-1.5 text-[11px] font-extrabold text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 px-2.5 py-1 rounded-xl border border-slate-200 shadow-sm transition-all cursor-pointer"
+                >
+                  <KeyRound size={12} className="text-slate-500" />
+                  <span>Trocar Senha</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    sounds.playClick();
+                    auth.logout();
+                    onBackToLobby();
+                  }}
+                  className="flex items-center gap-1.5 text-[11px] font-extrabold text-slate-600 hover:text-rose-700 bg-slate-100 hover:bg-rose-50 px-2.5 py-1 rounded-xl border border-slate-200 hover:border-rose-200 shadow-sm transition-all cursor-pointer"
+                >
+                  <LogOut size={12} className="text-slate-500" />
+                  <span>Sair</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setDeleteConfirmOpen(true)}
+                  className="flex items-center gap-1 text-[11px] font-bold text-slate-400 hover:text-rose-600 px-2 py-1 transition-colors cursor-pointer"
+                  title="Apagar minha conta"
+                >
+                  <Trash2 size={12} />
+                  <span>Apagar Conta</span>
+                </button>
+              </div>
             </div>
           </div>
 
@@ -491,6 +582,118 @@ export const ProfilePage: FC<ProfilePageProps> = ({
           onSaveCharacter={handleSaveCroppedFace}
           onClose={() => setIsAddingFace(false)}
         />
+      )}
+
+      {/* Modal de Troca de Senha (Ponto 3.a) */}
+      {passwordModalOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white border-2 border-slate-200 rounded-3xl max-w-sm w-full p-6 shadow-2xl animate-in zoom-in-95">
+            <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-tactile-sm">
+              <KeyRound size={24} />
+            </div>
+
+            <h3 className="text-lg font-black text-slate-900 text-center mb-1">
+              Alterar Senha
+            </h3>
+            <p className="text-xs text-slate-500 text-center mb-5">
+              Digite e confirme sua nova senha de acesso:
+            </p>
+
+            {passwordError && (
+              <div className="mb-4 p-2.5 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-700 font-bold text-center">
+                {passwordError}
+              </div>
+            )}
+
+            {passwordSuccess && (
+              <div className="mb-4 p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-800 font-bold text-center">
+                ✅ Senha alterada com sucesso!
+              </div>
+            )}
+
+            <div className="space-y-3 mb-5">
+              <div>
+                <label className="block text-[11px] font-extrabold text-slate-700 uppercase mb-1">
+                  Nova Senha (mínimo 6 dígitos):
+                </label>
+                <input
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full bg-slate-50 border-2 border-slate-200 text-slate-900 text-sm font-semibold rounded-xl px-3 py-2 focus:outline-none focus:border-indigo-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-extrabold text-slate-700 uppercase mb-1">
+                  Confirmar Nova Senha:
+                </label>
+                <input
+                  type="password"
+                  value={newPasswordConfirm}
+                  onChange={(e) => setNewPasswordConfirm(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full bg-slate-50 border-2 border-slate-200 text-slate-900 text-sm font-semibold rounded-xl px-3 py-2 focus:outline-none focus:border-indigo-500"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2.5">
+              <button
+                type="button"
+                onClick={() => setPasswordModalOpen(false)}
+                className="py-2.5 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-xs transition-colors cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleUpdatePassword}
+                disabled={isSavingPassword || passwordSuccess}
+                className="py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-extrabold text-xs shadow-tactile-sm transition-all cursor-pointer"
+              >
+                {isSavingPassword ? 'Salvando...' : 'Salvar Senha'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Confirmação para Apagar Conta (Ponto 3.a) */}
+      {deleteConfirmOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white border-2 border-rose-300 rounded-3xl max-w-sm w-full p-6 shadow-2xl text-center animate-in zoom-in-95">
+            <div className="w-14 h-14 bg-rose-100 text-rose-600 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-tactile-sm">
+              <AlertTriangle size={28} />
+            </div>
+
+            <h3 className="text-lg font-black text-slate-900 mb-1">
+              Apagar Sua Conta?
+            </h3>
+            <p className="text-xs text-slate-500 mb-6 leading-relaxed">
+              Esta ação é <strong>irreversível</strong>. Todos os seus baralhos personalizados, caras salvas e estatísticas de vitórias e derrotas serão excluídos permanentemente.
+            </p>
+
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setDeleteConfirmOpen(false)}
+                className="py-2.5 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-xs uppercase tracking-wider transition-colors cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteAccount}
+                disabled={isDeletingAccount}
+                className="py-2.5 px-4 rounded-xl bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white font-extrabold text-xs uppercase tracking-wider shadow-tactile-sm transition-all cursor-pointer"
+              >
+                {isDeletingAccount ? 'Apagando...' : 'Sim, Apagar'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

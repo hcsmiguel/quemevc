@@ -26,6 +26,8 @@ import { LoginModal } from './components/LoginModal';
 import { ProfilePage } from './components/ProfilePage';
 import { ImportSharedDeckModal } from './components/ImportSharedDeckModal';
 import { CustomDeckBuilder } from './components/CustomDeckBuilder';
+import { PublicLobbiesPage } from './components/PublicLobbiesPage';
+import { PasswordPromptModal } from './components/PasswordPromptModal';
 import { RightSidebar } from './components/RightSidebar';
 import { Footer } from './components/Footer';
 import { LegalModal, type LegalTab } from './components/LegalModal';
@@ -94,6 +96,22 @@ export function App() {
   const [activeDeck, setActiveDeck] = useState<Character[]>(() => STANDARD_60_CHARACTERS.slice(0, 15));
   const [isBuildingDeck, setIsBuildingDeck] = useState(false);
   const [deckTargetCount, setDeckTargetCount] = useState<DifficultyCount>(30);
+  const [deckIsSecret, setDeckIsSecret] = useState(false);
+  const [deckPassword, setDeckPassword] = useState('');
+
+  // Revanche (Ponto 2.a)
+  const [rematchRequestedByMe, setRematchRequestedByMe] = useState(false);
+  const [rematchRequestedByOpponent, setRematchRequestedByOpponent] = useState(false);
+  const rematchRequestedByMeRef = useRef(false);
+  rematchRequestedByMeRef.current = rematchRequestedByMe;
+  const rematchRequestedByOpponentRef = useRef(false);
+  rematchRequestedByOpponentRef.current = rematchRequestedByOpponent;
+
+  // Modal para Digitar Senha da Sala Secreta (Ponto 4.a)
+  const [passwordModalOpen, setPasswordModalOpen] = useState(false);
+  const [passwordModalCode, setPasswordModalCode] = useState('');
+  const [passwordModalError, setPasswordModalError] = useState<string | null>(null);
+  const [isVerifyingPassword, setIsVerifyingPassword] = useState(false);
 
   // Estados do Tabuleiro e Ações (Requisitos E e F)
   const [cardStatuses, setCardStatuses] = useState<Record<string, CardStatus>>({});
@@ -273,7 +291,8 @@ export function App() {
     code: string,
     name: string,
     host: boolean,
-    config: RoomConfig
+    config: RoomConfig,
+    password?: string
   ) => {
     setIsConnecting(true);
     setErrorMessage(null);
@@ -294,6 +313,8 @@ export function App() {
     setOpponentReady(false);
     setGameOverResult(null);
     setWrongGuessAlert(null);
+    setRematchRequestedByMe(false);
+    setRematchRequestedByOpponent(false);
     hasStartedGameRef.current = false;
 
     try {
@@ -307,7 +328,10 @@ export function App() {
         setPhase('LOBBY');
         setIsBuildingDeck(false);
       } else {
-        const room = await network.joinRoom(code, name);
+        const room = await network.joinRoom(code, name, password);
+        setPasswordModalOpen(false);
+        setPasswordModalCode('');
+        setPasswordModalError(null);
         setIsConnecting(false);
         setOpponentName(room.host_name);
         setOpponentId(room.host_id);
@@ -321,7 +345,17 @@ export function App() {
       }
     } catch (err: any) {
       setIsConnecting(false);
-      setErrorMessage(err.message || 'Erro ao conectar à sala.');
+      if (err.requiresPassword) {
+        setPasswordModalCode(code);
+        setPasswordModalOpen(true);
+        setPasswordModalError(null);
+        return;
+      }
+      if (passwordModalOpen) {
+        setPasswordModalError(err.message || 'Senha incorreta.');
+      } else {
+        setErrorMessage(err.message || 'Erro ao conectar à sala.');
+      }
       sounds.playWrong();
     }
   };
@@ -398,15 +432,21 @@ export function App() {
         // ERRO 2 RESOLVIDO: Tratar quando o oponente faz um palpite
         case 'MAKE_GUESS': {
           const guessedId = msg.payload.characterId;
+          const guesserSecret = msg.payload.guesserSecretCharacter;
           const mySecret = mySecretRef.current;
           if (mySecret) {
             if (mySecret.id === guessedId) {
-              // 1. O oponente acertou! Enviar resultado vitorioso para ele
+              // 1. O oponente acertou! Guarda o personagem secreto do oponente
+              if (guesserSecret) {
+                setOpponentSecretCharacter(guesserSecret);
+              }
+
               network.send('GUESS_RESULT', {
                 correct: true,
                 winnerId: msg.senderId,
                 winnerName: msg.senderName,
                 secretCharacter: mySecret,
+                guesserSecretCharacter: guesserSecret,
               });
 
               // 2. Atualizar no Supabase que a partida acabou
@@ -450,7 +490,7 @@ export function App() {
               isWinner: winnerIsMe,
               winnerName: msg.payload.winnerName,
             });
-            if (!winnerIsMe && msg.payload.secretCharacter) {
+            if (msg.payload.secretCharacter) {
               setOpponentSecretCharacter(msg.payload.secretCharacter);
             }
             setPhase('GAME_OVER');
@@ -479,8 +519,20 @@ export function App() {
           break;
         }
 
-        case 'REMATCH': {
-          resetForRematch();
+        // PONTO 2.a: Sincronização de Revanche mútua
+        case 'REMATCH':
+        case 'REQUEST_REMATCH': {
+          sounds.playClick();
+          setRematchRequestedByOpponent(true);
+          if (rematchRequestedByMeRef.current) {
+            network.send('START_REMATCH', {});
+            startRematch();
+          }
+          break;
+        }
+
+        case 'START_REMATCH': {
+          startRematch();
           break;
         }
 
@@ -645,6 +697,7 @@ export function App() {
     network.send('MAKE_GUESS', {
       characterId: guessedChar.id,
       characterName: guessedChar.name,
+      guesserSecretCharacter: mySecretRef.current,
     });
   };
 
@@ -670,9 +723,29 @@ export function App() {
     setPhase('CHOOSING_SECRET');
   };
 
-  const handleRequestRematch = () => {
-    network.send('REMATCH', {});
+  const startRematch = () => {
+    sounds.playWin();
+    setRematchRequestedByMe(false);
+    setRematchRequestedByOpponent(false);
     resetForRematch();
+    const firstTurn = Math.random() < 0.5 ? network.playerId : opponentId;
+    setCurrentTurnPlayerId(firstTurn);
+    network.syncRoomState({
+      status: 'choosing',
+      current_turn: firstTurn,
+      current_question: null,
+    });
+  };
+
+  const handleRequestRematch = () => {
+    sounds.playClick();
+    setRematchRequestedByMe(true);
+    if (rematchRequestedByOpponentRef.current) {
+      network.send('START_REMATCH', {});
+      startRematch();
+    } else {
+      network.send('REQUEST_REMATCH', {});
+    }
   };
 
   // Navegação Global para o Menu Principal (Logo e Botão Superior)
@@ -694,7 +767,7 @@ export function App() {
       return;
     }
 
-    if (phase === 'PROFILE') {
+    if (phase === 'PROFILE' || phase === 'PUBLIC_LOBBIES') {
       setPhase('LOBBY');
       return;
     }
@@ -844,7 +917,7 @@ export function App() {
             </button>
 
             {/* PONTO 1: Botão no Canto Superior Direito para Voltar ao Menu Principal */}
-            {(phase !== 'LOBBY' || waitingForPlayer || isBuildingDeck) && (
+            {phase !== 'PROFILE' && (phase !== 'LOBBY' || waitingForPlayer || isBuildingDeck) && (
               <button
                 onClick={handleNavigateToMainMenu}
                 title="Voltar ao Menu Principal"
@@ -870,13 +943,16 @@ export function App() {
         {phase === 'LOBBY' && !isBuildingDeck && (
           <Lobby
             onJoinRoom={handleJoinRoom}
-            onOpenDeckBuilder={(count) => {
+            onOpenDeckBuilder={(count, isSecret, password) => {
               setEditingDeck(null);
               setDeckTargetCount(count);
+              setDeckIsSecret(Boolean(isSecret));
+              setDeckPassword(password || '');
               setIsBuildingDeck(true);
             }}
             onOpenLogin={() => setLoginModalOpen(true)}
             onOpenProfile={() => setPhase('PROFILE')}
+            onOpenPublicLobbies={() => setPhase('PUBLIC_LOBBIES')}
             onSelectSavedDeck={handlePlaySavedDeck}
             onAbandonWaiting={handleExitToLobby}
             currentUser={currentUser}
@@ -919,6 +995,8 @@ export function App() {
                 cardCount: deckTargetCount,
                 deckName: customDeckName,
                 customCards,
+                isSecret: deckIsSecret,
+                password: deckPassword || undefined,
               });
             }}
             onCancel={() => {
@@ -947,6 +1025,20 @@ export function App() {
               setDeckTargetCount(30);
               setIsBuildingDeck(true);
             }}
+          />
+        )}
+
+        {/* 1.3 LOBBIES PÚBLICOS (Ponto 4.a) */}
+        {phase === 'PUBLIC_LOBBIES' && !isBuildingDeck && (
+          <PublicLobbiesPage
+            onBackToLobby={() => setPhase('LOBBY')}
+            onJoinLobby={(code) => {
+              handleJoinRoom(code, playerName || currentUser?.username || 'Convidado', false, {
+                mode: 'standard',
+                cardCount: 15,
+              });
+            }}
+            onCreateRoomDirectly={() => setPhase('LOBBY')}
           />
         )}
 
@@ -1061,6 +1153,8 @@ export function App() {
               opponentSecretCharacter || mySecretCharacter
             }
             opponentName={opponentName}
+            rematchRequestedByMe={rematchRequestedByMe}
+            rematchRequestedByOpponent={rematchRequestedByOpponent}
             onRematch={handleRequestRematch}
             onExit={handleExitToLobby}
           />
@@ -1122,6 +1216,29 @@ export function App() {
             onClose={() => setImportDeckId(null)}
           />
         )}
+
+        {/* Modal para Digitar Senha da Sala Secreta (Ponto 4.a) */}
+        <PasswordPromptModal
+          isOpen={passwordModalOpen}
+          roomCode={passwordModalCode}
+          isLoading={isVerifyingPassword}
+          errorMessage={passwordModalError}
+          onConfirm={(password) => {
+            setIsVerifyingPassword(true);
+            handleJoinRoom(
+              passwordModalCode,
+              playerName || currentUser?.username || 'Convidado',
+              false,
+              { mode: 'standard', cardCount: 15 },
+              password
+            ).finally(() => setIsVerifyingPassword(false));
+          }}
+          onClose={() => {
+            setPasswordModalOpen(false);
+            setPasswordModalCode('');
+            setPasswordModalError(null);
+          }}
+        />
       </main>
 
       {/* Chat Rápido */}

@@ -15,6 +15,9 @@ export interface RoomRecord {
   status: 'waiting' | 'choosing' | 'playing' | 'finished';
   current_turn?: string | null;
   current_question?: Question | null;
+  is_secret?: boolean;
+  password?: string | null;
+  created_at?: string;
 }
 
 export class NetworkService {
@@ -78,6 +81,9 @@ export class NetworkService {
       throw new Error(`A sala "${this.roomCode}" já existe e está em andamento. Tente novamente para gerar outro código.`);
     }
 
+    const isSecret = Boolean(config.isSecret);
+    const password = config.password ? String(config.password).trim() : null;
+
     const { data, error } = await supabase
       .from('game_rooms')
       .upsert({
@@ -88,6 +94,8 @@ export class NetworkService {
         status: 'waiting',
         current_turn: this.playerId,
         current_question: null,
+        is_secret: isSecret,
+        password: password,
         updated_at: new Date().toISOString(),
       })
       .select('*')
@@ -103,8 +111,24 @@ export class NetworkService {
     return data as RoomRecord;
   }
 
-  // 2. Entrar em Sala Existente (Guest)
-  public async joinRoom(roomCode: string, playerName: string): Promise<RoomRecord> {
+  // Obter detalhes rápidos da sala (se existe e se requer senha)
+  public async getRoomDetails(roomCode: string): Promise<{ exists: boolean; isSecret: boolean; status: string } | null> {
+    const { data: room } = await supabase
+      .from('game_rooms')
+      .select('room_code, is_secret, status, guest_id')
+      .eq('room_code', roomCode.trim())
+      .maybeSingle();
+
+    if (!room) return null;
+    return {
+      exists: true,
+      isSecret: Boolean(room.is_secret),
+      status: room.status,
+    };
+  }
+
+  // 2. Entrar em Sala Existente (Guest com suporte a senha e prevenção de corrida)
+  public async joinRoom(roomCode: string, playerName: string, passwordInput?: string): Promise<RoomRecord> {
     this.roomCode = roomCode.trim();
     this.playerName = playerName.trim();
     this.isHost = false;
@@ -128,10 +152,23 @@ export class NetworkService {
     const isPlayerAlreadyInRoom = (room.host_id === this.playerId) || (room.guest_id === this.playerId);
     if (!isPlayerAlreadyInRoom) {
       if (room.guest_id || room.status === 'choosing' || room.status === 'playing') {
-        throw new Error('Esta sala já está cheia (2 jogadores já estão na partida).');
+        throw new Error('Esta sala já está em andamento (dois jogadores já estão na partida).');
+      }
+
+      // Verificação de Senha para Salas Secretas
+      if (room.is_secret) {
+        if (!passwordInput) {
+          const err: any = new Error('Esta sala é secreta e requer uma senha numérica para entrar.');
+          err.requiresPassword = true;
+          throw err;
+        }
+        if (passwordInput.trim() !== String(room.password || '').trim()) {
+          throw new Error('Senha incorreta! Digite a senha numérica correta desta sala secreta.');
+        }
       }
     }
 
+    // ATOMIC UPDATE: Previne corrida se dois jogadores digitarem a senha e tentarem entrar ao mesmo tempo
     const { data: updatedRoom, error: updateError } = await supabase
       .from('game_rooms')
       .update({
@@ -141,11 +178,13 @@ export class NetworkService {
         updated_at: new Date().toISOString(),
       })
       .eq('room_code', this.roomCode)
+      .eq('status', 'waiting')
+      .is('guest_id', null)
       .select('*')
-      .single();
+      .maybeSingle();
 
     if (updateError || !updatedRoom) {
-      throw new Error('Falha ao entrar na sala. Tente novamente.');
+      throw new Error('Esta sala já está em andamento (outro jogador acabou de entrar primeiro).');
     }
 
     await this.subscribeToRoom(this.roomCode);
@@ -158,6 +197,20 @@ export class NetworkService {
 
     this.startPollingRoom();
     return updatedRoom as RoomRecord;
+  }
+
+  // Buscar Lobbies Públicos Abertos
+  public async getPublicLobbies(): Promise<RoomRecord[]> {
+    const { data, error } = await supabase
+      .from('game_rooms')
+      .select('*')
+      .eq('status', 'waiting')
+      .eq('is_secret', false)
+      .order('created_at', { ascending: false })
+      .limit(30);
+
+    if (error || !data) return [];
+    return data as RoomRecord[];
   }
 
   // 3. Reconectar em sala existente (F5 / Refresh)

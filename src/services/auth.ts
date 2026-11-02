@@ -212,6 +212,32 @@ export class AuthService {
     this.notifyListeners();
   }
 
+  // PONTO 3.a: Trocar Senha
+  public async updatePassword(newPassword: string): Promise<void> {
+    if (!newPassword || newPassword.length < 6) {
+      throw new Error('A nova senha deve ter no mínimo 6 caracteres.');
+    }
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    if (error) {
+      throw new Error(error.message || 'Falha ao alterar senha.');
+    }
+  }
+
+  // PONTO 3.a: Apagar Conta e Dados do Usuário
+  public async deleteAccount(userId: string): Promise<void> {
+    try {
+      await supabase.from('saved_decks').delete().eq('user_id', userId);
+      await supabase.from('saved_faces').delete().eq('user_id', userId);
+      await supabase.from('match_history').delete().eq('user_id', userId);
+      localStorage.removeItem(`cara_saved_decks_${userId}`);
+      localStorage.removeItem(`cara_saved_faces_${userId}`);
+      localStorage.removeItem(`cara_matches_${userId}`);
+    } catch (err) {
+      console.warn('Erro ao remover dados do usuário:', err);
+    }
+    await this.logout();
+  }
+
   private setCurrentUser(user: AppUser): void {
     this.currentUser = user;
     localStorage.setItem('cara_auth_user', JSON.stringify(user));
