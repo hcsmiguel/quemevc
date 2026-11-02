@@ -36,6 +36,14 @@ export interface SavedDeck {
   created_at: string;
 }
 
+export interface SavedFace {
+  id: string;
+  user_id: string;
+  name: string;
+  image_url: string;
+  created_at: string;
+}
+
 export class AuthService {
   private currentUser: AppUser | null = null;
   private authStateListeners: Set<(user: AppUser | null) => void> = new Set();
@@ -347,6 +355,149 @@ export class AuthService {
     const localKey = `cara_saved_decks_${userId}`;
     const localSaved: SavedDeck[] = JSON.parse(localStorage.getItem(localKey) || '[]');
     localStorage.setItem(localKey, JSON.stringify(localSaved.filter((d) => d.id !== deckId)));
+  }
+
+  // PONTO 3.d: Buscar Baralho por ID para Compartilhamento
+  public async getDeckById(deckId: string): Promise<SavedDeck | null> {
+    try {
+      const { data, error } = await supabase
+        .from('saved_decks')
+        .select('*')
+        .eq('id', deckId)
+        .maybeSingle();
+
+      if (!error && data) {
+        return data as SavedDeck;
+      }
+    } catch {
+      // ignore
+    }
+
+    // Fallback: buscar no localStorage de todos os decks conhecidos
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith('cara_saved_decks_')) {
+        const decks: SavedDeck[] = JSON.parse(localStorage.getItem(key) || '[]');
+        const found = decks.find((d) => d.id === deckId);
+        if (found) return found;
+      }
+    }
+    return null;
+  }
+
+  // PONTO 3.e: Atualizar Baralho Existente (Editar Nome, Cartas, etc.)
+  public async updateSavedDeck(
+    deckId: string,
+    userId: string,
+    name: string,
+    cardCount: number,
+    cards: Character[]
+  ): Promise<SavedDeck> {
+    const cleanName = name.trim() || `Baralho ${cardCount} Caras`;
+
+    try {
+      const { data, error } = await supabase
+        .from('saved_decks')
+        .update({
+          name: cleanName,
+          card_count: cardCount,
+          cards,
+        })
+        .eq('id', deckId)
+        .select('*')
+        .single();
+
+      if (!error && data) {
+        return data as SavedDeck;
+      }
+    } catch {
+      // ignore
+    }
+
+    // Fallback local
+    const localKey = `cara_saved_decks_${userId}`;
+    const localSaved: SavedDeck[] = JSON.parse(localStorage.getItem(localKey) || '[]');
+    const updated = localSaved.map((d) =>
+      d.id === deckId
+        ? { ...d, name: cleanName, card_count: cardCount, cards }
+        : d
+    );
+    localStorage.setItem(localKey, JSON.stringify(updated));
+    return {
+      id: deckId,
+      user_id: userId,
+      name: cleanName,
+      card_count: cardCount,
+      cards,
+      created_at: new Date().toISOString(),
+    };
+  }
+
+  // PONTO 3.c: Salvar Caras Personalizadas Avulsas no Perfil do Jogador
+  public async saveFace(userId: string, name: string, imageUrl: string): Promise<SavedFace> {
+    const cleanName = name.trim() || 'Personagem';
+
+    try {
+      const { data, error } = await supabase
+        .from('saved_faces')
+        .insert({
+          user_id: userId,
+          name: cleanName,
+          image_url: imageUrl,
+        })
+        .select('*')
+        .single();
+
+      if (!error && data) {
+        return data as SavedFace;
+      }
+    } catch {
+      // ignore
+    }
+
+    // Fallback local
+    const localKey = `cara_saved_faces_${userId}`;
+    const localSaved: SavedFace[] = JSON.parse(localStorage.getItem(localKey) || '[]');
+    const newFace: SavedFace = {
+      id: 'face_' + Date.now(),
+      user_id: userId,
+      name: cleanName,
+      image_url: imageUrl,
+      created_at: new Date().toISOString(),
+    };
+    localStorage.setItem(localKey, JSON.stringify([newFace, ...localSaved]));
+    return newFace;
+  }
+
+  public async getUserSavedFaces(userId: string): Promise<SavedFace[]> {
+    try {
+      const { data, error } = await supabase
+        .from('saved_faces')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+
+      if (!error && data && data.length > 0) {
+        return data as SavedFace[];
+      }
+    } catch {
+      // ignore
+    }
+
+    const localKey = `cara_saved_faces_${userId}`;
+    return JSON.parse(localStorage.getItem(localKey) || '[]');
+  }
+
+  public async deleteSavedFace(faceId: string, userId: string): Promise<void> {
+    try {
+      await supabase.from('saved_faces').delete().eq('id', faceId);
+    } catch {
+      // ignore
+    }
+
+    const localKey = `cara_saved_faces_${userId}`;
+    const localSaved: SavedFace[] = JSON.parse(localStorage.getItem(localKey) || '[]');
+    localStorage.setItem(localKey, JSON.stringify(localSaved.filter((f) => f.id !== faceId)));
   }
 }
 

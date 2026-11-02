@@ -23,7 +23,8 @@ import { SecretSelectionModal } from './components/SecretSelectionModal';
 import { Lobby } from './components/Lobby';
 import { QuickChat } from './components/QuickChat';
 import { LoginModal } from './components/LoginModal';
-import { UserDashboardModal } from './components/UserDashboardModal';
+import { ProfilePage } from './components/ProfilePage';
+import { ImportSharedDeckModal } from './components/ImportSharedDeckModal';
 import { CustomDeckBuilder } from './components/CustomDeckBuilder';
 import { RightSidebar } from './components/RightSidebar';
 import { Footer } from './components/Footer';
@@ -35,7 +36,13 @@ export function App() {
   // Autenticação
   const [currentUser, setCurrentUser] = useState<AppUser | null>(() => auth.getCurrentUser());
   const [loginModalOpen, setLoginModalOpen] = useState(false);
-  const [userDashboardOpen, setUserDashboardOpen] = useState(false);
+
+  // Edição de baralho e importação de baralho compartilhado
+  const [editingDeck, setEditingDeck] = useState<SavedDeck | null>(null);
+  const [importDeckId, setImportDeckId] = useState<string | null>(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('import_deck');
+  });
 
   // Escutar login/logout e mudanças de sessão (OAuth Google e Discord)
   useEffect(() => {
@@ -43,6 +50,8 @@ export function App() {
       setCurrentUser(user);
       if (user?.username) {
         setPlayerName(user.username);
+      } else {
+        setPhase((prev) => (prev === 'PROFILE' ? 'LOBBY' : prev));
       }
     });
     return () => unsubscribe();
@@ -160,7 +169,9 @@ export function App() {
 
   useEffect(() => {
     const handlePopState = () => {
-      if (phase === 'CHOOSING_SECRET') {
+      if (phase === 'PROFILE') {
+        setPhase('LOBBY');
+      } else if (phase === 'CHOOSING_SECRET') {
         setWaitingForPlayer(false);
         setPhase('LOBBY');
       } else if (phase === 'PLAYING') {
@@ -692,10 +703,9 @@ export function App() {
     hasStartedGameRef.current = false;
   };
 
-  // PONTO 2.b: Iniciar partida diretamente com um baralho personalizado salvo
-  const handlePlaySavedDeck = (savedDeck: SavedDeck) => {
-    const randomSuffix = Math.floor(1000 + Math.random() * 9000);
-    const newCode = `CARA-${randomSuffix}`;
+  // PONTO 2.b: Iniciar partida diretamente com um baralho personalizado salvo (Código de 6 números)
+  const handlePlaySavedDeck = async (savedDeck: SavedDeck) => {
+    const newCode = await network.generateUniqueRoomCode();
     handleJoinRoom(newCode, playerName || currentUser?.username || 'Host', true, {
       mode: 'custom',
       cardCount: savedDeck.card_count as DifficultyCount,
@@ -730,7 +740,13 @@ export function App() {
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <span
-              onClick={phase === 'LOBBY' ? undefined : () => setShowAbandonModal(true)}
+              onClick={() => {
+                if (phase === 'PROFILE') {
+                  setPhase('LOBBY');
+                } else if (phase !== 'LOBBY') {
+                  setShowAbandonModal(true);
+                }
+              }}
               className="flex items-center cursor-pointer select-none"
               title={phase === 'LOBBY' ? 'Tá na Cara!' : 'Clique para voltar ao menu principal'}
             >
@@ -750,7 +766,7 @@ export function App() {
           <div className="flex items-center gap-2.5">
             {currentUser ? (
               <button
-                onClick={() => setUserDashboardOpen(true)}
+                onClick={() => setPhase('PROFILE')}
                 className="hidden sm:flex items-center gap-2 text-xs font-bold text-slate-700 bg-white hover:bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200 shadow-sm transition-all hover:border-indigo-400 group cursor-pointer"
                 title="Ver estatísticas, vitórias/derrotas e baralhos salvos"
               >
@@ -799,7 +815,13 @@ export function App() {
             {/* PONTO 1: Botão no Canto Superior Direito para Voltar ao Menu Principal */}
             {phase !== 'LOBBY' && (
               <button
-                onClick={() => setShowAbandonModal(true)}
+                onClick={() => {
+                  if (phase === 'PROFILE') {
+                    setPhase('LOBBY');
+                  } else {
+                    setShowAbandonModal(true);
+                  }
+                }}
                 title="Voltar ao Menu Principal"
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 text-xs font-extrabold uppercase tracking-wider transition-all active:scale-95 shadow-sm cursor-pointer"
               >
@@ -824,16 +846,18 @@ export function App() {
           <Lobby
             onJoinRoom={handleJoinRoom}
             onOpenDeckBuilder={(count) => {
+              setEditingDeck(null);
               setDeckTargetCount(count);
               setIsBuildingDeck(true);
             }}
             onOpenLogin={() => setLoginModalOpen(true)}
-            onOpenDashboard={() => setUserDashboardOpen(true)}
+            onOpenProfile={() => setPhase('PROFILE')}
             onSelectSavedDeck={handlePlaySavedDeck}
             currentUser={currentUser}
             onLogout={() => {
               auth.logout();
               setCurrentUser(null);
+              setPhase('LOBBY');
             }}
             isConnecting={isConnecting}
             waitingForPlayer={waitingForPlayer}
@@ -843,15 +867,27 @@ export function App() {
         )}
 
         {/* 1.1 CONSTRUTOR DE BARALHO PERSONALIZADO */}
-        {phase === 'LOBBY' && isBuildingDeck && (
+        {isBuildingDeck && (
           <CustomDeckBuilder
             targetCount={deckTargetCount}
             roomCode={roomCode || 'temp'}
             currentUser={currentUser}
-            onFinishDeck={(customCards, customDeckName) => {
+            initialDeck={editingDeck}
+            onFinishDeck={async (customCards, customDeckName) => {
               setIsBuildingDeck(false);
-              const randomSuffix = Math.floor(1000 + Math.random() * 9000);
-              const newCode = `CARA-${randomSuffix}`;
+              if (editingDeck) {
+                await auth.updateSavedDeck(
+                  editingDeck.id,
+                  editingDeck.user_id || currentUser?.id || 'guest',
+                  customDeckName || editingDeck.name || 'Baralho Personalizado',
+                  customCards.length,
+                  customCards
+                );
+                setEditingDeck(null);
+                setPhase('PROFILE');
+                return;
+              }
+              const newCode = await network.generateUniqueRoomCode();
               handleJoinRoom(newCode, playerName || currentUser?.username || 'Host', true, {
                 mode: 'custom',
                 cardCount: deckTargetCount,
@@ -859,7 +895,32 @@ export function App() {
                 customCards,
               });
             }}
-            onCancel={() => setIsBuildingDeck(false)}
+            onCancel={() => {
+              setIsBuildingDeck(false);
+              if (editingDeck) {
+                setEditingDeck(null);
+                setPhase('PROFILE');
+              }
+            }}
+          />
+        )}
+
+        {/* 1.2 PÁGINA EXCLUSIVA DE PERFIL */}
+        {phase === 'PROFILE' && currentUser && !isBuildingDeck && (
+          <ProfilePage
+            currentUser={currentUser}
+            onBackToLobby={() => setPhase('LOBBY')}
+            onPlayDeck={(deck) => handlePlaySavedDeck(deck)}
+            onEditDeck={(deck) => {
+              setEditingDeck(deck);
+              setDeckTargetCount(deck.card_count as DifficultyCount);
+              setIsBuildingDeck(true);
+            }}
+            onCreateNewDeck={() => {
+              setEditingDeck(null);
+              setDeckTargetCount(30);
+              setIsBuildingDeck(true);
+            }}
           />
         )}
 
@@ -1022,16 +1083,17 @@ export function App() {
           }}
         />
 
-        {/* Modal de Dashboard do Usuário Logado (Ponto 2.a & 2.b) */}
-        {currentUser && (
-          <UserDashboardModal
-            isOpen={userDashboardOpen}
-            onClose={() => setUserDashboardOpen(false)}
+        {/* Modal de Importação de Baralho Compartilhado via URL (?import_deck=UUID) */}
+        {importDeckId && (
+          <ImportSharedDeckModal
+            deckId={importDeckId}
             currentUser={currentUser}
-            onSelectSavedDeck={(savedDeck) => {
-              setUserDashboardOpen(false);
-              handlePlaySavedDeck(savedDeck);
+            onOpenLogin={() => setLoginModalOpen(true)}
+            onPlayDeck={(deck) => {
+              setImportDeckId(null);
+              handlePlaySavedDeck(deck);
             }}
+            onClose={() => setImportDeckId(null)}
           />
         )}
       </main>

@@ -39,12 +39,44 @@ export class NetworkService {
     this.playerId = savedId;
   }
 
+  // Gerador de código numérico de 6 dígitos único
+  public async generateUniqueRoomCode(): Promise<string> {
+    for (let i = 0; i < 10; i++) {
+      const code = Math.floor(100000 + Math.random() * 900000).toString();
+      const { data } = await supabase
+        .from('game_rooms')
+        .select('room_code, status')
+        .eq('room_code', code)
+        .maybeSingle();
+
+      if (!data || data.status === 'finished') {
+        return code;
+      }
+    }
+    return Math.floor(100000 + Math.random() * 900000).toString();
+  }
+
   // 1. Criar Sala (Host)
   public async createRoom(roomCode: string, playerName: string, config: RoomConfig): Promise<RoomRecord> {
-    this.roomCode = roomCode.toUpperCase().trim();
+    this.roomCode = roomCode.trim();
     this.playerName = playerName.trim();
     this.isHost = true;
     this.hasHandledGuestJoin = false;
+
+    // BLOQUEIO 2: Impossibilitar criar uma sala com o mesmo código de outra que já está ocorrendo
+    const { data: existingRoom } = await supabase
+      .from('game_rooms')
+      .select('room_code, host_id, status')
+      .eq('room_code', this.roomCode)
+      .maybeSingle();
+
+    if (
+      existingRoom &&
+      existingRoom.host_id !== this.playerId &&
+      (existingRoom.status === 'waiting' || existingRoom.status === 'choosing' || existingRoom.status === 'playing')
+    ) {
+      throw new Error(`A sala "${this.roomCode}" já existe e está em andamento. Tente novamente para gerar outro código.`);
+    }
 
     const { data, error } = await supabase
       .from('game_rooms')
@@ -73,7 +105,7 @@ export class NetworkService {
 
   // 2. Entrar em Sala Existente (Guest)
   public async joinRoom(roomCode: string, playerName: string): Promise<RoomRecord> {
-    this.roomCode = roomCode.toUpperCase().trim();
+    this.roomCode = roomCode.trim();
     this.playerName = playerName.trim();
     this.isHost = false;
     this.hasHandledGuestJoin = true;
@@ -85,11 +117,19 @@ export class NetworkService {
       .maybeSingle();
 
     if (fetchError || !room) {
-      throw new Error(`Sala "${this.roomCode}" não foi encontrada. Verifique se o código está correto!`);
+      throw new Error(`A sala "${this.roomCode}" não foi encontrada. Verifique se digitou o código de 6 números corretamente!`);
     }
 
-    if (room.guest_id && room.guest_id !== this.playerId && room.status === 'playing') {
-      throw new Error('Esta sala já está com dois jogadores em partida.');
+    if (room.status === 'finished') {
+      throw new Error('Esta partida já foi encerrada.');
+    }
+
+    // BLOQUEIO 1: Impossibilitar um terceiro jogador de entrar em uma sala em andamento
+    const isPlayerAlreadyInRoom = (room.host_id === this.playerId) || (room.guest_id === this.playerId);
+    if (!isPlayerAlreadyInRoom) {
+      if (room.guest_id || room.status === 'choosing' || room.status === 'playing') {
+        throw new Error('Esta sala já está cheia (2 jogadores já estão na partida).');
+      }
     }
 
     const { data: updatedRoom, error: updateError } = await supabase

@@ -41,7 +41,8 @@ export type GamePhase =
   | 'LOBBY' 
   | 'CHOOSING_SECRET' 
   | 'PLAYING' 
-  | 'GAME_OVER';
+  | 'GAME_OVER'
+  | 'PROFILE';
 
 export interface Question {
   id: string;

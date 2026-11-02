@@ -20,6 +20,7 @@ import {
 import { sounds } from '../utils/sound';
 import type { GameMode, DifficultyCount, RoomConfig } from '../types/game';
 import { auth, type AppUser, type SavedDeck } from '../services/auth';
+import { network } from '../services/network';
 import { STANDARD_60_CHARACTERS } from '../utils/characters';
 import { Avatar } from './Avatar';
 
@@ -27,7 +28,7 @@ interface LobbyProps {
   onJoinRoom: (roomCode: string, playerName: string, isHost: boolean, config: RoomConfig) => void;
   onOpenDeckBuilder: (targetCount: DifficultyCount) => void;
   onOpenLogin: () => void;
-  onOpenDashboard: () => void;
+  onOpenProfile: () => void;
   onSelectSavedDeck: (deck: SavedDeck) => void;
   currentUser: AppUser | null;
   onLogout: () => void;
@@ -41,7 +42,7 @@ export const Lobby: FC<LobbyProps> = ({
   onJoinRoom,
   onOpenDeckBuilder,
   onOpenLogin,
-  onOpenDashboard,
+  onOpenProfile,
   onSelectSavedDeck,
   currentUser,
   onLogout,
@@ -97,7 +98,7 @@ export const Lobby: FC<LobbyProps> = ({
     }
   }, [currentUser, mode]);
 
-  const handleCreateRoom = () => {
+  const handleCreateRoom = async () => {
     if (!name.trim()) return;
     sounds.playClick();
     localStorage.setItem('cara_player_name', name.trim());
@@ -112,8 +113,8 @@ export const Lobby: FC<LobbyProps> = ({
       return;
     }
 
-    const randomSuffix = Math.floor(1000 + Math.random() * 9000);
-    const newCode = `CARA-${randomSuffix}`;
+    // PONTO 1.a: Código da sala com 6 números
+    const newCode = await network.generateUniqueRoomCode();
     onJoinRoom(newCode, name.trim(), true, {
       mode: 'standard',
       cardCount: 15,
@@ -124,7 +125,7 @@ export const Lobby: FC<LobbyProps> = ({
     if (!name.trim() || !inputCode.trim()) return;
     sounds.playClick();
     localStorage.setItem('cara_player_name', name.trim());
-    onJoinRoom(inputCode.trim().toUpperCase(), name.trim(), false, {
+    onJoinRoom(inputCode.trim(), name.trim(), false, {
       mode: 'standard',
       cardCount: 15,
     });
@@ -265,9 +266,9 @@ export const Lobby: FC<LobbyProps> = ({
                 <>
                   <button
                     type="button"
-                    onClick={onOpenDashboard}
+                    onClick={onOpenProfile}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold transition-all border border-indigo-200 shadow-sm cursor-pointer"
-                    title="Ver estatísticas, histórico de oponentes e baralhos"
+                    title="Ver perfil exclusivo, baralhos salvos e histórico"
                   >
                     <Trophy size={13} className="text-indigo-600" />
                     <span>Meu Perfil</span>
@@ -461,8 +462,8 @@ export const Lobby: FC<LobbyProps> = ({
                         </span>
                         <button
                           type="button"
-                          onClick={onOpenDashboard}
-                          className="text-[10px] font-extrabold text-purple-700 hover:text-purple-900 underline"
+                          onClick={onOpenProfile}
+                          className="text-[10px] font-extrabold text-purple-700 hover:text-purple-900 underline cursor-pointer"
                         >
                           Gerenciar
                         </button>
@@ -551,15 +552,18 @@ export const Lobby: FC<LobbyProps> = ({
             <div className="space-y-4 animate-in fade-in duration-150">
               <div>
                 <label className="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-1.5">
-                  Código da Sala de Jogo:
+                  Código da Sala (6 números):
                 </label>
                 <input
                   type="text"
-                  placeholder="Ex: CARA-7842"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  maxLength={6}
+                  placeholder="Ex: 489201"
                   value={inputCode}
-                  onChange={(e) => setInputCode(e.target.value.toUpperCase())}
+                  onChange={(e) => setInputCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
                   onKeyDown={(e) => e.key === 'Enter' && handleJoinWithCode()}
-                  className="w-full bg-slate-50 border-2 border-slate-200 text-slate-900 font-mono font-extrabold placeholder-slate-400 text-base tracking-widest rounded-2xl px-4 py-3 focus:outline-none focus:bg-white focus:border-sky-400 focus:ring-4 focus:ring-sky-100 transition-all uppercase"
+                  className="w-full bg-slate-50 border-2 border-slate-200 text-slate-900 font-mono font-black placeholder-slate-400 text-lg tracking-[0.25em] text-center rounded-2xl px-4 py-3 focus:outline-none focus:bg-white focus:border-sky-400 focus:ring-4 focus:ring-sky-100 transition-all"
                 />
               </div>
 
