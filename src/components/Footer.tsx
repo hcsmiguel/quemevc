@@ -12,12 +12,14 @@ export const Footer: FC<FooterProps> = ({ onOpenPrivacy, onOpenTerms }) => {
       <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
         {/* Identificação e Lema */}
         <div className="flex items-center gap-2.5 text-center sm:text-left">
-          <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center font-bold text-sm shadow-tactile-sm">
-            🎭
-          </div>
+          <img
+            src="/logo-icon.svg"
+            alt="Tá na Cara!"
+            className="w-8 h-8 object-contain"
+          />
           <div>
             <div className="font-extrabold text-slate-800 tracking-tight flex items-center gap-1.5">
-              <span>Cara a Cara</span>
+              <span>Tá na Cara!</span>
               <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
                 100% Livre
               </span>

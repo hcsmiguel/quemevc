@@ -279,13 +279,15 @@ export const Lobby: FC<LobbyProps> = ({
           </div>
 
           {/* Título e Apresentação do Jogo */}
-          <div className="text-center mb-6">
+          <div className="text-center mb-6 flex flex-col items-center">
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-100/80 text-amber-900 text-[11px] font-bold border border-amber-200 mb-2">
-              <span>🎭 Edição 2 Jogadores Online</span>
+              <span>Edição 2 Jogadores Online</span>
             </div>
-            <h1 className="text-3xl font-black text-slate-900 tracking-tight">
-              Cara a Cara
-            </h1>
+            <img
+              src="/logo-horizontal.svg"
+              alt="Tá na Cara!"
+              className="h-12 sm:h-14 w-auto object-contain my-1"
+            />
             <p className="text-xs text-slate-500 mt-1">
               O clássico jogo de adivinhação, feito para jogar a dois em tempo real
             </p>

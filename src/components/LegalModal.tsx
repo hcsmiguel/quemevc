@@ -120,7 +120,7 @@ export const LegalModal: FC<LegalModalProps> = ({
                   <strong className="block text-sm font-bold mb-0.5 text-sky-950">
                     Jogo Livre e Gratuito
                   </strong>
-                  O Cara a Cara foi desenvolvido para proporcionar momentos leves de diversão entre amigos e família de forma descontraída e acessível.
+                  O Tá na Cara! foi desenvolvido para proporcionar momentos leves de diversão entre amigos e família de forma descontraída e acessível.
                 </div>
               </div>
 

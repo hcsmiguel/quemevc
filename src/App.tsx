@@ -731,12 +731,14 @@ export function App() {
           <div className="flex items-center gap-3">
             <span
               onClick={phase === 'LOBBY' ? undefined : () => setShowAbandonModal(true)}
-              className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-2 cursor-pointer select-none"
+              className="flex items-center cursor-pointer select-none"
+              title={phase === 'LOBBY' ? 'Tá na Cara!' : 'Clique para voltar ao menu principal'}
             >
-              <span className="w-8 h-8 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center text-sm shadow-tactile-sm">
-                🎭
-              </span>
-              <span>Cara a Cara</span>
+              <img
+                src="/logo-horizontal.svg"
+                alt="Tá na Cara!"
+                className="h-9 sm:h-10 w-auto object-contain hover:opacity-90 transition-opacity"
+              />
             </span>
             {roomCode && (
               <span className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 border border-amber-200 text-xs font-mono text-amber-900 font-extrabold">

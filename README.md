@@ -1,6 +1,6 @@
-# 🎭 Cara a Cara - Jogo Web Multiplayer (2 Jogadores)
+# 🔍 Tá na Cara! - Jogo Web Multiplayer (2 Jogadores)
 
-Um jogo web inspirado no clássico jogo de tabuleiro **Cara a Cara** (*Guess Who?*), desenvolvido especificamente para jogar online entre dois computadores em tempo real.
+Um jogo web inspirado no clássico jogo de tabuleiro de adivinhação (**Tá na Cara!**), desenvolvido especificamente para jogar online entre dois computadores em tempo real.
 
 ---
 
