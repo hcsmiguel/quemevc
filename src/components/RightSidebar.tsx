@@ -40,7 +40,7 @@ export const RightSidebar: FC<RightSidebarProps> = ({
   };
 
   return (
-    <aside className="w-full lg:w-72 bg-white border-2 border-slate-200 rounded-3xl p-4 flex flex-col gap-4 shadow-sm">
+    <aside className="w-full lg:w-72 bg-white border-2 border-slate-200 rounded-2xl sm:rounded-3xl p-3.5 sm:p-4 flex flex-col gap-3.5 sm:gap-4 shadow-sm">
       {/* Botão de Destaque 'Desfazer' (Requisito F.b) */}
       <div className="bg-slate-50 p-3 rounded-2xl border border-slate-200 flex flex-col gap-2">
         <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">

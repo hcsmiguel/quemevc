@@ -21,7 +21,7 @@ export const QuickChat: FC<QuickChatProps> = ({ onSendMessage, recentMessages })
   };
 
   return (
-    <div className="fixed bottom-4 right-4 z-40 flex flex-col items-end">
+    <div className="fixed bottom-3 right-3 sm:bottom-4 sm:right-4 z-40 flex flex-col items-end">
       {!isOpen && recentMessages.length > 0 && (
         <div className="mb-2 space-y-1.5 max-w-xs">
           {recentMessages.slice(-2).map((m) => (
@@ -102,9 +102,9 @@ export const QuickChat: FC<QuickChatProps> = ({ onSendMessage, recentMessages })
           sounds.playClick();
           setIsOpen(!isOpen);
         }}
-        className="bg-slate-900 hover:bg-slate-800 text-white p-3.5 rounded-2xl shadow-tactile active:translate-y-0.5 transition-all flex items-center justify-center relative cursor-pointer"
+        className="bg-slate-900/90 hover:bg-slate-800 text-white p-2.5 sm:p-3.5 rounded-2xl shadow-lg active:scale-95 transition-all flex items-center justify-center relative cursor-pointer backdrop-blur-sm border border-slate-700/50"
       >
-        <MessageCircle size={22} />
+        <MessageCircle size={20} className="sm:w-[22px] sm:h-[22px]" />
         {recentMessages.length > 0 && !isOpen && (
           <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-amber-400 animate-pulse border-2 border-white" />
         )}

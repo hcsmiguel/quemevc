@@ -1,197 +1,105 @@
-import { useState, useRef, useEffect, memo, type FC } from 'react';
+import { memo, type FC } from 'react';
 import type { Character, CardStatus } from '../types/game';
 import { Avatar } from './Avatar';
-import { HelpCircle, EyeOff, RotateCcw, X } from 'lucide-react';
-import { sounds } from '../utils/sound';
+import { EyeOff } from 'lucide-react';
 
 interface CardProps {
   character: Character;
   status: CardStatus;
-  onSetStatus: (id: string, newStatus: CardStatus) => void;
-  onTargetSelect?: (char: Character) => void;
+  onCardClick: (character: Character) => void;
   disabled?: boolean;
 }
 
 const CardComponent: FC<CardProps> = ({
   character,
   status,
-  onSetStatus,
+  onCardClick,
   disabled = false,
 }) => {
-  const [menuOpen, setMenuOpen] = useState(false);
-  const cardRef = useRef<HTMLDivElement | null>(null);
-
-  // Fechar menu ao clicar ou tocar fora
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent | TouchEvent) => {
-      if (cardRef.current && !cardRef.current.contains(e.target as Node)) {
-        setMenuOpen(false);
-      }
-    };
-    if (menuOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-      document.addEventListener('touchstart', handleClickOutside, { passive: true });
-    }
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('touchstart', handleClickOutside);
-    };
-  }, [menuOpen]);
-
-  const handleCardClick = () => {
-    if (disabled) return;
-    sounds.playClick();
-    setMenuOpen((prev) => !prev);
-  };
-
-  const handleSelectOption = (newStatus: CardStatus) => {
-    setMenuOpen(false);
-    if (newStatus === 'discard') sounds.playFlip(true);
-    else if (newStatus === 'normal') sounds.playFlip(false);
-    else sounds.playClick();
-    onSetStatus(character.id, newStatus);
-  };
-
   const isDiscarded = status === 'discard';
   const isSuspect = status === 'suspect';
-  const isNearTop = cardRef.current ? cardRef.current.getBoundingClientRect().top < 160 : false;
+
+  const handleClick = () => {
+    if (disabled) return;
+    onCardClick(character);
+  };
 
   return (
     <div
-      ref={cardRef}
-      className={`relative select-none transition-transform duration-200 ${
-        disabled ? 'cursor-not-allowed opacity-80' : 'cursor-pointer active:scale-95'
-      }`}
-      style={{ minHeight: '145px', touchAction: 'manipulation' }}
+      onClick={handleClick}
+      role="button"
+      tabIndex={0}
+      className={`relative select-none transition-transform duration-150 rounded-2xl border-2 p-1.5 sm:p-2 flex flex-col items-center justify-between cursor-pointer active:scale-95 ${
+        isDiscarded
+          ? 'bg-slate-100/80 border-slate-200 opacity-40 scale-[0.93]'
+          : isSuspect
+          ? 'bg-amber-50 border-amber-400 shadow-[0_2px_0_#f59e0b]'
+          : 'bg-white border-slate-200 hover:border-sky-400 shadow-[0_2px_0_#cbd5e1]'
+      } ${disabled ? 'cursor-not-allowed opacity-80' : ''}`}
+      style={{ minHeight: '118px', touchAction: 'manipulation' }}
     >
-      {/* Corpo da Cartela */}
-      <div
-        onClick={handleCardClick}
-        className={`w-full h-full rounded-2xl p-2 flex flex-col items-center justify-between border-2 transition-all duration-200 ${
-          isDiscarded
-            ? 'bg-slate-100 border-slate-200 scale-[0.92] opacity-40 translate-y-1'
-            : isSuspect
-            ? 'bg-amber-50 border-amber-400 shadow-[0_3px_0_#f59e0b]'
-            : 'bg-white border-slate-200 hover:border-sky-400 hover:scale-[1.03] shadow-[0_3px_0_#cbd5e1]'
-        }`}
-      >
-        {/* Cabeçalho da Cartela */}
-        <div className="w-full flex items-center justify-between mb-1 px-1">
-          <span
-            className={`text-xs font-bold tracking-wide truncate max-w-[85px] ${
-              isSuspect ? 'text-amber-900' : 'text-slate-800'
-            }`}
-          >
-            {character.name}
-          </span>
-
-          {/* Indicador de Status */}
-          {isDiscarded && (
-            <span className="bg-rose-100 text-rose-700 p-0.5 rounded-full border border-rose-300">
-              <EyeOff size={11} />
-            </span>
-          )}
-          {isSuspect && (
-            <span className="bg-amber-200 text-amber-900 p-0.5 rounded-full border border-amber-400 font-extrabold text-[10px] px-1">
-              ?
-            </span>
-          )}
-          {!isDiscarded && !isSuspect && (
-            <span className="w-2 h-2 rounded-full bg-emerald-500" />
-          )}
-        </div>
-
-        {/* Avatar Central com Efeitos */}
-        <div className="relative my-0.5">
-          <Avatar
-            character={character}
-            size={74}
-            className={`transition-all duration-200 ${
-              isDiscarded ? 'grayscale' : isSuspect ? 'grayscale-[50%] brightness-95' : ''
-            }`}
-          />
-
-          {/* Efeito Suspeito: Interrogação Vermelha Translúcida */}
-          {isSuspect && (
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <span className="text-amber-600/70 font-black text-6xl drop-shadow select-none">
-                ?
-              </span>
-            </div>
-          )}
-
-          {/* Efeito Descarte: Overlay de Eliminado */}
-          {isDiscarded && (
-            <div className="absolute inset-0 bg-slate-900/40 rounded-2xl flex items-center justify-center">
-              <span className="bg-rose-600 text-white font-extrabold text-[9px] uppercase tracking-wider px-2 py-0.5 rounded-full shadow">
-                Descarte
-              </span>
-            </div>
-          )}
-        </div>
-
-        {/* Rodapé da Cartela */}
-        <div className="w-full flex items-center justify-center gap-1 mt-1 text-[10px] text-slate-400 font-medium">
-          {character.traits?.glasses && <span title="Usa óculos">👓</span>}
-          {character.traits?.hat && <span title="Usa chapéu/boné">🧢</span>}
-          {character.traits?.beard && <span title="Tem barba">🧔</span>}
-          {character.traits?.earrings && <span title="Usa brinco">💍</span>}
-        </div>
-      </div>
-
-      {/* Menu Contextual ao Clicar (Suspeito, Descarte, Restaurar) */}
-      {menuOpen && (
-        <div
-          onClick={(e) => e.stopPropagation()}
-          className={`absolute z-50 left-1/2 -translate-x-1/2 w-44 bg-white border-2 border-slate-200 rounded-2xl p-2 shadow-2xl animate-in zoom-in-95 flex flex-col gap-1.5 ${
-            isNearTop ? 'top-full mt-2' : '-top-2 -translate-y-full'
+      {/* Cabeçalho da Cartela */}
+      <div className="w-full flex items-center justify-between px-0.5 mb-0.5">
+        <span
+          className={`text-[11px] sm:text-xs font-bold tracking-tight truncate max-w-[70px] sm:max-w-[85px] ${
+            isSuspect ? 'text-amber-900' : 'text-slate-800'
           }`}
         >
-          <div className="flex items-center justify-between px-1 pb-1 border-b border-slate-100 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-            <span>{character.name}</span>
-            <button onClick={() => setMenuOpen(false)} className="text-slate-400 hover:text-slate-700">
-              <X size={12} />
-            </button>
+          {character.name}
+        </span>
+
+        {/* Indicador de Status */}
+        {isDiscarded && (
+          <span className="bg-rose-100 text-rose-700 p-0.5 rounded-full border border-rose-300">
+            <EyeOff size={10} />
+          </span>
+        )}
+        {isSuspect && (
+          <span className="bg-amber-200 text-amber-900 px-1 py-0.2 rounded-full border border-amber-400 font-black text-[9px]">
+            ?
+          </span>
+        )}
+        {!isDiscarded && !isSuspect && (
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+        )}
+      </div>
+
+      {/* Avatar Central com Efeitos */}
+      <div className="relative my-0.5 flex items-center justify-center">
+        <Avatar
+          character={character}
+          size={58}
+          className={`transition-all duration-200 ${
+            isDiscarded ? 'grayscale' : isSuspect ? 'grayscale-[40%] brightness-95' : ''
+          }`}
+        />
+
+        {/* Efeito Suspeito: Interrogação Translúcida */}
+        {isSuspect && (
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <span className="text-amber-600/70 font-black text-5xl sm:text-6xl drop-shadow select-none">
+              ?
+            </span>
           </div>
+        )}
 
-          {/* Opção 1: 'Suspeito' */}
-          <button
-            onClick={() => handleSelectOption(isSuspect ? 'normal' : 'suspect')}
-            className={`flex items-center gap-2 w-full p-2 rounded-xl text-xs font-bold transition-colors ${
-              isSuspect
-                ? 'bg-amber-200 text-amber-900 border border-amber-300 font-black'
-                : 'bg-amber-50 hover:bg-amber-100 text-amber-900'
-            }`}
-          >
-            <HelpCircle size={14} className="shrink-0 text-amber-600" />
-            <span>{isSuspect ? 'Desmarcar Suspeito' : 'Marcar Suspeito'}</span>
-          </button>
+        {/* Efeito Descarte: Overlay de Eliminado */}
+        {isDiscarded && (
+          <div className="absolute inset-0 bg-slate-900/40 rounded-2xl flex items-center justify-center">
+            <span className="bg-rose-600 text-white font-black text-[8px] sm:text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded-full shadow">
+              Descarte
+            </span>
+          </div>
+        )}
+      </div>
 
-          {/* Opção 2: 'Descarte' */}
-          <button
-            onClick={() => handleSelectOption(isDiscarded ? 'normal' : 'discard')}
-            className={`flex items-center gap-2 w-full p-2 rounded-xl text-xs font-bold transition-colors ${
-              isDiscarded
-                ? 'bg-rose-200 text-rose-900 border border-rose-300 font-black'
-                : 'bg-rose-50 hover:bg-rose-100 text-rose-800'
-            }`}
-          >
-            <EyeOff size={14} className="shrink-0 text-rose-600" />
-            <span>{isDiscarded ? 'Restaurar Carta' : 'Descartar / Virar'}</span>
-          </button>
-
-          {/* Opção 3: 'Restaurar' (se não estiver normal) */}
-          {status !== 'normal' && (
-            <button
-              onClick={() => handleSelectOption('normal')}
-              className="flex items-center justify-center gap-1.5 w-full p-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-semibold border-t border-slate-100 mt-0.5 transition-colors"
-            >
-              <RotateCcw size={12} className="shrink-0" />
-              <span>Voltar ao Normal</span>
-            </button>
-          )}
-        </div>
-      )}
+      {/* Rodapé da Cartela */}
+      <div className="w-full flex items-center justify-center gap-1 text-[9px] sm:text-[10px] text-slate-400 font-medium">
+        {character.traits?.glasses && <span title="Usa óculos">👓</span>}
+        {character.traits?.hat && <span title="Usa chapéu/boné">🧢</span>}
+        {character.traits?.beard && <span title="Tem barba">🧔</span>}
+        {character.traits?.earrings && <span title="Usa brinco">💍</span>}
+      </div>
     </div>
   );
 };
@@ -203,6 +111,6 @@ export const Card = memo(CardComponent, (prev, next) => {
     prev.character.id === next.character.id &&
     prev.character.name === next.character.name &&
     prev.character.imageUrl === next.character.imageUrl &&
-    prev.onSetStatus === next.onSetStatus
+    prev.onCardClick === next.onCardClick
   );
 });

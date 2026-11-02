@@ -14,24 +14,20 @@ body {
   color: #0F172A;
   user-select: none;
   -webkit-user-select: none;
-  -webkit-touch-callout: none;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overflow-x: hidden;
   touch-action: pan-y;
 }
 
-/* Otimização de rolagem e toques no mobile */
-* {
-  -webkit-tap-highlight-color: transparent;
+/* Permitir seleção e digitação perfeita em campos de texto */
+input, textarea {
+  user-select: text;
+  -webkit-user-select: text;
 }
 
-button, a, input, select {
+/* Resposta tátil imediata sem atraso de 300ms de duplo-toque */
+button, a, input, select, [role="button"] {
   touch-action: manipulation;
-}
-
-/* Otimização de renderização da grade de cartas com muitos elementos */
-.cards-board-grid {
-  content-visibility: auto;
-  contain-intrinsic-size: 150px;
+  -webkit-tap-highlight-color: transparent;
 }
