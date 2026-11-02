@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, type FC, type ChangeEvent, type DragEvent } from 'react';
 import { supabase } from '../services/supabase';
-import { Upload, X, Check, ZoomIn, ZoomOut, Move, Scissors } from 'lucide-react';
+import { Upload, X, Check, ZoomIn, ZoomOut, Move, Scissors, Clipboard, Image as ImageIcon } from 'lucide-react';
 import { sounds } from '../utils/sound';
 import type { Character } from '../types/game';
 
@@ -9,15 +9,39 @@ interface ImageCropperModalProps {
   onClose: () => void;
   initialIndex?: number;
   roomCode?: string;
+  initialImageSrc?: string | null;
 }
+
+// Fallback universal para desenhar retângulos com cantos arredondados no canvas (iOS/Android)
+const drawRoundedRect = (
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  r: number
+) => {
+  if (typeof ctx.roundRect === 'function') {
+    ctx.roundRect(x, y, w, h, r);
+  } else {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+};
 
 export const ImageCropperModal: FC<ImageCropperModalProps> = ({
   onSaveCharacter,
   onClose,
   initialIndex = 1,
   roomCode = 'temp',
+  initialImageSrc = null,
 }) => {
-  const [imageSrc, setImageSrc] = useState<string | null>(null);
+  const [imageSrc, setImageSrc] = useState<string | null>(initialImageSrc);
   const [characterName, setCharacterName] = useState('');
   const [zoom, setZoom] = useState(1);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
@@ -29,7 +53,7 @@ export const ImageCropperModal: FC<ImageCropperModalProps> = ({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const imgRef = useRef<HTMLImageElement | null>(null);
 
-  const processFile = (file: File) => {
+  const processFile = (file: File | Blob) => {
     if (!file.type.startsWith('image/')) {
       setErrorMsg('Por favor selecione um arquivo de imagem válido (PNG, JPG, WebP).');
       return;
@@ -55,6 +79,53 @@ export const ImageCropperModal: FC<ImageCropperModalProps> = ({
     if (file) processFile(file);
   };
 
+  // Botão universal de Colar Imagem da Área de Transferência (Mobile & Desktop)
+  const handlePasteFromClipboard = async () => {
+    sounds.playClick();
+    setErrorMsg(null);
+    try {
+      if (!navigator.clipboard) {
+        setErrorMsg('Seu navegador não suporta leitura direta. Use o botão "Escolher Foto".');
+        return;
+      }
+
+      // Tentativa 1: ler imagens binárias nativas (Blob PNG/JPEG)
+      if (typeof navigator.clipboard.read === 'function') {
+        try {
+          const items = await navigator.clipboard.read();
+          for (const item of items) {
+            for (const type of item.types) {
+              if (type.startsWith('image/')) {
+                const blob = await item.getType(type);
+                processFile(blob);
+                return;
+              }
+            }
+          }
+        } catch (readErr) {
+          console.warn('navigator.clipboard.read() não disponível ou negado, tentando readText():', readErr);
+        }
+      }
+
+      // Tentativa 2: ler texto se for URL de imagem ou base64
+      if (typeof navigator.clipboard.readText === 'function') {
+        const text = (await navigator.clipboard.readText()).trim();
+        if (text.startsWith('data:image/') || text.match(/^https?:\/\/.*\.(png|jpg|jpeg|webp|gif)(\?.*)?$/i)) {
+          setImageSrc(text);
+          setZoom(1);
+          setOffset({ x: 0, y: 0 });
+          return;
+        }
+      }
+
+      setErrorMsg('Nenhuma imagem encontrada na área de transferência. Copie uma imagem primeiro e clique em Colar!');
+    } catch (err) {
+      console.warn('Erro ao acessar área de transferência:', err);
+      setErrorMsg('Permissão de acesso à área de transferência negada. Cole com Ctrl+V ou use "Escolher Foto".');
+    }
+  };
+
+  // Atalho padrão Ctrl+V
   useEffect(() => {
     const handlePaste = (e: globalThis.ClipboardEvent) => {
       const items = e.clipboardData?.items;
@@ -104,7 +175,7 @@ export const ImageCropperModal: FC<ImageCropperModalProps> = ({
 
     ctx.save();
     ctx.beginPath();
-    ctx.roundRect(15, 15, size - 30, size - 30, 28);
+    drawRoundedRect(ctx, 15, 15, size - 30, size - 30, 28);
     ctx.clip();
 
     const scale = (size / Math.min(img.width, img.height)) * zoom;
@@ -116,13 +187,14 @@ export const ImageCropperModal: FC<ImageCropperModalProps> = ({
     ctx.drawImage(img, drawX, drawY, drawW, drawH);
     ctx.restore();
 
-    ctx.strokeStyle = '#6366f1';
+    ctx.strokeStyle = '#0284c7';
     ctx.lineWidth = 3;
     ctx.beginPath();
-    ctx.roundRect(15, 15, size - 30, size - 30, 28);
+    drawRoundedRect(ctx, 15, 15, size - 30, size - 30, 28);
     ctx.stroke();
   };
 
+  // Manipuladores de Mouse (Desktop)
   const handleMouseDown = (e: React.MouseEvent) => {
     setIsDragging(true);
     setDragStart({ x: e.clientX - offset.x, y: e.clientY - offset.y });
@@ -137,6 +209,26 @@ export const ImageCropperModal: FC<ImageCropperModalProps> = ({
   };
 
   const handleMouseUp = () => setIsDragging(false);
+
+  // Manipuladores de Touch (Mobile)
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (!e.touches[0]) return;
+    setIsDragging(true);
+    setDragStart({
+      x: e.touches[0].clientX - offset.x,
+      y: e.touches[0].clientY - offset.y,
+    });
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!isDragging || !e.touches[0]) return;
+    setOffset({
+      x: e.touches[0].clientX - dragStart.x,
+      y: e.touches[0].clientY - dragStart.y,
+    });
+  };
+
+  const handleTouchEnd = () => setIsDragging(false);
 
   const handleSave = async () => {
     const canvas = canvasRef.current;
@@ -196,66 +288,94 @@ export const ImageCropperModal: FC<ImageCropperModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-white border-2 border-slate-200 rounded-3xl max-w-lg w-full p-6 shadow-2xl flex flex-col gap-4 animate-in zoom-in-95">
+    <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+      <div className="bg-white border-2 border-slate-200 rounded-3xl max-w-lg w-full p-4 sm:p-6 shadow-2xl flex flex-col gap-3.5 my-auto animate-in zoom-in-95">
         <div className="flex items-center justify-between border-b border-slate-100 pb-3">
           <div className="flex items-center gap-2">
-            <div className="w-9 h-9 rounded-xl bg-sky-100 text-sky-800 flex items-center justify-center shadow-tactile-sm">
+            <div className="w-9 h-9 rounded-xl bg-sky-100 text-sky-800 flex items-center justify-center shadow-tactile-sm shrink-0">
               <Scissors size={20} className="text-sky-700" />
             </div>
             <div>
-              <h3 className="text-base font-extrabold text-slate-900">Criar Cara Personalizada</h3>
-              <p className="text-xs text-slate-500">Cole (Ctrl+V), arraste ou escolha uma imagem</p>
+              <h3 className="text-base font-extrabold text-slate-900">Personalizar Cara</h3>
+              <p className="text-xs text-slate-500">Recorte e ajuste o enquadramento</p>
             </div>
           </div>
-          <button onClick={onClose} className="p-1.5 text-slate-400 hover:text-slate-700 rounded-xl hover:bg-slate-100 transition-colors">
-            <X size={18} />
+          <button
+            onClick={onClose}
+            className="p-1.5 text-slate-400 hover:text-slate-700 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer"
+          >
+            <X size={20} />
           </button>
         </div>
 
         {errorMsg && (
-          <div className="p-2.5 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-800">
+          <div className="p-2.5 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-800 font-semibold">
             {errorMsg}
           </div>
         )}
 
         {!imageSrc ? (
-          <div
-            onDragOver={(e) => e.preventDefault()}
-            onDrop={handleDrop}
-            className="border-2 border-dashed border-sky-300 hover:border-sky-400 rounded-3xl p-8 flex flex-col items-center justify-center text-center cursor-pointer transition-all bg-sky-50/40 hover:bg-sky-50/80 group"
-          >
-            <div className="w-16 h-16 rounded-2xl bg-sky-100 text-sky-700 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform shadow-tactile-sm">
-              <Upload size={32} />
-            </div>
-            <h4 className="text-sm font-extrabold text-slate-900 mb-1">Arraste uma foto aqui ou cole (Ctrl+V)</h4>
-            <p className="text-xs text-slate-500 mb-4 max-w-xs">
-              Você pode copiar qualquer imagem da internet e colar com Ctrl+V aqui direto!
-            </p>
+          <div className="flex flex-col gap-3">
+            <div
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={handleDrop}
+              className="border-2 border-dashed border-sky-300 hover:border-sky-400 rounded-3xl p-6 sm:p-8 flex flex-col items-center justify-center text-center transition-all bg-sky-50/40 hover:bg-sky-50/70"
+            >
+              <div className="w-14 h-14 rounded-2xl bg-sky-100 text-sky-700 flex items-center justify-center mb-3 shadow-tactile-sm">
+                <Upload size={28} />
+              </div>
+              <h4 className="text-sm font-extrabold text-slate-900 mb-1">
+                Escolha uma foto ou cole da Área de Transferência
+              </h4>
+              <p className="text-xs text-slate-500 mb-4 max-w-xs">
+                Tire uma foto, envie da galeria ou cole uma imagem copiada da internet!
+              </p>
 
-            <label className="cursor-pointer px-4 py-2.5 rounded-xl bg-sky-500 hover:bg-sky-600 text-white font-extrabold text-xs uppercase tracking-wider shadow-[0_3px_0_#0284c7] transition-all active:translate-y-0.5">
-              Escolher do Computador
-              <input type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
-            </label>
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-2.5 w-full max-w-xs">
+                {/* Botão de Colar Imagem */}
+                <button
+                  type="button"
+                  onClick={handlePasteFromClipboard}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-extrabold text-xs uppercase tracking-wider shadow-[0_3px_0_#581c87] transition-all active:translate-y-0.5 cursor-pointer"
+                >
+                  <Clipboard size={16} />
+                  <span>Colar Imagem</span>
+                </button>
+
+                {/* Botão Escolher Foto / Câmera */}
+                <label className="w-full flex items-center justify-center gap-2 cursor-pointer px-4 py-3 rounded-xl bg-sky-500 hover:bg-sky-600 text-white font-extrabold text-xs uppercase tracking-wider shadow-[0_3px_0_#0284c7] transition-all active:translate-y-0.5">
+                  <ImageIcon size={16} />
+                  <span>Escolher Foto</span>
+                  <input type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
+                </label>
+              </div>
+            </div>
           </div>
         ) : (
           <div className="flex flex-col items-center gap-3">
+            {/* Canvas Interativo com Suporte a Mouse e Touch */}
             <div
-              className="relative cursor-move select-none rounded-2xl overflow-hidden border-2 border-slate-200 bg-slate-100 shadow-inner"
+              className="relative cursor-move select-none rounded-2xl overflow-hidden border-2 border-slate-200 bg-slate-900 shadow-inner flex items-center justify-center"
+              style={{ touchAction: 'none' }}
               onMouseDown={handleMouseDown}
               onMouseMove={handleMouseMove}
               onMouseUp={handleMouseUp}
               onMouseLeave={handleMouseUp}
+              onTouchStart={handleTouchStart}
+              onTouchMove={handleTouchMove}
+              onTouchEnd={handleTouchEnd}
+              onTouchCancel={handleTouchEnd}
             >
-              <canvas ref={canvasRef} className="block" />
-              <div className="absolute top-2 left-2 bg-white/90 backdrop-blur-sm text-[10px] text-slate-700 font-bold px-2 py-0.5 rounded-lg border border-slate-200 pointer-events-none flex items-center gap-1 shadow-sm">
-                <Move size={12} />
-                Arraste para ajustar posição
+              <canvas ref={canvasRef} className="block w-[260px] h-[260px] sm:w-[280px] sm:h-[280px]" />
+              <div className="absolute top-2 left-2 bg-white/95 backdrop-blur-sm text-[10px] text-slate-700 font-extrabold px-2 py-0.5 rounded-lg border border-slate-200 pointer-events-none flex items-center gap-1 shadow-sm">
+                <Move size={12} className="text-sky-600" />
+                Arraste com o dedo ou mouse
               </div>
             </div>
 
-            <div className="w-full flex items-center justify-center gap-3 px-2">
-              <ZoomOut size={16} className="text-slate-400" />
+            {/* Controle de Zoom */}
+            <div className="w-full flex items-center justify-center gap-3 px-2 py-1 bg-slate-50 border border-slate-200 rounded-xl">
+              <ZoomOut size={16} className="text-slate-500" />
               <input
                 type="range"
                 min="0.6"
@@ -263,14 +383,15 @@ export const ImageCropperModal: FC<ImageCropperModalProps> = ({
                 step="0.05"
                 value={zoom}
                 onChange={(e) => setZoom(parseFloat(e.target.value))}
-                className="w-48 accent-sky-500 cursor-pointer"
+                className="w-44 sm:w-56 accent-sky-500 cursor-pointer"
               />
-              <ZoomIn size={16} className="text-slate-400" />
+              <ZoomIn size={16} className="text-slate-500" />
             </div>
 
+            {/* Nome do Personagem */}
             <div className="w-full">
               <label className="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-1">
-                Nome ou Apelido (Opcional):
+                Nome ou Apelido:
               </label>
               <input
                 type="text"
@@ -281,14 +402,17 @@ export const ImageCropperModal: FC<ImageCropperModalProps> = ({
               />
             </div>
 
-            <div className="w-full flex items-center gap-3 pt-2">
+            {/* Botões de Ação */}
+            <div className="w-full flex items-center gap-2.5 pt-1">
               <button
+                type="button"
                 onClick={() => setImageSrc(null)}
                 className="flex-1 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-xs uppercase border border-slate-200 transition-all cursor-pointer"
               >
                 Trocar Imagem
               </button>
               <button
+                type="button"
                 onClick={handleSave}
                 disabled={isUploading}
                 className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white font-extrabold text-xs uppercase tracking-wider shadow-[0_3px_0_#059669] transition-all active:translate-y-0.5 cursor-pointer"

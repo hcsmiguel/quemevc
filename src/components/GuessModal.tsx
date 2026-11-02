@@ -30,16 +30,16 @@ export const GuessModal: FC<GuessModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-white border-2 border-slate-200 rounded-3xl max-w-3xl w-full max-h-[90vh] flex flex-col p-6 shadow-2xl animate-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-2.5 sm:p-4 overflow-y-auto">
+      <div className="bg-white border-2 border-slate-200 rounded-3xl max-w-3xl w-full max-h-[90vh] flex flex-col p-3.5 sm:p-6 shadow-2xl animate-in zoom-in-95 duration-200 my-auto">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-slate-100 pb-4 mb-4">
+        <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-3">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center shadow-tactile-sm">
+            <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center shadow-tactile-sm shrink-0">
               <Trophy size={22} className="text-amber-700" />
             </div>
             <div>
-              <h2 className="text-lg font-black text-slate-900">Dar Palpite Final</h2>
+              <h2 className="text-base sm:text-lg font-black text-slate-900">Dar Palpite Final</h2>
               <p className="text-xs text-slate-500">
                 Quem é o personagem secreto de <strong className="text-rose-600 font-extrabold">{opponentName}</strong>?
               </p>
@@ -47,21 +47,21 @@ export const GuessModal: FC<GuessModalProps> = ({
           </div>
           <button
             onClick={onClose}
-            className="p-2 text-slate-400 hover:text-slate-700 rounded-xl hover:bg-slate-100 transition-colors"
+            className="p-2 text-slate-400 hover:text-slate-700 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer"
           >
-            <X size={18} />
+            <X size={20} />
           </button>
         </div>
 
         {/* Confirmação do Personagem Escolhido */}
         {selectedChar ? (
-          <div className="my-auto py-6 flex flex-col items-center text-center">
+          <div className="my-auto py-4 sm:py-6 flex flex-col items-center text-center">
             <div className="relative mb-3">
               <Avatar character={selectedChar} size={110} className="ring-4 ring-amber-400 shadow-xl" />
             </div>
             <h3 className="text-2xl font-black text-slate-900 mb-1">{selectedChar.name}</h3>
             
-            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 my-5 max-w-md flex items-start gap-3 text-left">
+            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 my-4 max-w-md flex items-start gap-3 text-left">
               <AlertTriangle size={22} className="text-amber-600 shrink-0 mt-0.5" />
               <div className="text-xs text-amber-950 leading-relaxed font-medium">
                 Atenção: Se você <strong className="text-emerald-700 font-bold">acertar</strong>, você vence o jogo imediatamente!
@@ -69,7 +69,7 @@ export const GuessModal: FC<GuessModalProps> = ({
               </div>
             </div>
 
-            <div className="flex items-center gap-4 w-full max-w-sm mt-2">
+            <div className="flex items-center gap-3 w-full max-w-sm mt-2">
               <button
                 onClick={() => setSelectedChar(null)}
                 className="flex-1 py-3 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-xs uppercase tracking-wider border border-slate-200 transition-all cursor-pointer"
@@ -85,13 +85,14 @@ export const GuessModal: FC<GuessModalProps> = ({
             </div>
           </div>
         ) : (
-          <div className="flex-1 overflow-y-auto p-3 rounded-2xl bg-slate-50/60 border border-slate-100">
+          <div className="flex-1 overflow-y-auto p-3 rounded-2xl bg-slate-50/70 border border-slate-200/80" style={{ WebkitOverflowScrolling: 'touch' }}>
             <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2.5">
               {cards.map((char) => (
                 <div
                   key={char.id}
                   onClick={() => handleSelect(char)}
-                  className="bg-white hover:bg-slate-50 border-2 border-slate-200 hover:border-amber-500 hover:ring-2 hover:ring-amber-200 rounded-2xl p-2 flex flex-col items-center cursor-pointer transition-all hover:-translate-y-0.5 active:translate-y-0 shadow-sm"
+                  className="bg-white hover:bg-slate-50 border-2 border-slate-200 hover:border-amber-500 hover:ring-2 hover:ring-amber-200 rounded-2xl p-2 flex flex-col items-center cursor-pointer transition-all active:scale-95 shadow-sm"
+                  style={{ touchAction: 'manipulation' }}
                 >
                   <Avatar character={char} size={58} className="mb-1" />
                   <span className="text-xs font-bold text-slate-800 truncate w-full text-center">{char.name}</span>

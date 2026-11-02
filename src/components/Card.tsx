@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, type FC } from 'react';
+import { useState, useRef, useEffect, memo, type FC } from 'react';
 import type { Character, CardStatus } from '../types/game';
 import { Avatar } from './Avatar';
 import { HelpCircle, EyeOff, RotateCcw, X } from 'lucide-react';
@@ -12,7 +12,7 @@ interface CardProps {
   disabled?: boolean;
 }
 
-export const Card: FC<CardProps> = ({
+const CardComponent: FC<CardProps> = ({
   character,
   status,
   onSetStatus,
@@ -21,17 +21,21 @@ export const Card: FC<CardProps> = ({
   const [menuOpen, setMenuOpen] = useState(false);
   const cardRef = useRef<HTMLDivElement | null>(null);
 
-  // Fechar menu ao clicar fora
+  // Fechar menu ao clicar ou tocar fora
   useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
+    const handleClickOutside = (e: MouseEvent | TouchEvent) => {
       if (cardRef.current && !cardRef.current.contains(e.target as Node)) {
         setMenuOpen(false);
       }
     };
     if (menuOpen) {
       document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('touchstart', handleClickOutside, { passive: true });
     }
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
   }, [menuOpen]);
 
   const handleCardClick = () => {
@@ -50,19 +54,20 @@ export const Card: FC<CardProps> = ({
 
   const isDiscarded = status === 'discard';
   const isSuspect = status === 'suspect';
+  const isNearTop = cardRef.current ? cardRef.current.getBoundingClientRect().top < 160 : false;
 
   return (
     <div
       ref={cardRef}
-      className={`relative select-none transition-all duration-300 transform-style-3d perspective-1000 ${
-        disabled ? 'cursor-not-allowed opacity-80' : 'cursor-pointer'
+      className={`relative select-none transition-transform duration-200 ${
+        disabled ? 'cursor-not-allowed opacity-80' : 'cursor-pointer active:scale-95'
       }`}
-      style={{ minHeight: '145px' }}
+      style={{ minHeight: '145px', touchAction: 'manipulation' }}
     >
       {/* Corpo da Cartela */}
       <div
         onClick={handleCardClick}
-        className={`w-full h-full rounded-2xl p-2 flex flex-col items-center justify-between border-2 transition-all duration-300 ${
+        className={`w-full h-full rounded-2xl p-2 flex flex-col items-center justify-between border-2 transition-all duration-200 ${
           isDiscarded
             ? 'bg-slate-100 border-slate-200 scale-[0.92] opacity-40 translate-y-1'
             : isSuspect
@@ -101,7 +106,7 @@ export const Card: FC<CardProps> = ({
           <Avatar
             character={character}
             size={74}
-            className={`transition-all duration-300 ${
+            className={`transition-all duration-200 ${
               isDiscarded ? 'grayscale' : isSuspect ? 'grayscale-[50%] brightness-95' : ''
             }`}
           />
@@ -138,7 +143,9 @@ export const Card: FC<CardProps> = ({
       {menuOpen && (
         <div
           onClick={(e) => e.stopPropagation()}
-          className="absolute z-50 -top-2 left-1/2 -translate-x-1/2 -translate-y-full w-44 bg-white border-2 border-slate-200 rounded-2xl p-2 shadow-2xl animate-in zoom-in-95 flex flex-col gap-1.5"
+          className={`absolute z-50 left-1/2 -translate-x-1/2 w-44 bg-white border-2 border-slate-200 rounded-2xl p-2 shadow-2xl animate-in zoom-in-95 flex flex-col gap-1.5 ${
+            isNearTop ? 'top-full mt-2' : '-top-2 -translate-y-full'
+          }`}
         >
           <div className="flex items-center justify-between px-1 pb-1 border-b border-slate-100 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
             <span>{character.name}</span>
@@ -188,3 +195,14 @@ export const Card: FC<CardProps> = ({
     </div>
   );
 };
+
+export const Card = memo(CardComponent, (prev, next) => {
+  return (
+    prev.status === next.status &&
+    prev.disabled === next.disabled &&
+    prev.character.id === next.character.id &&
+    prev.character.name === next.character.name &&
+    prev.character.imageUrl === next.character.imageUrl &&
+    prev.onSetStatus === next.onSetStatus
+  );
+});

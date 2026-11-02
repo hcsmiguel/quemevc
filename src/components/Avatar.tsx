@@ -1,4 +1,4 @@
-import type { FC } from 'react';
+import { memo, type FC } from 'react';
 import type { Character } from '../types/game';
 
 interface AvatarProps {
@@ -7,7 +7,7 @@ interface AvatarProps {
   className?: string;
 }
 
-export const Avatar: FC<AvatarProps> = ({ character, size = 120, className = '' }) => {
+const AvatarComponent: FC<AvatarProps> = ({ character, size = 120, className = '' }) => {
   // Se for uma foto personalizada carregada pelo usuário:
   if (character.imageUrl) {
     return (
@@ -284,3 +284,5 @@ export const Avatar: FC<AvatarProps> = ({ character, size = 120, className = '' 
     </div>
   );
 };
+
+export const Avatar = memo(AvatarComponent);

@@ -41,13 +41,13 @@ export const SecretSelectionModal: FC<SecretSelectionModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-white border-2 border-slate-200 rounded-3xl max-w-4xl w-full max-h-[92vh] flex flex-col p-6 shadow-2xl animate-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-2.5 sm:p-4 overflow-y-auto">
+      <div className="bg-white border-2 border-slate-200 rounded-3xl max-w-4xl w-full max-h-[92vh] flex flex-col p-3.5 sm:p-6 shadow-2xl animate-in zoom-in-95 duration-200 my-auto">
         {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-slate-100 pb-4 mb-4 gap-2">
+        <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-slate-100 pb-3 mb-3 gap-2">
           <div>
-            <h2 className="text-xl font-extrabold text-slate-900 flex items-center gap-2">
-              <span className="w-8 h-8 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center text-sm shadow-tactile-sm">
+            <h2 className="text-lg sm:text-xl font-extrabold text-slate-900 flex items-center gap-2">
+              <span className="w-8 h-8 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center text-sm shadow-tactile-sm shrink-0">
                 🎴
               </span>
               Escolha seu Personagem Secreto
@@ -71,9 +71,9 @@ export const SecretSelectionModal: FC<SecretSelectionModalProps> = ({
           </div>
         </div>
 
-        {/* Grade de Personagens */}
-        <div className={`flex-1 p-3.5 mb-4 rounded-2xl bg-slate-50/60 border border-slate-100 ${cards.length <= 16 ? 'overflow-visible' : 'overflow-y-auto overflow-x-hidden'}`}>
-          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2.5">
+        {/* Grade de Personagens com Scroll Suave e sem cortes */}
+        <div className="flex-1 p-3.5 mb-3 rounded-2xl bg-slate-50/70 border border-slate-200/80 overflow-y-auto overflow-x-hidden" style={{ WebkitOverflowScrolling: 'touch' }}>
+          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2.5 pt-1 pb-2 px-1">
             {cards.map((char) => {
               const isSelected = selectedChar?.id === char.id;
               return (
@@ -82,14 +82,15 @@ export const SecretSelectionModal: FC<SecretSelectionModalProps> = ({
                   onClick={() => handleSelect(char)}
                   className={`relative p-2 rounded-2xl flex flex-col items-center cursor-pointer transition-all border-2 ${
                     isSelected
-                      ? 'bg-sky-50 border-sky-500 ring-4 ring-sky-300 shadow-md -translate-y-0.5'
+                      ? 'bg-sky-50 border-sky-500 ring-2 ring-sky-400 shadow-md scale-[1.02]'
                       : 'bg-white hover:bg-slate-50 border-slate-200 hover:border-slate-300 shadow-sm'
                   } ${isReady ? 'pointer-events-none opacity-60' : ''}`}
+                  style={{ touchAction: 'manipulation' }}
                 >
                   <Avatar character={char} size={64} className="mb-1" />
                   <span className="text-xs font-bold text-slate-800 truncate w-full text-center">{char.name}</span>
                   {isSelected && (
-                    <div className="absolute -top-1.5 -right-1.5 w-6 h-6 rounded-full bg-emerald-500 text-white flex items-center justify-center font-bold text-xs shadow-md ring-2 ring-white">
+                    <div className="absolute top-1 right-1 w-5 h-5 rounded-full bg-emerald-500 text-white flex items-center justify-center font-bold text-[11px] shadow-sm">
                       ✓
                     </div>
                   )}

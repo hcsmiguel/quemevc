@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { getDeckByDifficulty, STANDARD_60_CHARACTERS } from './utils/characters';
 import type {
   Character,
@@ -727,7 +727,7 @@ export function App() {
     }
   };
 
-  const handleSetCardStatus = (charId: string, newStatus: CardStatus) => {
+  const handleSetCardStatus = useCallback((charId: string, newStatus: CardStatus) => {
     setCardStatuses((prev) => {
       const prevStatus = prev[charId] || 'normal';
       if (prevStatus === newStatus) return prev;
@@ -747,9 +747,9 @@ export function App() {
         [charId]: newStatus,
       };
     });
-  };
+  }, []);
 
-  const handleTargetSelect = (char: Character) => {
+  const handleTargetSelect = useCallback((char: Character) => {
     setTargetCharacter(char);
 
     setCardStatuses((prev) => {
@@ -776,7 +776,7 @@ export function App() {
 
       return newStates;
     });
-  };
+  }, [activeDeck]);
 
   const handleCancelTarget = () => {
     handleUndo();
@@ -1377,7 +1377,7 @@ export function App() {
 
               <div className="bg-slate-100/70 border-2 border-slate-200 rounded-3xl p-3 sm:p-5 shadow-sm">
                 <div
-                  className={`grid gap-2 sm:gap-2.5 ${
+                  className={`grid gap-2 sm:gap-2.5 cards-board-grid ${
                     activeDeck.length <= 15
                       ? 'grid-cols-3 sm:grid-cols-5'
                       : activeDeck.length <= 30
