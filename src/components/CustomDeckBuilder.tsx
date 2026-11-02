@@ -8,12 +8,14 @@ import { sounds } from '../utils/sound';
 
 interface CustomDeckBuilderProps {
   targetCount: DifficultyCount;
+  roomCode?: string;
   onFinishDeck: (cards: Character[]) => void;
   onCancel: () => void;
 }
 
 export const CustomDeckBuilder: FC<CustomDeckBuilderProps> = ({
   targetCount,
+  roomCode = 'temp',
   onFinishDeck,
   onCancel,
 }) => {
@@ -159,6 +161,7 @@ export const CustomDeckBuilder: FC<CustomDeckBuilderProps> = ({
           onSaveCharacter={handleAddCard}
           onClose={() => setIsCropperOpen(false)}
           initialIndex={cards.length + 1}
+          roomCode={roomCode}
         />
       )}
     </div>

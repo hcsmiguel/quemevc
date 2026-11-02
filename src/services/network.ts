@@ -13,6 +13,7 @@ export interface RoomRecord {
   guest_name?: string | null;
   config: RoomConfig;
   status: 'waiting' | 'choosing' | 'playing' | 'finished';
+  current_turn?: string | null;
 }
 
 export class NetworkService {
@@ -20,6 +21,7 @@ export class NetworkService {
   private pollInterval: number | null = null;
   private messageListeners: Set<MessageHandler> = new Set();
   private statusListeners: Set<StatusHandler> = new Set();
+  private hasHandledGuestJoin: boolean = false;
 
   public isConnected: boolean = false;
   public playerId: string = '';
@@ -28,8 +30,12 @@ export class NetworkService {
   public isHost: boolean = false;
 
   constructor() {
-    // ID único gerado por aba/janela para nunca conflitar mesmo se abrir no mesmo navegador
-    this.playerId = 'usr_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 9);
+    let savedId = sessionStorage.getItem('cara_player_tab_id');
+    if (!savedId) {
+      savedId = 'usr_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 9);
+      sessionStorage.setItem('cara_player_tab_id', savedId);
+    }
+    this.playerId = savedId;
   }
 
   // 1. Criar Sala (Host)
@@ -37,8 +43,8 @@ export class NetworkService {
     this.roomCode = roomCode.toUpperCase().trim();
     this.playerName = playerName.trim();
     this.isHost = true;
+    this.hasHandledGuestJoin = false;
 
-    // Criar registro na tabela game_rooms
     const { data, error } = await supabase
       .from('game_rooms')
       .upsert({
@@ -47,6 +53,7 @@ export class NetworkService {
         host_name: this.playerName,
         config,
         status: 'waiting',
+        updated_at: new Date().toISOString(),
       })
       .select('*')
       .single();
@@ -66,8 +73,8 @@ export class NetworkService {
     this.roomCode = roomCode.toUpperCase().trim();
     this.playerName = playerName.trim();
     this.isHost = false;
+    this.hasHandledGuestJoin = true;
 
-    // Verificar se a sala existe
     const { data: room, error: fetchError } = await supabase
       .from('game_rooms')
       .select('*')
@@ -78,7 +85,11 @@ export class NetworkService {
       throw new Error(`Sala "${this.roomCode}" não foi encontrada. Verifique se o código está correto!`);
     }
 
-    // Atualizar convidado na sala
+    // Se a sala já tiver um convidado diferente e estiver em jogo
+    if (room.guest_id && room.guest_id !== this.playerId && room.status === 'playing') {
+      throw new Error('Esta sala já está com dois jogadores em partida.');
+    }
+
     const { data: updatedRoom, error: updateError } = await supabase
       .from('game_rooms')
       .update({
@@ -97,7 +108,7 @@ export class NetworkService {
 
     await this.subscribeToRoom(this.roomCode);
 
-    // Enviar mensagem de entrada para o canal
+    // Enviar mensagem de entrada para o Host
     this.send('JOIN', {
       playerId: this.playerId,
       playerName: this.playerName,
@@ -108,7 +119,42 @@ export class NetworkService {
     return updatedRoom as RoomRecord;
   }
 
-  // 3. Conexão via Canal Realtime Supabase
+  // 3. Reconectar em sala existente (F5 / Refresh)
+  public async reconnectRoom(roomCode: string, playerName: string, isHost: boolean): Promise<RoomRecord | null> {
+    this.roomCode = roomCode.toUpperCase().trim();
+    this.playerName = playerName.trim();
+    this.isHost = isHost;
+
+    const { data: room } = await supabase
+      .from('game_rooms')
+      .select('*')
+      .eq('room_code', this.roomCode)
+      .maybeSingle();
+
+    if (!room) return null;
+
+    await this.subscribeToRoom(this.roomCode);
+    this.startPollingRoom();
+    return room as RoomRecord;
+  }
+
+  // Atualizar status no banco
+  public async updateRoomStatus(status: RoomRecord['status'], currentTurn?: string) {
+    if (!this.roomCode) return;
+    try {
+      const updateData: any = { status, updated_at: new Date().toISOString() };
+      if (currentTurn) updateData.current_turn = currentTurn;
+
+      await supabase
+        .from('game_rooms')
+        .update(updateData)
+        .eq('room_code', this.roomCode);
+    } catch (err) {
+      console.warn('Erro ao atualizar status da sala:', err);
+    }
+  }
+
+  // Canal Realtime Supabase
   private async subscribeToRoom(roomCode: string): Promise<void> {
     if (this.channel) {
       await supabase.removeChannel(this.channel);
@@ -117,12 +163,9 @@ export class NetworkService {
 
     return new Promise((resolve) => {
       this.channel = supabase.channel(`game_room_${roomCode}`, {
-        config: {
-          broadcast: { self: false },
-        },
+        config: { broadcast: { self: false } },
       });
 
-      // Ouvir mensagens de jogo (broadcast)
       this.channel.on('broadcast', { event: 'game_message' }, ({ payload }) => {
         if (payload && payload.senderId !== this.playerId) {
           this.messageListeners.forEach((fn) => fn(payload));
@@ -142,7 +185,7 @@ export class NetworkService {
     });
   }
 
-  // Polling leve de fallback (garante que se o broadcast falhar por conexão lenta, o DB sincroniza)
+  // Polling leve para sincronização sem loop infinito
   private startPollingRoom() {
     if (this.pollInterval) clearInterval(this.pollInterval);
 
@@ -156,8 +199,9 @@ export class NetworkService {
         .maybeSingle();
 
       if (room) {
-        // Se eu sou o Host e o Guest acabou de entrar no DB
-        if (this.isHost && room.guest_id && room.status === 'choosing') {
+        // Dispara JOIN para o Host APENAS UMA VEZ quando o Guest entra
+        if (this.isHost && room.guest_id && !this.hasHandledGuestJoin && room.status === 'choosing') {
+          this.hasHandledGuestJoin = true;
           this.messageListeners.forEach((fn) =>
             fn({
               type: 'JOIN',
@@ -169,10 +213,9 @@ export class NetworkService {
           );
         }
       }
-    }, 1500);
+    }, 2000);
   }
 
-  // 4. Enviar mensagem para o oponente
   public send(type: NetworkMessage['type'], payload: any) {
     if (!this.channel) {
       console.warn('Tentativa de envio sem canal ativo');
@@ -206,6 +249,28 @@ export class NetworkService {
 
   private notifyStatus(connected: boolean, error?: string) {
     this.statusListeners.forEach((fn) => fn(connected, error));
+  }
+
+  // Limpeza completa do Storage do Supabase e da Sala
+  public async cleanupStorageAndRoom(roomCode: string) {
+    if (!roomCode) return;
+    try {
+      // 1. Listar arquivos da pasta da sala
+      const prefix = `room_${roomCode}`;
+      const { data: files } = await supabase.storage
+        .from('custom_faces')
+        .list(prefix);
+
+      if (files && files.length > 0) {
+        const filePaths = files.map((f) => `${prefix}/${f.name}`);
+        await supabase.storage.from('custom_faces').remove(filePaths);
+      }
+
+      // 2. Deletar registro da sala
+      await supabase.from('game_rooms').delete().eq('room_code', roomCode);
+    } catch (err) {
+      console.warn('Erro ao limpar storage ou sala:', err);
+    }
   }
 
   public async disconnect() {

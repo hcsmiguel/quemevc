@@ -8,12 +8,14 @@ interface ImageCropperModalProps {
   onSaveCharacter: (character: Character) => void;
   onClose: () => void;
   initialIndex?: number;
+  roomCode?: string;
 }
 
 export const ImageCropperModal: FC<ImageCropperModalProps> = ({
   onSaveCharacter,
   onClose,
   initialIndex = 1,
+  roomCode = 'temp',
 }) => {
   const [imageSrc, setImageSrc] = useState<string | null>(null);
   const [characterName, setCharacterName] = useState('');
@@ -160,15 +162,15 @@ export const ImageCropperModal: FC<ImageCropperModalProps> = ({
 
       let publicUrl = '';
       try {
-        const fileName = `face_${Date.now()}_${Math.random().toString(36).slice(2, 7)}.jpg`;
+        const filePath = `room_${roomCode}/face_${Date.now()}_${Math.random().toString(36).slice(2, 7)}.jpg`;
         const { data, error } = await supabase.storage
           .from('custom_faces')
-          .upload(fileName, blob, { contentType: 'image/jpeg' });
+          .upload(filePath, blob, { contentType: 'image/jpeg' });
 
         if (!error && data) {
           const { data: urlData } = supabase.storage
             .from('custom_faces')
-            .getPublicUrl(fileName);
+            .getPublicUrl(filePath);
           publicUrl = urlData.publicUrl;
         }
       } catch (err) {

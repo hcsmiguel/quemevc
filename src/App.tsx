@@ -89,16 +89,124 @@ export function App() {
     setSoundEnabled(!soundEnabled);
   };
 
-  // Inicializar statuses das cartas quando o deck mudar
+  // Inicializar statuses das cartas apenas quando deck mudar e não houver status salvo
   useEffect(() => {
-    const initialStatuses: Record<string, CardStatus> = {};
-    activeDeck.forEach((c) => {
-      initialStatuses[c.id] = 'normal';
+    setCardStatuses((prev) => {
+      const next: Record<string, CardStatus> = { ...prev };
+      activeDeck.forEach((c) => {
+        if (!next[c.id]) next[c.id] = 'normal';
+      });
+      return next;
     });
-    setCardStatuses(initialStatuses);
-    setUndoStack([]);
-    setTargetCharacter(null);
   }, [activeDeck]);
+
+  // PONTO 1: Botão Voltar do Navegador (popstate)
+  useEffect(() => {
+    window.history.replaceState({ phase: 'LOBBY' }, '', window.location.href);
+  }, []);
+
+  useEffect(() => {
+    if (phase !== 'LOBBY') {
+      window.history.pushState({ phase }, '', window.location.href);
+    }
+  }, [phase]);
+
+  useEffect(() => {
+    const handlePopState = () => {
+      setPhase((curr) => {
+        if (curr === 'CHOOSING_SECRET') {
+          setWaitingForPlayer(false);
+          return 'LOBBY';
+        }
+        if (curr === 'PLAYING') {
+          const confirmLeave = window.confirm('Deseja voltar para a tela inicial? A partida atual será pausada.');
+          if (confirmLeave) {
+            return 'LOBBY';
+          } else {
+            window.history.pushState({ phase: 'PLAYING' }, '', window.location.href);
+            return 'PLAYING';
+          }
+        }
+        return curr;
+      });
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  // PONTO 2: F5 / Atualizar Página (Restaurar Sessão)
+  useEffect(() => {
+    const restoreSession = async () => {
+      const saved = localStorage.getItem('cara_active_session');
+      if (!saved) return;
+      try {
+        const session = JSON.parse(saved);
+        if (!session.roomCode) return;
+
+        const room = await network.reconnectRoom(
+          session.roomCode,
+          session.playerName,
+          session.isHost
+        );
+
+        if (room && room.status !== 'finished') {
+          setRoomCode(session.roomCode);
+          setPlayerName(session.playerName);
+          setOpponentName(session.opponentName || 'Oponente');
+          setOpponentId(session.opponentId || '');
+          setIsHost(session.isHost);
+          if (session.activeDeck?.length) setActiveDeck(session.activeDeck);
+          if (session.cardStatuses) setCardStatuses(session.cardStatuses);
+          if (session.mySecretCharacter) setMySecretCharacter(session.mySecretCharacter);
+          if (session.opponentSecretCharacter) setOpponentSecretCharacter(session.opponentSecretCharacter);
+          if (session.currentTurnPlayerId) setCurrentTurnPlayerId(session.currentTurnPlayerId);
+          setPhase(session.phase || 'PLAYING');
+        } else {
+          localStorage.removeItem('cara_active_session');
+        }
+      } catch (err) {
+        console.warn('Erro ao restaurar sessão anterior:', err);
+        localStorage.removeItem('cara_active_session');
+      }
+    };
+    restoreSession();
+  }, []);
+
+  // Salvar sessão ativa para persistência em F5
+  useEffect(() => {
+    if (phase !== 'LOBBY' && roomCode) {
+      const sessionData = {
+        roomCode,
+        playerName,
+        opponentName,
+        opponentId,
+        isHost,
+        phase,
+        mySecretCharacter,
+        opponentSecretCharacter,
+        activeDeck,
+        cardStatuses,
+        currentTurnPlayerId,
+      };
+      localStorage.setItem('cara_active_session', JSON.stringify(sessionData));
+    } else if (phase === 'LOBBY' && !waitingForPlayer) {
+      localStorage.removeItem('cara_active_session');
+    }
+  }, [
+    phase,
+    roomCode,
+    playerName,
+    opponentName,
+    opponentId,
+    isHost,
+    mySecretCharacter,
+    opponentSecretCharacter,
+    activeDeck,
+    cardStatuses,
+    currentTurnPlayerId,
+    waitingForPlayer,
+  ]);
 
   // 1. Criar ou Entrar na Sala
   const handleJoinRoom = async (
@@ -141,7 +249,7 @@ export function App() {
     }
   };
 
-  // 2. Ouvinte de Mensagens da Rede
+  // 2. Ouvinte de Mensagens da Rede (CORREÇÃO DO BUG DO LOOP)
   useEffect(() => {
     const unsubscribe = network.onMessage((msg: NetworkMessage) => {
       if (msg.senderId === network.playerId && msg.type !== 'GUESS_RESULT') {
@@ -153,7 +261,8 @@ export function App() {
           setOpponentName(msg.senderName);
           setOpponentId(msg.senderId);
           setWaitingForPlayer(false);
-          setPhase('CHOOSING_SECRET');
+          // Correção do Bug 1: Apenas entra em CHOOSING_SECRET se estiver no LOBBY!
+          setPhase((curr) => (curr === 'LOBBY' ? 'CHOOSING_SECRET' : curr));
           break;
         }
 
@@ -272,11 +381,12 @@ export function App() {
     return () => unsubscribe();
   }, [isHost, playerName]);
 
-  const startGame = () => {
+  const startGame = async () => {
     const startingPlayerId = network.playerId;
     network.send('START_GAME', { startingPlayerId });
     setCurrentTurnPlayerId(startingPlayerId);
     setPhase('PLAYING');
+    await network.updateRoomStatus('playing', startingPlayerId);
   };
 
   const handleConfirmSecret = (char: Character) => {
@@ -288,7 +398,6 @@ export function App() {
     }
   };
 
-  // Requisito E.a & E.b: Marcar como Suspeito, Descarte ou Normal + Empilhar Undo
   const handleSetCardStatus = (charId: string, newStatus: CardStatus) => {
     setCardStatuses((prev) => {
       const prevStatus = prev[charId] || 'normal';
@@ -311,7 +420,6 @@ export function App() {
     });
   };
 
-  // Requisito E.c: Ao clicar em 'É o cara!', virar todas as outras caras e exibir 'Confirmar Resposta'
   const handleTargetSelect = (char: Character) => {
     setTargetCharacter(char);
 
@@ -345,7 +453,6 @@ export function App() {
     handleUndo();
   };
 
-  // Requisito F.b: Desfazer a última ação
   const handleUndo = () => {
     if (undoStack.length === 0) return;
 
@@ -424,6 +531,16 @@ export function App() {
   const handleRequestRematch = () => {
     network.send('REMATCH', {});
     resetForRematch();
+  };
+
+  // Requisito 3: Limpeza completa do Storage do Supabase ao encerrar a partida
+  const handleExitAndCleanup = async () => {
+    if (roomCode) {
+      await network.cleanupStorageAndRoom(roomCode);
+    }
+    localStorage.removeItem('cara_active_session');
+    setPhase('LOBBY');
+    setWaitingForPlayer(false);
   };
 
   const handleSendChat = (text: string) => {
@@ -513,6 +630,7 @@ export function App() {
         {phase === 'LOBBY' && isBuildingDeck && (
           <CustomDeckBuilder
             targetCount={deckTargetCount}
+            roomCode={roomCode || 'temp'}
             onFinishDeck={(customCards) => {
               setIsBuildingDeck(false);
               const randomSuffix = Math.floor(1000 + Math.random() * 9000);
@@ -559,6 +677,7 @@ export function App() {
                 </div>
               </div>
 
+              {/* Requisito 2: Painel de Perguntas Personalizadas */}
               <QuestionControl
                 isMyTurn={isMyTurn}
                 opponentName={opponentName}
@@ -593,6 +712,7 @@ export function App() {
               </div>
             </div>
 
+            {/* Barra Lateral Direita */}
             <RightSidebar
               onUndo={handleUndo}
               canUndo={undoStack.length > 0}
@@ -607,7 +727,7 @@ export function App() {
           </div>
         )}
 
-        {/* Modal de Responder Pergunta */}
+        {/* Modal de Resposta: EXCLUSIVAMENTE SIM ou NÃO */}
         {questionToAnswer && mySecretCharacter && (
           <QuestionAnswerModal
             question={questionToAnswer}
@@ -626,7 +746,7 @@ export function App() {
           />
         )}
 
-        {/* Modal de Fim de Jogo */}
+        {/* Modal de Fim de Jogo com Opção de Limpar Storage */}
         {phase === 'GAME_OVER' && gameOverResult && mySecretCharacter && (
           <GameOverModal
             isWinner={gameOverResult.isWinner}
@@ -637,6 +757,7 @@ export function App() {
             }
             opponentName={opponentName}
             onRematch={handleRequestRematch}
+            onExit={handleExitAndCleanup}
           />
         )}
 

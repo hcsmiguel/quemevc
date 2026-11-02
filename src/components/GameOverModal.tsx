@@ -2,7 +2,7 @@ import { useEffect, type FC } from 'react';
 import confetti from 'canvas-confetti';
 import type { Character } from '../types/game';
 import { Avatar } from './Avatar';
-import { Trophy, RotateCcw, Heart } from 'lucide-react';
+import { Trophy, RotateCcw, Heart, LogOut } from 'lucide-react';
 import { sounds } from '../utils/sound';
 
 interface GameOverModalProps {
@@ -12,6 +12,7 @@ interface GameOverModalProps {
   opponentSecretCharacter: Character;
   opponentName: string;
   onRematch: () => void;
+  onExit?: () => void;
 }
 
 export const GameOverModal: FC<GameOverModalProps> = ({
@@ -21,6 +22,7 @@ export const GameOverModal: FC<GameOverModalProps> = ({
   opponentSecretCharacter,
   opponentName,
   onRematch,
+  onExit,
 }) => {
   useEffect(() => {
     if (isWinner) {
@@ -94,13 +96,25 @@ export const GameOverModal: FC<GameOverModalProps> = ({
           </div>
         </div>
 
-        <button
-          onClick={onRematch}
-          className="w-full flex items-center justify-center gap-2 py-3.5 px-6 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-base shadow-xl shadow-amber-500/25 transition-all active:scale-95"
-        >
-          <RotateCcw size={20} />
-          Jogar Outra Partida!
-        </button>
+        <div className="space-y-2.5">
+          <button
+            onClick={onRematch}
+            className="w-full flex items-center justify-center gap-2 py-3.5 px-6 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-base shadow-xl shadow-amber-500/25 transition-all active:scale-95"
+          >
+            <RotateCcw size={20} />
+            Jogar Outra Partida!
+          </button>
+
+          {onExit && (
+            <button
+              onClick={onExit}
+              className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white font-bold text-xs transition-colors"
+            >
+              <LogOut size={16} />
+              Encerrar Partida e Voltar ao Menu
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
