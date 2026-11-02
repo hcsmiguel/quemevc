@@ -37,10 +37,12 @@ export interface RoomConfig {
   customCards?: Character[];
   isSecret?: boolean;
   password?: string;
+  isCallMode?: boolean;
 }
 
 export type GamePhase = 
   | 'LOBBY' 
+  | 'CREATE_LOBBY'
   | 'CHOOSING_SECRET' 
   | 'PLAYING' 
   | 'GAME_OVER'

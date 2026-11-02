@@ -57,7 +57,7 @@ export const LoginModal: FC<LoginModalProps> = ({ isOpen, onClose, onLoginSucces
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[80] bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4">
       <div className="bg-slate-900 border-2 border-indigo-500/70 rounded-3xl max-w-sm w-full p-6 shadow-2xl animate-in zoom-in-95">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">

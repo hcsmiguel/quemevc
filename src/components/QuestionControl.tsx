@@ -1,7 +1,7 @@
 import { useState, type FC } from 'react';
 import { PREDEFINED_QUESTIONS } from '../utils/characters';
 import type { Question } from '../types/game';
-import { Send, Trophy, ArrowRight, Clock, MessageSquareQuote } from 'lucide-react';
+import { Send, Trophy, ArrowRight, Clock, MessageSquareQuote, Headphones } from 'lucide-react';
 import { sounds } from '../utils/sound';
 
 interface QuestionControlProps {
@@ -10,6 +10,7 @@ interface QuestionControlProps {
   currentQuestion: Question | null;
   timeLeft?: number;
   totalTime?: number;
+  isCallMode?: boolean;
   onAskQuestion: (text: string, traitKey?: any, traitValue?: any) => void;
   onPassTurn: () => void;
   onOpenGuessModal: () => void;
@@ -57,12 +58,84 @@ export const QuestionControl: FC<QuestionControlProps> = ({
   currentQuestion,
   timeLeft = 60,
   totalTime = 60,
+  isCallMode = false,
   onAskQuestion,
   onPassTurn,
   onOpenGuessModal,
 }) => {
   const [selectedPreset, setSelectedPreset] = useState<string>('');
   const [customText, setCustomText] = useState<string>('');
+
+  // NOVO: Modo Call (Jogando por Voz / Presencial)
+  if (isCallMode) {
+    if (!isMyTurn) {
+      return (
+        <div className="bg-white border-2 border-slate-200 rounded-2xl p-4 flex flex-col md:flex-row items-center justify-between gap-3 shadow-sm">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-purple-100 flex items-center justify-center text-purple-700 shadow-tactile-sm">
+              <Headphones size={20} />
+            </div>
+            <div>
+              <div className="text-[10px] uppercase font-extrabold text-purple-600 tracking-wider">
+                Vez de {opponentName} • Modo Call (Voz)
+              </div>
+              <div className="text-sm font-bold text-slate-900">
+                Aguardando <strong className="text-purple-700">{opponentName}</strong> falar a pergunta na chamada...
+              </div>
+              <div className="text-[11px] text-slate-500 font-medium mt-0.5">
+                Responda SIM ou NÃO falando em voz alta!
+              </div>
+            </div>
+          </div>
+          <TurnTimerBadge timeLeft={timeLeft} totalTime={totalTime} isOpponent={true} />
+        </div>
+      );
+    }
+
+    return (
+      <div className="bg-purple-50/90 border-2 border-purple-300 rounded-2xl p-4 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="w-12 h-12 rounded-2xl bg-purple-600 text-white flex items-center justify-center font-black shadow-tactile-sm shrink-0">
+            <Headphones size={24} />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping" />
+              <span className="text-xs font-black text-purple-900 uppercase tracking-wider">
+                Seu Turno • Modo Call (Voz)
+              </span>
+            </div>
+            <div className="text-sm font-extrabold text-slate-900 mt-0.5">
+              Faça sua pergunta falando na chamada/pessoalmente para <strong className="text-purple-700">{opponentName}</strong>!
+            </div>
+            <div className="text-[11px] text-purple-700 font-semibold mt-0.5">
+              👉 Ouça a resposta em voz alta, marque ou descarte as cartas no tabuleiro e finalize seu turno.
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2.5 w-full md:w-auto">
+          <TurnTimerBadge timeLeft={timeLeft} totalTime={totalTime} isOpponent={false} />
+          <button
+            type="button"
+            onClick={onOpenGuessModal}
+            className="flex-1 md:flex-initial flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-xs uppercase tracking-wider shadow-[0_3px_0_#d97706] transition-all active:translate-y-0.5 cursor-pointer"
+          >
+            <Trophy size={15} />
+            Arriscar Chute
+          </button>
+          <button
+            type="button"
+            onClick={onPassTurn}
+            className="flex-1 md:flex-initial flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-extrabold text-xs uppercase tracking-wider shadow-[0_3px_0_#059669] transition-all active:translate-y-0.5 cursor-pointer"
+          >
+            Finalizar Turno
+            <ArrowRight size={16} />
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const handleSend = () => {
     let questionText = customText.trim();

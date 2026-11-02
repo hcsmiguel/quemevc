@@ -28,6 +28,8 @@ import { ProfilePage } from './components/ProfilePage';
 import { ImportSharedDeckModal } from './components/ImportSharedDeckModal';
 import { CustomDeckBuilder } from './components/CustomDeckBuilder';
 import { PublicLobbiesPage } from './components/PublicLobbiesPage';
+import { CreateLobbyPage } from './components/CreateLobbyPage';
+import { OpponentLeftModal } from './components/OpponentLeftModal';
 import { PasswordPromptModal } from './components/PasswordPromptModal';
 import { RightSidebar } from './components/RightSidebar';
 import { Footer } from './components/Footer';
@@ -99,6 +101,16 @@ export function App() {
   const [deckTargetCount, setDeckTargetCount] = useState<DifficultyCount>(30);
   const [deckIsSecret, setDeckIsSecret] = useState(false);
   const [deckPassword, setDeckPassword] = useState('');
+  const [deckIsCallMode, setDeckIsCallMode] = useState(false);
+
+  // Modal quando oponente abandona (Ponto 2)
+  const [opponentLeftData, setOpponentLeftData] = useState<{
+    isOpen: boolean;
+    opponentName: string;
+  }>({
+    isOpen: false,
+    opponentName: '',
+  });
 
   // Revanche (Ponto 2.a)
   const [rematchRequestedByMe, setRematchRequestedByMe] = useState(false);
@@ -581,11 +593,13 @@ export function App() {
           break;
         }
 
-        // Oponente abandonou a partida
+        // Oponente abandonou a partida (Ponto 2: modal minimalista em vez de alert de navegador)
         case 'ABANDON_GAME': {
           sounds.playWrong();
-          alert(`${msg.senderName} abandonou a partida. Retornando ao menu principal.`);
-          handleExitToLobby();
+          setOpponentLeftData({
+            isOpen: true,
+            opponentName: msg.senderName || opponentName || 'Seu oponente',
+          });
           break;
         }
 
@@ -897,7 +911,7 @@ export function App() {
       return;
     }
 
-    if (phase === 'PROFILE' || phase === 'PUBLIC_LOBBIES') {
+    if (phase === 'PROFILE' || phase === 'PUBLIC_LOBBIES' || phase === 'CREATE_LOBBY') {
       setPhase('LOBBY');
       return;
     }
@@ -1087,17 +1101,13 @@ export function App() {
         {phase === 'LOBBY' && !isBuildingDeck && (
           <Lobby
             onJoinRoom={handleJoinRoom}
-            onOpenDeckBuilder={(count, isSecret, password) => {
-              setEditingDeck(null);
-              setDeckTargetCount(count);
-              setDeckIsSecret(Boolean(isSecret));
-              setDeckPassword(password || '');
-              setIsBuildingDeck(true);
+            onOpenCreateLobby={(pName) => {
+              setPlayerName(pName);
+              setPhase('CREATE_LOBBY');
             }}
             onOpenLogin={() => setLoginModalOpen(true)}
             onOpenProfile={() => setPhase('PROFILE')}
             onOpenPublicLobbies={() => setPhase('PUBLIC_LOBBIES')}
-            onSelectSavedDeck={handlePlaySavedDeck}
             onAbandonWaiting={handleExitToLobby}
             currentUser={currentUser}
             onLogout={() => {
@@ -1109,6 +1119,30 @@ export function App() {
             waitingForPlayer={waitingForPlayer}
             roomCode={roomCode}
             errorMessage={errorMessage}
+          />
+        )}
+
+        {/* 1.0 CONFIGURAÇÃO DO LOBBY (Ponto 3: Página exclusiva com Modo Call, tipos de sala, baralhos) */}
+        {phase === 'CREATE_LOBBY' && !isBuildingDeck && (
+          <CreateLobbyPage
+            playerName={playerName || currentUser?.username || 'Host'}
+            currentUser={currentUser}
+            onBackToHome={() => setPhase('LOBBY')}
+            onOpenLogin={() => setLoginModalOpen(true)}
+            onOpenProfile={() => setPhase('PROFILE')}
+            onCreateRoom={async (config) => {
+              const newCode = await network.generateUniqueRoomCode();
+              handleJoinRoom(newCode, playerName || currentUser?.username || 'Host', true, config);
+            }}
+            onOpenDeckBuilder={(count, isSecret, password, isCallMode) => {
+              setEditingDeck(null);
+              setDeckTargetCount(count);
+              setDeckIsSecret(Boolean(isSecret));
+              setDeckPassword(password || '');
+              setDeckIsCallMode(Boolean(isCallMode));
+              setIsBuildingDeck(true);
+            }}
+            isConnecting={isConnecting}
           />
         )}
 
@@ -1141,6 +1175,7 @@ export function App() {
                 customCards,
                 isSecret: deckIsSecret,
                 password: deckPassword || undefined,
+                isCallMode: deckIsCallMode,
               });
             }}
             onCancel={() => {
@@ -1225,6 +1260,7 @@ export function App() {
                 currentQuestion={currentQuestion}
                 timeLeft={turnTimeLeft}
                 totalTime={TURN_DURATION_SECONDS}
+                isCallMode={roomConfig.isCallMode}
                 onAskQuestion={handleAskQuestion}
                 onPassTurn={handlePassTurn}
                 onOpenGuessModal={() => setGuessModalOpen(true)}
@@ -1270,14 +1306,24 @@ export function App() {
           </div>
         )}
 
-        {/* Modal de Resposta: EXCLUSIVAMENTE SIM ou NÃO */}
-        {questionToAnswer && mySecretCharacter && (
+        {/* Modal de Resposta: EXCLUSIVAMENTE SIM ou NÃO (oculto no Modo Call) */}
+        {questionToAnswer && mySecretCharacter && !roomConfig.isCallMode && (
           <QuestionAnswerModal
             question={questionToAnswer}
             mySecretCharacter={mySecretCharacter}
             onAnswer={handleAnswerQuestion}
           />
         )}
+
+        {/* Modal quando Oponente Abandona a Partida (Ponto 2: minimalista, sem alert) */}
+        <OpponentLeftModal
+          isOpen={opponentLeftData.isOpen}
+          opponentName={opponentLeftData.opponentName}
+          onConfirm={() => {
+            setOpponentLeftData({ isOpen: false, opponentName: '' });
+            handleExitToLobby();
+          }}
+        />
 
         {/* Modal de Palpite Final */}
         {guessModalOpen && (

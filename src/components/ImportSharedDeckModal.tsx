@@ -1,6 +1,6 @@
 import { useState, useEffect, type FC } from 'react';
 import { auth, type AppUser, type SavedDeck } from '../services/auth';
-import { Share2, Play, BookmarkPlus, X, Check, Loader2 } from 'lucide-react';
+import { Share2, Play, BookmarkPlus, X, Check, Loader2, Sparkles, LogIn } from 'lucide-react';
 import { sounds } from '../utils/sound';
 
 interface ImportSharedDeckModalProps {
@@ -21,7 +21,7 @@ export const ImportSharedDeckModal: FC<ImportSharedDeckModalProps> = ({
   const [deck, setDeck] = useState<SavedDeck | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [savedSuccess, setSavedSuccess] = useState(false);
+  const [savedSuccess, setSavedSuccess] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -44,7 +44,7 @@ export const ImportSharedDeckModal: FC<ImportSharedDeckModalProps> = ({
     fetchDeck();
   }, [deckId]);
 
-  const handleSaveToProfile = async () => {
+  const handleSaveToProfile = async (importFaces: boolean) => {
     if (!currentUser) {
       sounds.playWrong();
       onOpenLogin();
@@ -55,10 +55,29 @@ export const ImportSharedDeckModal: FC<ImportSharedDeckModalProps> = ({
     sounds.playClick();
     setSaving(true);
     try {
+      // 1. Salvar o baralho
       await auth.saveDeck(currentUser.id, deck.name, deck.card_count, deck.cards);
+
+      // 2. Se solicitou importar as caras também para o perfil
+      if (importFaces) {
+        for (const card of deck.cards) {
+          if (card.imageUrl) {
+            try {
+              await auth.saveFace(currentUser.id, card.name, card.imageUrl);
+            } catch (err) {
+              console.warn('Erro ao salvar cara avulsa:', err);
+            }
+          }
+        }
+      }
+
       sounds.playWin();
-      setSavedSuccess(true);
-      setTimeout(() => setSavedSuccess(false), 3000);
+      setSavedSuccess(
+        importFaces
+          ? 'Baralho e caras salvos com sucesso no seu perfil!'
+          : 'Baralho salvo com sucesso no seu perfil!'
+      );
+      setTimeout(() => setSavedSuccess(null), 3500);
     } catch {
       sounds.playWrong();
     } finally {
@@ -143,38 +162,68 @@ export const ImportSharedDeckModal: FC<ImportSharedDeckModalProps> = ({
               </div>
             </div>
 
-            {/* Ações */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2">
+            {/* Aviso de Login se o usuário for visitante */}
+            {!currentUser && (
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded-2xl flex items-center justify-between gap-2 text-xs text-amber-950 font-medium">
+                <span className="text-[11px]">Faça login para salvar este baralho no seu perfil.</span>
+                <button
+                  type="button"
+                  onClick={onOpenLogin}
+                  className="shrink-0 px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white font-black rounded-xl text-xs flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
+                >
+                  <LogIn size={13} />
+                  <span>Entrar / Cadastrar</span>
+                </button>
+              </div>
+            )}
+
+            {/* Sucesso ao Salvar */}
+            {savedSuccess && (
+              <div className="p-3 rounded-2xl bg-emerald-50 border-2 border-emerald-300 text-emerald-800 text-xs font-black flex items-center gap-2 animate-in fade-in">
+                <Check size={18} className="text-emerald-600 shrink-0" />
+                <span>{savedSuccess}</span>
+              </div>
+            )}
+
+            {/* Ações (Ponto 1: Importar Baralho vs Importar Baralho e Caras) */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1">
               <button
-                onClick={handleSaveToProfile}
-                disabled={saving || savedSuccess}
-                className={`py-3 px-4 rounded-2xl font-extrabold text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-sm ${
-                  savedSuccess
-                    ? 'bg-emerald-100 text-emerald-800 border-2 border-emerald-300'
-                    : 'bg-indigo-600 hover:bg-indigo-700 text-white'
-                }`}
+                type="button"
+                onClick={() => handleSaveToProfile(false)}
+                disabled={saving}
+                className="py-3 px-3 rounded-2xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-extrabold text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-sm text-center"
               >
-                {savedSuccess ? (
-                  <>
-                    <Check size={16} className="text-emerald-600" />
-                    <span>Salvo no seu Perfil!</span>
-                  </>
+                {saving ? (
+                  <Loader2 size={15} className="animate-spin" />
                 ) : (
-                  <>
-                    <BookmarkPlus size={16} />
-                    <span>Salvar no Meu Perfil</span>
-                  </>
+                  <BookmarkPlus size={15} />
                 )}
+                <span>Importar Baralho</span>
               </button>
 
               <button
+                type="button"
+                onClick={() => handleSaveToProfile(true)}
+                disabled={saving}
+                className="py-3 px-3 rounded-2xl bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white font-extrabold text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-sm text-center"
+              >
+                {saving ? (
+                  <Loader2 size={15} className="animate-spin" />
+                ) : (
+                  <Sparkles size={15} />
+                )}
+                <span>Importar Baralho e Caras</span>
+              </button>
+
+              <button
+                type="button"
                 onClick={() => {
                   onPlayDeck(deck);
                   onClose();
                 }}
-                className="py-3 px-4 rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-white font-extrabold text-xs shadow-tactile-sm transition-all flex items-center justify-center gap-1.5 cursor-pointer active:translate-y-0.5"
+                className="py-3 px-3 rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-white font-extrabold text-xs shadow-tactile-sm transition-all flex items-center justify-center gap-1.5 cursor-pointer active:translate-y-0.5 text-center"
               >
-                <Play size={16} />
+                <Play size={15} />
                 <span>Jogar Agora</span>
               </button>
             </div>
