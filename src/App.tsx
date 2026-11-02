@@ -304,6 +304,8 @@ export function App() {
         await network.createRoom(code, name, config);
         setIsConnecting(false);
         setWaitingForPlayer(true);
+        setPhase('LOBBY');
+        setIsBuildingDeck(false);
       } else {
         const room = await network.joinRoom(code, name);
         setIsConnecting(false);
@@ -673,6 +675,40 @@ export function App() {
     resetForRematch();
   };
 
+  // Navegação Global para o Menu Principal (Logo e Botão Superior)
+  const handleNavigateToMainMenu = () => {
+    if (phase === 'PLAYING' || phase === 'CHOOSING_SECRET') {
+      setShowAbandonModal(true);
+      return;
+    }
+
+    if (waitingForPlayer) {
+      handleExitToLobby();
+      return;
+    }
+
+    if (isBuildingDeck) {
+      setIsBuildingDeck(false);
+      setEditingDeck(null);
+      setPhase('LOBBY');
+      return;
+    }
+
+    if (phase === 'PROFILE') {
+      setPhase('LOBBY');
+      return;
+    }
+
+    if (phase === 'GAME_OVER') {
+      handleExitToLobby();
+      return;
+    }
+
+    setPhase('LOBBY');
+    setWaitingForPlayer(false);
+    setRoomCode('');
+  };
+
   // PONTO 1: Abandonar partida e voltar ao menu principal
   const handleConfirmAbandon = async () => {
     setShowAbandonModal(false);
@@ -705,6 +741,8 @@ export function App() {
 
   // PONTO 2.b: Iniciar partida diretamente com um baralho personalizado salvo (Código de 6 números)
   const handlePlaySavedDeck = async (savedDeck: SavedDeck) => {
+    setPhase('LOBBY');
+    setIsBuildingDeck(false);
     const newCode = await network.generateUniqueRoomCode();
     handleJoinRoom(newCode, playerName || currentUser?.username || 'Host', true, {
       mode: 'custom',
@@ -739,15 +777,9 @@ export function App() {
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <span
-              onClick={() => {
-                if (phase === 'PROFILE') {
-                  setPhase('LOBBY');
-                } else if (phase !== 'LOBBY') {
-                  setShowAbandonModal(true);
-                }
-              }}
+              onClick={handleNavigateToMainMenu}
               className="flex items-center cursor-pointer select-none"
-              title={phase === 'LOBBY' ? 'Tá na Cara!' : 'Clique para voltar ao menu principal'}
+              title="Clique para voltar ao menu principal"
             >
               <img
                 src="/logo-horizontal.svg"
@@ -812,15 +844,9 @@ export function App() {
             </button>
 
             {/* PONTO 1: Botão no Canto Superior Direito para Voltar ao Menu Principal */}
-            {phase !== 'LOBBY' && (
+            {(phase !== 'LOBBY' || waitingForPlayer || isBuildingDeck) && (
               <button
-                onClick={() => {
-                  if (phase === 'PROFILE') {
-                    setPhase('LOBBY');
-                  } else {
-                    setShowAbandonModal(true);
-                  }
-                }}
+                onClick={handleNavigateToMainMenu}
                 title="Voltar ao Menu Principal"
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 text-xs font-extrabold uppercase tracking-wider transition-all active:scale-95 shadow-sm cursor-pointer"
               >
@@ -852,6 +878,7 @@ export function App() {
             onOpenLogin={() => setLoginModalOpen(true)}
             onOpenProfile={() => setPhase('PROFILE')}
             onSelectSavedDeck={handlePlaySavedDeck}
+            onAbandonWaiting={handleExitToLobby}
             currentUser={currentUser}
             onLogout={() => {
               auth.logout();

@@ -166,41 +166,55 @@ export const ProfilePage: FC<ProfilePageProps> = ({
       </div>
 
       {/* Navegação por Abas Exclusivas */}
-      <div className="flex bg-slate-200/70 p-1 rounded-2xl mb-6 border border-slate-200 text-xs font-bold max-w-md">
+      <div className="inline-flex flex-wrap sm:flex-nowrap bg-slate-200/70 p-1.5 rounded-2xl mb-6 border border-slate-200 text-xs font-bold gap-1.5">
         <button
           onClick={() => setActiveTab('decks')}
-          className={`flex-1 py-2.5 px-3 rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+          className={`px-4 py-2.5 rounded-xl transition-all flex items-center justify-center gap-2 whitespace-nowrap cursor-pointer ${
             activeTab === 'decks'
               ? 'bg-white text-slate-900 shadow-sm border border-slate-200/80 font-black'
               : 'text-slate-600 hover:text-slate-900'
           }`}
         >
-          <Layers size={15} className="text-indigo-600" />
-          <span>Meus Baralhos ({savedDecks.length})</span>
+          <Layers size={16} className="text-indigo-600 shrink-0" />
+          <span className="whitespace-nowrap">Meus Baralhos</span>
+          <span className={`text-[11px] px-1.5 py-0.5 rounded-md font-extrabold ${
+            activeTab === 'decks'
+              ? 'bg-indigo-50 text-indigo-700 border border-indigo-100'
+              : 'bg-slate-300/60 text-slate-700'
+          }`}>
+            ({savedDecks.length})
+          </span>
         </button>
 
         <button
           onClick={() => setActiveTab('faces')}
-          className={`flex-1 py-2.5 px-3 rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+          className={`px-4 py-2.5 rounded-xl transition-all flex items-center justify-center gap-2 whitespace-nowrap cursor-pointer ${
             activeTab === 'faces'
               ? 'bg-white text-slate-900 shadow-sm border border-slate-200/80 font-black'
               : 'text-slate-600 hover:text-slate-900'
           }`}
         >
-          <Smile size={15} className="text-amber-600" />
-          <span>Minhas Caras ({savedFaces.length})</span>
+          <Smile size={16} className="text-amber-600 shrink-0" />
+          <span className="whitespace-nowrap">Minhas Caras</span>
+          <span className={`text-[11px] px-1.5 py-0.5 rounded-md font-extrabold ${
+            activeTab === 'faces'
+              ? 'bg-amber-50 text-amber-800 border border-amber-200'
+              : 'bg-slate-300/60 text-slate-700'
+          }`}>
+            ({savedFaces.length})
+          </span>
         </button>
 
         <button
           onClick={() => setActiveTab('stats')}
-          className={`flex-1 py-2.5 px-3 rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+          className={`px-4 py-2.5 rounded-xl transition-all flex items-center justify-center gap-2 whitespace-nowrap cursor-pointer ${
             activeTab === 'stats'
               ? 'bg-white text-slate-900 shadow-sm border border-slate-200/80 font-black'
               : 'text-slate-600 hover:text-slate-900'
           }`}
         >
-          <Trophy size={15} className="text-sky-600" />
-          <span>Histórico</span>
+          <Trophy size={16} className="text-sky-600 shrink-0" />
+          <span className="whitespace-nowrap">Histórico</span>
         </button>
       </div>
 

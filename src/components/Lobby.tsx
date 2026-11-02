@@ -16,6 +16,7 @@ import {
   Trophy,
   Layers,
   Lock,
+  LogOut,
 } from 'lucide-react';
 import { sounds } from '../utils/sound';
 import type { GameMode, DifficultyCount, RoomConfig } from '../types/game';
@@ -30,6 +31,7 @@ interface LobbyProps {
   onOpenLogin: () => void;
   onOpenProfile: () => void;
   onSelectSavedDeck: (deck: SavedDeck) => void;
+  onAbandonWaiting?: () => void;
   currentUser: AppUser | null;
   onLogout: () => void;
   isConnecting: boolean;
@@ -44,6 +46,7 @@ export const Lobby: FC<LobbyProps> = ({
   onOpenLogin,
   onOpenProfile,
   onSelectSavedDeck,
+  onAbandonWaiting,
   currentUser,
   onLogout,
   isConnecting,
@@ -193,10 +196,24 @@ export const Lobby: FC<LobbyProps> = ({
           </button>
 
           {/* Indicador de Espera */}
-          <div className="flex items-center justify-center gap-2.5 text-xs text-slate-500 bg-slate-50 py-2.5 px-4 rounded-xl border border-slate-200">
+          <div className="flex items-center justify-center gap-2.5 text-xs text-slate-500 bg-slate-50 py-2.5 px-4 rounded-xl border border-slate-200 mb-3">
             <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-ping" />
             <span className="font-medium">Aguardando oponente entrar na sala...</span>
           </div>
+
+          {/* Botão Cancelar e Fechar Sala */}
+          {onAbandonWaiting && (
+            <button
+              onClick={() => {
+                sounds.playClick();
+                onAbandonWaiting();
+              }}
+              className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-2xl text-xs font-extrabold text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 transition-all cursor-pointer shadow-sm active:translate-y-0.5"
+            >
+              <LogOut size={15} />
+              <span>Cancelar e Fechar Sala</span>
+            </button>
+          )}
         </div>
       </div>
     );

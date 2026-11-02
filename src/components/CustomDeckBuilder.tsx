@@ -10,7 +10,6 @@ import {
   Check,
   Wand2,
   ArrowLeft,
-  BookmarkCheck,
   Smile,
   Shuffle,
   X,
@@ -38,7 +37,6 @@ export const CustomDeckBuilder: FC<CustomDeckBuilderProps> = ({
 }) => {
   const [cards, setCards] = useState<Character[]>(() => initialDeck ? [...initialDeck.cards] : []);
   const [deckName, setDeckName] = useState(() => initialDeck?.name || '');
-  const [saveToProfile, setSaveToProfile] = useState(true);
   const [isCropperOpen, setIsCropperOpen] = useState(false);
   const [isSavingDeck, setIsSavingDeck] = useState(false);
 
@@ -105,25 +103,77 @@ export const CustomDeckBuilder: FC<CustomDeckBuilderProps> = ({
     setIsFacePickerOpen(false);
   };
 
-  // PONTO 3.c: Preenchimento Parcialmente Aleatório
-  const handleAutoFillRemaining = () => {
+  // PONTO 2.a & 2.b: Preencher Aleatoriamente baseado prioritariamente nas caras salvas do usuário
+  const handleFillRandomly = () => {
+    sounds.playWin();
+    const result: Character[] = [];
+    const usedNames = new Set<string>();
+
+    // 1. Embaralha e adiciona as caras salvas do usuário
+    const shuffledSavedFaces = [...savedFaces].sort(() => 0.5 - Math.random());
+    for (const f of shuffledSavedFaces) {
+      if (result.length >= targetCount) break;
+      if (!usedNames.has(f.name)) {
+        usedNames.add(f.name);
+        result.push({
+          id: 'custom_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7),
+          name: f.name,
+          imageUrl: f.image_url,
+        });
+      }
+    }
+
+    // 2. Se ainda faltar cartas para o alvo, completa com as cartas padrão
+    if (result.length < targetCount) {
+      const shuffledStandards = [...STANDARD_60_CHARACTERS].sort(() => 0.5 - Math.random());
+      for (const std of shuffledStandards) {
+        if (result.length >= targetCount) break;
+        if (!usedNames.has(std.name)) {
+          usedNames.add(std.name);
+          result.push(std);
+        }
+      }
+    }
+
+    setCards(result.slice(0, targetCount));
+  };
+
+  // PONTO 2.a & 2.b: Completar Aleatoriamente baseado prioritariamente nas caras salvas do usuário
+  const handleCompleteRandomly = () => {
     sounds.playClick();
     const remainingNeeded = targetCount - cards.length;
     if (remainingNeeded <= 0) return;
 
     const existingNames = new Set(cards.map((c) => c.name));
-    const available = STANDARD_60_CHARACTERS.filter((c) => !existingNames.has(c.name));
-    const added = available.slice(0, remainingNeeded);
+    const toAdd: Character[] = [];
 
-    setCards((prev) => [...prev, ...added]);
-  };
+    // 1. Prioriza caras salvas do usuário que ainda não foram inseridas
+    const shuffledSavedFaces = [...savedFaces].sort(() => 0.5 - Math.random());
+    for (const f of shuffledSavedFaces) {
+      if (toAdd.length >= remainingNeeded) break;
+      if (!existingNames.has(f.name)) {
+        existingNames.add(f.name);
+        toAdd.push({
+          id: 'custom_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7),
+          name: f.name,
+          imageUrl: f.image_url,
+        });
+      }
+    }
 
-  // PONTO 3.c: Preenchimento Integralmente Aleatório
-  const handleFillCompletelyRandom = () => {
-    sounds.playWin();
-    // Embaralha os 90 personagens padrão e pega targetCount
-    const shuffled = [...STANDARD_60_CHARACTERS].sort(() => 0.5 - Math.random());
-    setCards(shuffled.slice(0, targetCount));
+    // 2. Se ainda faltar, completa com cartas padrão
+    if (toAdd.length < remainingNeeded) {
+      const shuffledStandards = [...STANDARD_60_CHARACTERS].sort(() => 0.5 - Math.random());
+      for (const std of shuffledStandards) {
+        if (toAdd.length >= remainingNeeded) break;
+        if (!existingNames.has(std.name)) {
+          existingNames.add(std.name);
+          toAdd.push(std);
+        }
+      }
+    }
+
+    setCards((prev) => [...prev, ...toAdd]);
   };
 
   const handleStartRenameCard = (char: Character) => {
@@ -159,8 +209,8 @@ export const CustomDeckBuilder: FC<CustomDeckBuilderProps> = ({
       } catch (err) {
         console.warn('Erro ao atualizar baralho existente:', err);
       }
-    } else if (saveToProfile && currentUser) {
-      // PONTO 2.b: Salvar novo baralho no perfil
+    } else if (currentUser) {
+      // Salva no perfil do usuário automaticamente
       try {
         await auth.saveDeck(currentUser.id, finalDeckName, targetCount, cards.slice(0, targetCount));
       } catch (err) {
@@ -224,33 +274,18 @@ export const CustomDeckBuilder: FC<CustomDeckBuilderProps> = ({
         </div>
       </div>
 
-      {/* Opções de Salvar e Nome do Baralho */}
-      <div className="bg-white border-2 border-slate-200 rounded-3xl p-5 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm text-xs">
-        <div className="w-full sm:w-1/2">
-          <label className="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-1.5">
-            Nome do Baralho:
-          </label>
-          <input
-            type="text"
-            placeholder="Ex: Família, Amigos da Faculdade, Famosos..."
-            value={deckName}
-            onChange={(e) => setDeckName(e.target.value)}
-            className="w-full bg-slate-50 border-2 border-slate-200 text-slate-900 placeholder-slate-400 text-sm font-semibold rounded-2xl px-4 py-2.5 focus:outline-none focus:bg-white focus:border-sky-400 focus:ring-4 focus:ring-sky-100 transition-all"
-          />
-        </div>
-
-        {currentUser && !initialDeck ? (
-          <label className="flex items-center gap-2.5 cursor-pointer text-slate-700 font-bold select-none pt-1 sm:pt-4 bg-slate-50 px-4 py-2.5 rounded-2xl border border-slate-200 hover:bg-slate-100 transition-colors">
-            <input
-              type="checkbox"
-              checked={saveToProfile}
-              onChange={(e) => setSaveToProfile(e.target.checked)}
-              className="w-4 h-4 rounded text-sky-600 focus:ring-sky-500 accent-sky-600 cursor-pointer"
-            />
-            <BookmarkCheck size={18} className="text-amber-600" />
-            <span className="text-xs">Salvar este baralho no meu perfil</span>
-          </label>
-        ) : null}
+      {/* Nome do Baralho */}
+      <div className="bg-white border-2 border-slate-200 rounded-3xl p-4 sm:p-5 shadow-sm text-xs">
+        <label className="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-1.5">
+          Nome do Baralho:
+        </label>
+        <input
+          type="text"
+          placeholder="Ex: Família, Amigos da Faculdade, Famosos..."
+          value={deckName}
+          onChange={(e) => setDeckName(e.target.value)}
+          className="w-full bg-slate-50 border-2 border-slate-200 text-slate-900 placeholder-slate-400 text-sm font-semibold rounded-2xl px-4 py-2.5 focus:outline-none focus:bg-white focus:border-sky-400 focus:ring-4 focus:ring-sky-100 transition-all"
+        />
       </div>
 
       {/* Barra de Ações Rápidas (Minhas Caras / Aleatório) */}
@@ -268,23 +303,27 @@ export const CustomDeckBuilder: FC<CustomDeckBuilderProps> = ({
         </div>
 
         <div className="flex items-center gap-2">
-          <button
-            onClick={handleFillCompletelyRandom}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs border border-slate-200 transition-colors cursor-pointer active:translate-y-0.5"
-            title="Preencher todo o baralho aleatoriamente"
-          >
-            <Shuffle size={14} className="text-slate-500" />
-            <span>Preencher 100% Aleatório</span>
-          </button>
-
-          {!isComplete && (
+          {/* PONTO 2.b & 2.c: Só aparece se ainda não adicionou nenhuma cara */}
+          {cards.length === 0 && (
             <button
-              onClick={handleAutoFillRemaining}
+              onClick={handleFillRandomly}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-xs border border-slate-200 transition-colors cursor-pointer active:translate-y-0.5"
+              title="Preencher aleatoriamente com base nas suas caras salvas"
+            >
+              <Shuffle size={14} className="text-slate-500" />
+              <span>Preencher Aleatoriamente</span>
+            </button>
+          )}
+
+          {/* PONTO 2.b & 2.c: Só aparece se já tem pelo menos 1 cara e ainda não atingiu o total */}
+          {cards.length > 0 && !isComplete && (
+            <button
+              onClick={handleCompleteRandomly}
               className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-purple-100 hover:bg-purple-200 text-purple-900 font-extrabold text-xs border border-purple-300 transition-colors cursor-pointer shadow-tactile-sm active:translate-y-0.5"
-              title="Preencher apenas as cartas que faltam"
+              title="Completar o restante com base nas suas caras salvas"
             >
               <Wand2 size={14} className="text-purple-700" />
-              <span>Completar Restante ({Math.max(0, targetCount - cards.length)})</span>
+              <span>Completar Aleatoriamente ({targetCount - cards.length})</span>
             </button>
           )}
         </div>
