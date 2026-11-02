@@ -34,7 +34,7 @@ import { PasswordPromptModal } from './components/PasswordPromptModal';
 import { RightSidebar } from './components/RightSidebar';
 import { Footer } from './components/Footer';
 import { LegalModal, type LegalTab } from './components/LegalModal';
-import { Volume2, VolumeX, Users, User as UserIcon, LogOut, AlertTriangle, Trophy, Clock } from 'lucide-react';
+import { Volume2, VolumeX, User as UserIcon, LogOut, AlertTriangle, Trophy, Clock } from 'lucide-react';
 import type { SavedDeck } from './services/auth';
 
 export function App() {
@@ -788,6 +788,11 @@ export function App() {
   };
 
   const handleConfirmGuess = (guessedChar: Character) => {
+    // PONTO 7: Só pode chutar durante o seu próprio turno
+    if (!isMyTurn) {
+      sounds.playWrong();
+      return;
+    }
     setGuessModalOpen(false);
     setTargetCharacter(null);
     network.send('MAKE_GUESS', {
@@ -1005,12 +1010,14 @@ export function App() {
               />
             </span>
             {roomCode && (
-              <span className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 border border-amber-200 text-xs font-mono text-amber-900 font-extrabold">
-                Sala: {roomCode} ({activeDeck.length} Caras)
+              <span className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 border border-amber-200 text-xs font-sans font-black tracking-tight text-amber-900 shadow-sm">
+                <span>Sala:</span>
+                <span className="font-extrabold">{roomCode}</span>
+                <span className="text-[11px] font-bold text-amber-700">({activeDeck.length} Caras)</span>
               </span>
             )}
             {phase === 'PLAYING' && (
-              <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono font-black border transition-all ${
+              <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-sans font-black tabular-nums tracking-tight border transition-all ${
                 turnTimeLeft <= 10
                   ? 'bg-rose-50 text-rose-700 border-rose-300 animate-pulse'
                   : isMyTurn
@@ -1026,43 +1033,68 @@ export function App() {
           </div>
 
           <div className="flex items-center gap-2.5">
-            {currentUser ? (
-              <button
-                onClick={() => setPhase('PROFILE')}
-                className="hidden sm:flex items-center gap-2 text-xs font-bold text-slate-700 bg-white hover:bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200 shadow-sm transition-all hover:border-indigo-400 group cursor-pointer"
-                title="Ver estatísticas, vitórias/derrotas e baralhos salvos"
-              >
-                {currentUser.avatarUrl ? (
-                  <img
-                    src={currentUser.avatarUrl}
-                    alt={currentUser.username}
-                    className="w-5 h-5 rounded-full object-cover ring-1 ring-indigo-500 shadow-sm"
-                  />
-                ) : (
-                  <UserIcon size={14} className="text-amber-600" />
-                )}
-                <span>{currentUser.username}</span>
-                <span className="text-[10px] bg-indigo-50 text-indigo-600 font-extrabold px-1.5 py-0.5 rounded-md border border-indigo-100 group-hover:bg-indigo-100 transition-colors flex items-center gap-1">
-                  <Trophy size={10} />
-                  Perfil
-                </span>
-              </button>
-            ) : (
-              <button
-                onClick={() => setLoginModalOpen(true)}
-                className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-all border border-slate-200 cursor-pointer"
-              >
-                <UserIcon size={14} className="text-slate-500" />
-                <span>Entrar</span>
-              </button>
+            {/* PONTO 5: Ocultar botão de perfil/login quando estiver na tela de jogo */}
+            {phase !== 'PLAYING' && phase !== 'CHOOSING_SECRET' && (
+              currentUser ? (
+                <button
+                  onClick={() => setPhase('PROFILE')}
+                  className="hidden sm:flex items-center gap-2 text-xs font-bold text-slate-700 bg-white hover:bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200 shadow-sm transition-all hover:border-indigo-400 group cursor-pointer"
+                  title="Ver estatísticas, vitórias/derrotas e baralhos salvos"
+                >
+                  {currentUser.avatarUrl ? (
+                    <img
+                      src={currentUser.avatarUrl}
+                      alt={currentUser.username}
+                      className="w-5 h-5 rounded-full object-cover ring-1 ring-indigo-500 shadow-sm"
+                    />
+                  ) : (
+                    <UserIcon size={14} className="text-amber-600" />
+                  )}
+                  <span>{currentUser.username}</span>
+                  <span className="text-[10px] bg-indigo-50 text-indigo-600 font-extrabold px-1.5 py-0.5 rounded-md border border-indigo-100 group-hover:bg-indigo-100 transition-colors flex items-center gap-1">
+                    <Trophy size={10} />
+                    Perfil
+                  </span>
+                </button>
+              ) : (
+                <button
+                  onClick={() => setLoginModalOpen(true)}
+                  className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-all border border-slate-200 cursor-pointer"
+                >
+                  <UserIcon size={14} className="text-slate-500" />
+                  <span>Entrar</span>
+                </button>
+              )
             )}
 
+            {/* PONTO 5: Header da partida com ícones ao lado dos nomes */}
             {phase === 'PLAYING' && (
-              <div className="flex items-center gap-2 bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-bold">
-                <Users size={14} className="text-sky-600" />
-                <span className="text-slate-700">{playerName}</span>
-                <span className="text-slate-400">vs</span>
-                <span className="text-rose-600 font-extrabold">{opponentName}</span>
+              <div className="flex items-center gap-2 bg-slate-100/90 px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-bold shadow-sm">
+                {/* Jogador Atual */}
+                <div className="flex items-center gap-1.5">
+                  {currentUser?.avatarUrl ? (
+                    <img
+                      src={currentUser.avatarUrl}
+                      alt={playerName}
+                      className="w-5 h-5 rounded-full object-cover ring-1 ring-sky-500 shadow-sm"
+                    />
+                  ) : (
+                    <div className="w-5 h-5 rounded-full bg-sky-100 text-sky-700 flex items-center justify-center text-[10px] font-black border border-sky-300">
+                      <UserIcon size={11} />
+                    </div>
+                  )}
+                  <span className="text-slate-800 font-extrabold">{playerName}</span>
+                </div>
+
+                <span className="text-slate-400 text-[10px] font-black uppercase tracking-wider">vs</span>
+
+                {/* Oponente */}
+                <div className="flex items-center gap-1.5">
+                  <div className="w-5 h-5 rounded-full bg-rose-100 text-rose-700 flex items-center justify-center text-[10px] font-black border border-rose-300">
+                    <UserIcon size={11} />
+                  </div>
+                  <span className="text-rose-600 font-black">{opponentName}</span>
+                </div>
               </div>
             )}
 
@@ -1247,7 +1279,7 @@ export function App() {
                     <span className="w-2.5 h-2.5 rounded-full bg-sky-500" />
                     <span>Dica:</span>
                     <span className="text-slate-500 font-medium">
-                      Clique em qualquer cara para marcar <strong>'É o cara!'</strong>, <strong>'Suspeito'</strong> ou <strong>'Descarte'</strong>.
+                      Clique em qualquer cara para marcar como <strong>'Suspeito'</strong> ou <strong>'Descarte'</strong>.
                     </span>
                   </div>
                 </div>
@@ -1263,7 +1295,13 @@ export function App() {
                 isCallMode={roomConfig.isCallMode}
                 onAskQuestion={handleAskQuestion}
                 onPassTurn={handlePassTurn}
-                onOpenGuessModal={() => setGuessModalOpen(true)}
+                onOpenGuessModal={() => {
+                  if (isMyTurn) {
+                    setGuessModalOpen(true);
+                  } else {
+                    sounds.playWrong();
+                  }
+                }}
               />
 
               <div className="bg-slate-100/70 border-2 border-slate-200 rounded-3xl p-3 sm:p-5 shadow-sm">

@@ -85,13 +85,13 @@ export const GuessModal: FC<GuessModalProps> = ({
             </div>
           </div>
         ) : (
-          <div className="flex-1 overflow-y-auto pr-1">
+          <div className="flex-1 overflow-y-auto p-3 rounded-2xl bg-slate-50/60 border border-slate-100">
             <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2.5">
               {cards.map((char) => (
                 <div
                   key={char.id}
                   onClick={() => handleSelect(char)}
-                  className="bg-white hover:bg-slate-50 border-2 border-slate-200 hover:border-amber-400 rounded-2xl p-2 flex flex-col items-center cursor-pointer transition-all hover:scale-105 active:scale-95 shadow-sm"
+                  className="bg-white hover:bg-slate-50 border-2 border-slate-200 hover:border-amber-500 hover:ring-2 hover:ring-amber-200 rounded-2xl p-2 flex flex-col items-center cursor-pointer transition-all hover:-translate-y-0.5 active:translate-y-0 shadow-sm"
                 >
                   <Avatar character={char} size={58} className="mb-1" />
                   <span className="text-xs font-bold text-slate-800 truncate w-full text-center">{char.name}</span>

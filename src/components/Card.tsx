@@ -1,14 +1,14 @@
 import { useState, useRef, useEffect, type FC } from 'react';
 import type { Character, CardStatus } from '../types/game';
 import { Avatar } from './Avatar';
-import { Target, HelpCircle, EyeOff, RotateCcw, X } from 'lucide-react';
+import { HelpCircle, EyeOff, RotateCcw, X } from 'lucide-react';
 import { sounds } from '../utils/sound';
 
 interface CardProps {
   character: Character;
   status: CardStatus;
   onSetStatus: (id: string, newStatus: CardStatus) => void;
-  onTargetSelect: (char: Character) => void;
+  onTargetSelect?: (char: Character) => void;
   disabled?: boolean;
 }
 
@@ -16,7 +16,6 @@ export const Card: FC<CardProps> = ({
   character,
   status,
   onSetStatus,
-  onTargetSelect,
   disabled = false,
 }) => {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -43,21 +42,14 @@ export const Card: FC<CardProps> = ({
 
   const handleSelectOption = (newStatus: CardStatus) => {
     setMenuOpen(false);
-
-    if (newStatus === 'target') {
-      sounds.playWin();
-      onTargetSelect(character);
-    } else {
-      if (newStatus === 'discard') sounds.playFlip(true);
-      else if (newStatus === 'normal') sounds.playFlip(false);
-      else sounds.playClick();
-      onSetStatus(character.id, newStatus);
-    }
+    if (newStatus === 'discard') sounds.playFlip(true);
+    else if (newStatus === 'normal') sounds.playFlip(false);
+    else sounds.playClick();
+    onSetStatus(character.id, newStatus);
   };
 
   const isDiscarded = status === 'discard';
   const isSuspect = status === 'suspect';
-  const isTarget = status === 'target';
 
   return (
     <div
@@ -75,8 +67,6 @@ export const Card: FC<CardProps> = ({
             ? 'bg-slate-100 border-slate-200 scale-[0.92] opacity-40 translate-y-1'
             : isSuspect
             ? 'bg-amber-50 border-amber-400 shadow-[0_3px_0_#f59e0b]'
-            : isTarget
-            ? 'bg-emerald-50 border-emerald-500 ring-4 ring-emerald-200 scale-[1.04] shadow-lg z-10'
             : 'bg-white border-slate-200 hover:border-sky-400 hover:scale-[1.03] shadow-[0_3px_0_#cbd5e1]'
         }`}
       >
@@ -84,7 +74,7 @@ export const Card: FC<CardProps> = ({
         <div className="w-full flex items-center justify-between mb-1 px-1">
           <span
             className={`text-xs font-bold tracking-wide truncate max-w-[85px] ${
-              isTarget ? 'text-emerald-900' : isSuspect ? 'text-amber-900' : 'text-slate-800'
+              isSuspect ? 'text-amber-900' : 'text-slate-800'
             }`}
           >
             {character.name}
@@ -101,12 +91,7 @@ export const Card: FC<CardProps> = ({
               ?
             </span>
           )}
-          {isTarget && (
-            <span className="bg-emerald-500 text-white p-0.5 rounded-full font-black text-[9px] px-1 shadow">
-              🎯 ALVO
-            </span>
-          )}
-          {!isDiscarded && !isSuspect && !isTarget && (
+          {!isDiscarded && !isSuspect && (
             <span className="w-2 h-2 rounded-full bg-emerald-500" />
           )}
         </div>
@@ -149,7 +134,7 @@ export const Card: FC<CardProps> = ({
         </div>
       </div>
 
-      {/* Menu Contextual ao Clicar (3 Opções + Desfazer) */}
+      {/* Menu Contextual ao Clicar (Suspeito, Descarte, Restaurar) */}
       {menuOpen && (
         <div
           onClick={(e) => e.stopPropagation()}
@@ -162,49 +147,40 @@ export const Card: FC<CardProps> = ({
             </button>
           </div>
 
-          {/* Opção 1: 'É o cara!' */}
+          {/* Opção 1: 'Suspeito' */}
           <button
-            onClick={() => handleSelectOption('target')}
-            className="flex items-center gap-2 w-full p-2 rounded-xl bg-emerald-100 hover:bg-emerald-200 text-emerald-900 font-black text-xs transition-colors"
-          >
-            <Target size={14} className="shrink-0 text-emerald-700" />
-            <span>É o cara!</span>
-          </button>
-
-          {/* Opção 2: 'Suspeito' */}
-          <button
-            onClick={() => handleSelectOption('suspect')}
+            onClick={() => handleSelectOption(isSuspect ? 'normal' : 'suspect')}
             className={`flex items-center gap-2 w-full p-2 rounded-xl text-xs font-bold transition-colors ${
               isSuspect
-                ? 'bg-amber-200 text-amber-900 border border-amber-300'
+                ? 'bg-amber-200 text-amber-900 border border-amber-300 font-black'
                 : 'bg-amber-50 hover:bg-amber-100 text-amber-900'
             }`}
           >
             <HelpCircle size={14} className="shrink-0 text-amber-600" />
-            <span>Suspeito</span>
+            <span>{isSuspect ? 'Desmarcar Suspeito' : 'Marcar Suspeito'}</span>
           </button>
 
-          {/* Opção 3: 'Descarte' */}
+          {/* Opção 2: 'Descarte' */}
           <button
-            onClick={() => handleSelectOption('discard')}
+            onClick={() => handleSelectOption(isDiscarded ? 'normal' : 'discard')}
             className={`flex items-center gap-2 w-full p-2 rounded-xl text-xs font-bold transition-colors ${
               isDiscarded
-                ? 'bg-rose-200 text-rose-900 border border-rose-300'
+                ? 'bg-rose-200 text-rose-900 border border-rose-300 font-black'
                 : 'bg-rose-50 hover:bg-rose-100 text-rose-800'
             }`}
           >
             <EyeOff size={14} className="shrink-0 text-rose-600" />
-            <span>Descarte</span>
+            <span>{isDiscarded ? 'Restaurar Carta' : 'Descartar / Virar'}</span>
           </button>
 
-          {/* Opção F.a: 'Desfazer' (se não estiver normal) */}
+          {/* Opção 3: 'Restaurar' (se não estiver normal) */}
           {status !== 'normal' && (
             <button
               onClick={() => handleSelectOption('normal')}
-              className="flex items-center gap-2 w-full p-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-semibold border-t border-slate-100 mt-0.5 transition-colors"
+              className="flex items-center justify-center gap-1.5 w-full p-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-semibold border-t border-slate-100 mt-0.5 transition-colors"
             >
               <RotateCcw size={12} className="shrink-0" />
-              <span>Desfazer</span>
+              <span>Voltar ao Normal</span>
             </button>
           )}
         </div>

@@ -1,5 +1,4 @@
 import { useState, type FC } from 'react';
-import { PREDEFINED_QUESTIONS } from '../utils/characters';
 import type { Question } from '../types/game';
 import { Send, Trophy, ArrowRight, Clock, MessageSquareQuote, Headphones } from 'lucide-react';
 import { sounds } from '../utils/sound';
@@ -29,7 +28,7 @@ const TurnTimerBadge: FC<{ timeLeft: number; totalTime?: number; isOpponent?: bo
 
   return (
     <div
-      className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-mono font-bold transition-all shrink-0 shadow-sm ${
+      className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-sans font-black tabular-nums tracking-tight transition-all shrink-0 shadow-sm ${
         isUrgent
           ? 'bg-rose-100 text-rose-700 border-rose-300 animate-pulse ring-2 ring-rose-200'
           : isOpponent
@@ -39,7 +38,7 @@ const TurnTimerBadge: FC<{ timeLeft: number; totalTime?: number; isOpponent?: bo
       title={isUrgent ? 'Tempo quase esgotado!' : 'Tempo restante deste turno'}
     >
       <Clock size={15} className={isUrgent ? 'text-rose-600 animate-spin' : isOpponent ? 'text-slate-500' : 'text-sky-600'} />
-      <span className="font-extrabold tracking-wider">{formatted}</span>
+      <span className="font-black tracking-tight">{formatted}</span>
       <div className="w-12 h-2 bg-slate-200 rounded-full overflow-hidden hidden sm:block">
         <div
           className={`h-full transition-all duration-1000 ${
@@ -63,7 +62,6 @@ export const QuestionControl: FC<QuestionControlProps> = ({
   onPassTurn,
   onOpenGuessModal,
 }) => {
-  const [selectedPreset, setSelectedPreset] = useState<string>('');
   const [customText, setCustomText] = useState<string>('');
 
   // NOVO: Modo Call (Jogando por Voz / Presencial)
@@ -138,25 +136,12 @@ export const QuestionControl: FC<QuestionControlProps> = ({
   }
 
   const handleSend = () => {
-    let questionText = customText.trim();
-    let traitKey: any;
-    let traitValue: any;
-
-    if (selectedPreset) {
-      const preset = PREDEFINED_QUESTIONS.find(q => q.text === selectedPreset);
-      if (preset) {
-        questionText = preset.text;
-        traitKey = preset.traitKey;
-        traitValue = preset.traitValue;
-      }
-    }
-
+    const questionText = customText.trim();
     if (!questionText) return;
 
     sounds.playQuestion();
-    onAskQuestion(questionText, traitKey, traitValue);
+    onAskQuestion(questionText);
     setCustomText('');
-    setSelectedPreset('');
   };
 
   // 1. Não é meu turno (Vez do Oponente)
@@ -296,62 +281,36 @@ export const QuestionControl: FC<QuestionControlProps> = ({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-12 gap-2.5 items-center">
+      <div className="flex flex-col sm:flex-row gap-2.5 items-center">
         {/* Campo de Pergunta Personalizada Livre */}
-        <div className="md:col-span-7">
-          <div className="relative">
-            <input
-              type="text"
-              placeholder="Digite sua pergunta (ex: 'Tem barba?', 'Usa chapéu?')..."
-              value={customText}
-              onChange={(e) => {
-                setCustomText(e.target.value);
-                setSelectedPreset('');
-              }}
-              onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-              className="w-full bg-slate-50 border-2 border-slate-200 text-slate-900 placeholder-slate-400 text-xs font-semibold rounded-xl pl-3.5 pr-8 py-2.5 focus:outline-none focus:bg-white focus:border-sky-400 focus:ring-2 focus:ring-sky-100 transition-all"
-            />
-            {customText && (
-              <button
-                onClick={() => setCustomText('')}
-                className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-700 text-xs"
-              >
-                ✕
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Ou Seletor de Perguntas Prontas */}
-        <div className="md:col-span-3">
-          <select
-            value={selectedPreset}
-            onChange={(e) => {
-              setSelectedPreset(e.target.value);
-              setCustomText('');
-            }}
-            className="w-full bg-slate-50 border-2 border-slate-200 text-slate-800 text-xs font-semibold rounded-xl px-2.5 py-2.5 focus:outline-none focus:bg-white focus:border-sky-400"
-          >
-            <option value="">-- Ou pergunta rápida --</option>
-            {PREDEFINED_QUESTIONS.map((q, idx) => (
-              <option key={idx} value={q.text}>
-                {q.label}
-              </option>
-            ))}
-          </select>
+        <div className="relative flex-1 w-full">
+          <input
+            type="text"
+            placeholder="Digite sua pergunta (ex: 'Tem barba?', 'Usa chapéu?', 'É loiro?')..."
+            value={customText}
+            onChange={(e) => setCustomText(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+            className="w-full bg-slate-50 border-2 border-slate-200 text-slate-900 placeholder-slate-400 text-xs font-semibold rounded-xl pl-3.5 pr-8 py-3 focus:outline-none focus:bg-white focus:border-sky-400 focus:ring-2 focus:ring-sky-100 transition-all"
+          />
+          {customText && (
+            <button
+              onClick={() => setCustomText('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 text-xs"
+            >
+              ✕
+            </button>
+          )}
         </div>
 
         {/* Botão Enviar Pergunta */}
-        <div className="md:col-span-2">
-          <button
-            onClick={handleSend}
-            disabled={!selectedPreset && !customText.trim()}
-            className="w-full flex items-center justify-center gap-2 bg-sky-500 hover:bg-sky-600 disabled:opacity-50 text-white font-extrabold text-xs uppercase tracking-wider py-2.5 px-3 rounded-xl shadow-[0_3px_0_#0284c7] transition-all active:translate-y-0.5 cursor-pointer"
-          >
-            <Send size={14} />
-            Perguntar
-          </button>
-        </div>
+        <button
+          onClick={handleSend}
+          disabled={!customText.trim()}
+          className="w-full sm:w-auto shrink-0 flex items-center justify-center gap-2 bg-sky-500 hover:bg-sky-600 disabled:opacity-50 text-white font-extrabold text-xs uppercase tracking-wider py-3 px-5 rounded-xl shadow-[0_3px_0_#0284c7] transition-all active:translate-y-0.5 cursor-pointer"
+        >
+          <Send size={14} />
+          <span>Perguntar</span>
+        </button>
       </div>
     </div>
   );

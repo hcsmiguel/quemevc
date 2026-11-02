@@ -131,7 +131,7 @@ export const Lobby: FC<LobbyProps> = ({
             <span className="text-[10px] uppercase text-amber-800 font-extrabold tracking-wider block mb-1">
               Código da Sala
             </span>
-            <span className="text-3xl font-black tracking-widest text-slate-900 font-mono select-all">
+            <span className="text-3xl font-black tracking-[0.2em] text-slate-900 font-sans tabular-nums select-all">
               {roomCode}
             </span>
           </div>

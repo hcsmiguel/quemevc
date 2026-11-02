@@ -72,7 +72,7 @@ export const SecretSelectionModal: FC<SecretSelectionModalProps> = ({
         </div>
 
         {/* Grade de Personagens */}
-        <div className="flex-1 overflow-y-auto pr-1 mb-4">
+        <div className={`flex-1 p-3.5 mb-4 rounded-2xl bg-slate-50/60 border border-slate-100 ${cards.length <= 16 ? 'overflow-visible' : 'overflow-y-auto overflow-x-hidden'}`}>
           <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2.5">
             {cards.map((char) => {
               const isSelected = selectedChar?.id === char.id;
@@ -82,14 +82,14 @@ export const SecretSelectionModal: FC<SecretSelectionModalProps> = ({
                   onClick={() => handleSelect(char)}
                   className={`relative p-2 rounded-2xl flex flex-col items-center cursor-pointer transition-all border-2 ${
                     isSelected
-                      ? 'bg-sky-50 border-sky-400 scale-105 shadow-md'
+                      ? 'bg-sky-50 border-sky-500 ring-4 ring-sky-300 shadow-md -translate-y-0.5'
                       : 'bg-white hover:bg-slate-50 border-slate-200 hover:border-slate-300 shadow-sm'
                   } ${isReady ? 'pointer-events-none opacity-60' : ''}`}
                 >
                   <Avatar character={char} size={64} className="mb-1" />
                   <span className="text-xs font-bold text-slate-800 truncate w-full text-center">{char.name}</span>
                   {isSelected && (
-                    <div className="absolute top-1 right-1 w-5 h-5 rounded-full bg-emerald-500 text-white flex items-center justify-center font-bold text-xs shadow-sm">
+                    <div className="absolute -top-1.5 -right-1.5 w-6 h-6 rounded-full bg-emerald-500 text-white flex items-center justify-center font-bold text-xs shadow-md ring-2 ring-white">
                       ✓
                     </div>
                   )}

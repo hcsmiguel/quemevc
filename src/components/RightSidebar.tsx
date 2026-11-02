@@ -1,15 +1,14 @@
 import type { FC } from 'react';
-import type { Character, CardStatus, Question } from '../types/game';
-import { RotateCcw, Target, Trophy, History } from 'lucide-react';
+import type { CardStatus, Question } from '../types/game';
+import { RotateCcw, History } from 'lucide-react';
 import { sounds } from '../utils/sound';
-import { Avatar } from './Avatar';
 
 interface RightSidebarProps {
   onUndo: () => void;
   canUndo: boolean;
-  targetCharacter: Character | null;
-  onConfirmTargetGuess: (character: Character) => void;
-  onCancelTarget: () => void;
+  targetCharacter?: any;
+  onConfirmTargetGuess?: any;
+  onCancelTarget?: any;
   cardStatuses: Record<string, CardStatus>;
   totalCards: number;
   questionHistory: Question[];
@@ -19,13 +18,10 @@ interface RightSidebarProps {
 export const RightSidebar: FC<RightSidebarProps> = ({
   onUndo,
   canUndo,
-  targetCharacter,
-  onConfirmTargetGuess,
-  onCancelTarget,
   cardStatuses,
   totalCards,
   questionHistory,
-  opponentName,
+  opponentName: _opponentName,
 }) => {
   const counts = Object.values(cardStatuses).reduce(
     (acc, curr) => {
@@ -59,43 +55,6 @@ export const RightSidebar: FC<RightSidebarProps> = ({
           <span>Desfazer Última Ação</span>
         </button>
       </div>
-
-      {/* Caixa de Confirmação 'É o Cara!' (Requisito E.c) */}
-      {targetCharacter && (
-        <div className="bg-amber-50 border-2 border-amber-300 rounded-2xl p-4 shadow-sm flex flex-col items-center text-center animate-in zoom-in-95">
-          <div className="w-12 h-12 bg-amber-100 text-amber-800 rounded-2xl flex items-center justify-center mb-2 shadow-tactile-sm">
-            <Target size={24} className="text-amber-700" />
-          </div>
-          <span className="text-[11px] font-black text-amber-900 uppercase tracking-wider">
-            Você Escolheu o Alvo!
-          </span>
-          <div className="my-2">
-            <Avatar character={targetCharacter} size={64} className="ring-2 ring-amber-400 mx-auto" />
-            <h4 className="text-base font-black text-slate-900 mt-1">{targetCharacter.name}</h4>
-          </div>
-
-          <p className="text-[11px] text-amber-900/80 mb-3 leading-snug">
-            Todas as outras cartas foram viradas. Tem certeza de que {opponentName} é{' '}
-            <strong className="text-slate-900 font-extrabold">{targetCharacter.name}</strong>?
-          </p>
-
-          <div className="w-full space-y-2">
-            <button
-              onClick={() => onConfirmTargetGuess(targetCharacter)}
-              className="w-full py-3 px-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-xs uppercase tracking-wider shadow-[0_3px_0_#d97706] transition-all active:translate-y-0.5 flex items-center justify-center gap-1.5"
-            >
-              <Trophy size={16} />
-              Confirmar Resposta
-            </button>
-            <button
-              onClick={onCancelTarget}
-              className="w-full py-2 px-3 rounded-xl bg-white hover:bg-slate-100 text-slate-600 font-bold text-xs border border-slate-200 transition-colors"
-            >
-              Cancelar Chute
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* Estatísticas do Tabuleiro */}
       <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200">

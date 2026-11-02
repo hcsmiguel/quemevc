@@ -53,7 +53,7 @@ export const OpponentLeftModal: FC<OpponentLeftModalProps> = ({
         </p>
 
         <p className="text-[11px] text-slate-400 mb-6 font-medium">
-          Retornando ao menu principal em <span className="font-mono font-bold text-slate-700">{countdown}s</span>...
+          Retornando ao menu principal em <span className="font-sans font-black tabular-nums text-slate-700">{countdown}s</span>...
         </p>
 
         <button

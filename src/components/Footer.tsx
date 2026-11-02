@@ -1,5 +1,5 @@
 import type { FC } from 'react';
-import { Shield, FileText, Heart } from 'lucide-react';
+import { Shield, FileText } from 'lucide-react';
 
 interface FooterProps {
   onOpenPrivacy: () => void;
@@ -20,9 +20,6 @@ export const Footer: FC<FooterProps> = ({ onOpenPrivacy, onOpenTerms }) => {
           <div>
             <div className="font-extrabold text-slate-800 tracking-tight flex items-center gap-1.5">
               <span>Tá na Cara!</span>
-              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
-                100% Livre
-              </span>
             </div>
             <p className="text-[11px] text-slate-500">
               Jogo de adivinhação para 2 jogadores em tempo real • Sem anúncios
@@ -51,14 +48,10 @@ export const Footer: FC<FooterProps> = ({ onOpenPrivacy, onOpenTerms }) => {
           </button>
         </div>
 
-        {/* Status de Conexão e Amor */}
-        <div className="flex items-center gap-3 text-[11px] text-slate-400">
-          <div className="flex items-center gap-1.5 bg-slate-100 px-2.5 py-1 rounded-full border border-slate-200">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="font-medium text-slate-600">WebSockets TLS Online</span>
-          </div>
-          <span className="hidden md:inline-flex items-center gap-1 text-slate-400">
-            Feito com <Heart size={12} className="text-rose-500 fill-rose-500" />
+        {/* Créditos */}
+        <div className="flex items-center gap-3 text-[11px] text-slate-500">
+          <span className="font-semibold text-slate-600">
+            Feito por Miguel Carvalho
           </span>
         </div>
       </div>

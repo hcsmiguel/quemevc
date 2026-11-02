@@ -47,7 +47,7 @@ export const QuestionAnswerModal: FC<QuestionAnswerModalProps> = ({
           <HelpCircle size={30} className="text-amber-700" />
         </div>
 
-        <div className="flex items-center justify-center gap-1.5 text-xs font-mono font-bold text-amber-800 bg-amber-100/70 border border-amber-300 px-3 py-1 rounded-xl mb-3 mx-auto w-fit">
+        <div className="flex items-center justify-center gap-1.5 text-xs font-sans font-black tabular-nums tracking-tight text-amber-900 bg-amber-100/80 border border-amber-300 px-3 py-1 rounded-xl mb-3 mx-auto w-fit">
           <Clock size={13} className={countdown <= 5 ? 'text-rose-600 animate-spin' : 'text-amber-700'} />
           <span>Tempo para responder: {countdown}s</span>
         </div>

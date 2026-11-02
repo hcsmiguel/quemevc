@@ -425,7 +425,7 @@ export const CreateLobbyPage: FC<CreateLobbyPageProps> = ({
                   placeholder="Ex: 1234"
                   value={secretPassword}
                   onChange={(e) => setSecretPassword(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                  className="w-full bg-white border-2 border-amber-300 text-slate-900 font-mono font-bold text-sm rounded-xl px-3 py-2 focus:outline-none focus:border-amber-500"
+                  className="w-full bg-white border-2 border-amber-300 text-slate-900 font-sans font-black tracking-widest text-sm rounded-xl px-3 py-2 focus:outline-none focus:border-amber-500"
                 />
                 <KeyRound size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-amber-500" />
               </div>
