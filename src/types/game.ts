@@ -80,6 +80,7 @@ export interface NetworkMessage {
     | 'SYNC_LOBBY' 
     | 'CHOSE_SECRET' 
     | 'START_GAME' 
+    | 'SYNC_GAME_STATE'
     | 'ASK_QUESTION' 
     | 'ANSWER_QUESTION' 
     | 'PASS_TURN' 

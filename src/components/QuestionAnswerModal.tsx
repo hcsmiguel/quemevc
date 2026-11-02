@@ -1,7 +1,7 @@
-import type { FC } from 'react';
+import { useState, useEffect, type FC } from 'react';
 import type { Question, Character } from '../types/game';
 import { sounds } from '../utils/sound';
-import { Check, X, HelpCircle } from 'lucide-react';
+import { Check, X, HelpCircle, Clock } from 'lucide-react';
 import { Avatar } from './Avatar';
 
 interface QuestionAnswerModalProps {
@@ -15,22 +15,47 @@ export const QuestionAnswerModal: FC<QuestionAnswerModalProps> = ({
   mySecretCharacter,
   onAnswer,
 }) => {
+  const [countdown, setCountdown] = useState(30);
+
   const handleAnswer = (ans: boolean) => {
     sounds.playAnswer(ans);
     onAnswer(ans);
   };
 
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCountdown((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          let autoAns = false;
+          if (question.traitKey && mySecretCharacter.traits) {
+            autoAns = Boolean(mySecretCharacter.traits[question.traitKey]);
+          }
+          handleAnswer(autoAns);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [question, mySecretCharacter]);
+
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
       <div className="bg-white border-2 border-slate-200 rounded-3xl max-w-md w-full p-6 shadow-2xl text-center animate-in fade-in zoom-in-95 duration-200">
-        <div className="w-14 h-14 bg-amber-100 text-amber-800 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-tactile-sm">
+        <div className="w-14 h-14 bg-amber-100 text-amber-800 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-tactile-sm">
           <HelpCircle size={30} className="text-amber-700" />
+        </div>
+
+        <div className="flex items-center justify-center gap-1.5 text-xs font-mono font-bold text-amber-800 bg-amber-100/70 border border-amber-300 px-3 py-1 rounded-xl mb-3 mx-auto w-fit">
+          <Clock size={13} className={countdown <= 5 ? 'text-rose-600 animate-spin' : 'text-amber-700'} />
+          <span>Tempo para responder: {countdown}s</span>
         </div>
 
         <h3 className="text-xl font-extrabold text-slate-900 mb-1">
           Pergunta de {question.senderName}!
         </h3>
-        <p className="text-xs text-slate-500 mb-5">
+        <p className="text-xs text-slate-500 mb-4">
           Responda com base no seu personagem secreto:
         </p>
 

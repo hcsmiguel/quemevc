@@ -11,6 +11,7 @@ import type {
   UndoAction,
 } from './types/game';
 import { network } from './services/network';
+import { supabase } from './services/supabase';
 import { auth, type AppUser } from './services/auth';
 import { sounds } from './utils/sound';
 import { Card } from './components/Card';
@@ -31,7 +32,7 @@ import { PasswordPromptModal } from './components/PasswordPromptModal';
 import { RightSidebar } from './components/RightSidebar';
 import { Footer } from './components/Footer';
 import { LegalModal, type LegalTab } from './components/LegalModal';
-import { Volume2, VolumeX, Users, User as UserIcon, LogOut, AlertTriangle, Trophy } from 'lucide-react';
+import { Volume2, VolumeX, Users, User as UserIcon, LogOut, AlertTriangle, Trophy, Clock } from 'lucide-react';
 import type { SavedDeck } from './services/auth';
 
 export function App() {
@@ -156,7 +157,20 @@ export function App() {
   const activeDeckRef = useRef<Character[]>(activeDeck);
   activeDeckRef.current = activeDeck;
 
+  const opponentIdRef = useRef<string>(opponentId);
+  opponentIdRef.current = opponentId;
+
+  const opponentReadyRef = useRef<boolean>(opponentReady);
+  opponentReadyRef.current = opponentReady;
+
   const hasStartedGameRef = useRef<boolean>(false);
+
+  // PONTO 3: Temporizador para cada turno (60 segundos)
+  const TURN_DURATION_SECONDS = 60;
+  const [turnStartTime, setTurnStartTime] = useState<number>(Date.now());
+  const turnStartTimeRef = useRef<number>(Date.now());
+  turnStartTimeRef.current = turnStartTime;
+  const [turnTimeLeft, setTurnTimeLeft] = useState<number>(TURN_DURATION_SECONDS);
 
   const toggleSound = () => {
     sounds.enabled = !soundEnabled;
@@ -335,6 +349,8 @@ export function App() {
         setIsConnecting(false);
         setOpponentName(room.host_name);
         setOpponentId(room.host_id);
+        opponentIdRef.current = room.host_id;
+        network.opponentId = room.host_id;
         if (room.config) {
           setRoomConfig(room.config);
           const syncedDeck = getDeckByDifficulty(room.config.cardCount, room.config.customCards);
@@ -371,6 +387,8 @@ export function App() {
         case 'JOIN': {
           setOpponentName(msg.senderName);
           setOpponentId(msg.senderId);
+          opponentIdRef.current = msg.senderId;
+          network.opponentId = msg.senderId;
           setWaitingForPlayer(false);
           setPhase((curr) => (curr === 'LOBBY' ? 'CHOOSING_SECRET' : curr));
           break;
@@ -379,6 +397,7 @@ export function App() {
         // PROBLEMA 1 RESOLVIDO: Quando oponente escolheu o segredo
         case 'CHOSE_SECRET': {
           setOpponentReady(true);
+          opponentReadyRef.current = true;
           // Se sou o Host e já escolhi meu segredo, realizo o sorteio 50/50
           if (isHost && mySecretRef.current) {
             startMatchLottery();
@@ -389,8 +408,26 @@ export function App() {
         // PROBLEMA 1 RESOLVIDO: Convidado recebe o resultado do sorteio feito pelo Host
         case 'START_GAME': {
           hasStartedGameRef.current = true;
-          setCurrentTurnPlayerId(msg.payload.startingPlayerId);
+          if (msg.payload?.startingPlayerId) {
+            setCurrentTurnPlayerId(msg.payload.startingPlayerId);
+          }
+          const tStart = msg.payload?.turnStartTime || Date.now();
+          setTurnStartTime(tStart);
+          turnStartTimeRef.current = tStart;
+          setTurnTimeLeft(TURN_DURATION_SECONDS);
           setPhase('PLAYING');
+          break;
+        }
+
+        case 'SYNC_GAME_STATE': {
+          if (msg.payload?.currentTurnPlayerId) {
+            hasStartedGameRef.current = true;
+            setCurrentTurnPlayerId(msg.payload.currentTurnPlayerId);
+            if (msg.payload?.currentQuestion !== undefined) {
+              setCurrentQuestion(msg.payload.currentQuestion);
+            }
+            setPhase((curr) => (curr === 'CHOOSING_SECRET' ? 'PLAYING' : curr));
+          }
           break;
         }
 
@@ -420,12 +457,20 @@ export function App() {
           setQuestionHistory((prev) =>
             prev.map((q, idx) => (idx === 0 ? { ...q, answer: msg.payload.answer } : q))
           );
+          const tStart = msg.payload?.turnStartTime || Date.now();
+          setTurnStartTime(tStart);
+          turnStartTimeRef.current = tStart;
+          setTurnTimeLeft(TURN_DURATION_SECONDS);
           break;
         }
 
         case 'PASS_TURN': {
           setCurrentTurnPlayerId(network.playerId);
           setCurrentQuestion(null);
+          const tStart = msg.payload?.turnStartTime || Date.now();
+          setTurnStartTime(tStart);
+          turnStartTimeRef.current = tStart;
+          setTurnTimeLeft(TURN_DURATION_SECONDS);
           break;
         }
 
@@ -557,17 +602,45 @@ export function App() {
     return () => unsubscribe();
   }, [isHost, playerName]);
 
-  // PROBLEMA 1 RESOLVIDO: Sorteio 50/50 conduzido EXCLUSIVAMENTE pelo Host
+  // PROBLEMA 1 & 2 RESOLVIDO: Sorteio 50/50 conduzido EXCLUSIVAMENTE pelo Host com IDs válidos garantidos
   const startMatchLottery = async () => {
     if (!isHost || hasStartedGameRef.current) return;
+
+    let targetOppId = opponentIdRef.current || opponentId || network.opponentId;
+    if (!targetOppId && network.roomCode) {
+      const { data: r } = await supabase
+        .from('game_rooms')
+        .select('guest_id')
+        .eq('room_code', network.roomCode)
+        .maybeSingle();
+      if (r?.guest_id && r.guest_id !== network.playerId) {
+        targetOppId = r.guest_id;
+        opponentIdRef.current = targetOppId;
+        setOpponentId(targetOppId);
+      }
+    }
+
+    if (!targetOppId) {
+      console.warn('Adversário ainda não identificado para o sorteio do 1º turno.');
+      return;
+    }
+
     hasStartedGameRef.current = true;
 
-    // Sorteio justo de 50/50 entre Host e Convidado
-    const startingPlayerId = Math.random() < 0.5 ? network.playerId : opponentId;
-    network.send('START_GAME', { startingPlayerId });
+    // Sorteio justo de 50/50 entre Host e Convidado (garante que nenhum ID seja vazio)
+    const startingPlayerId = Math.random() < 0.5 ? network.playerId : targetOppId;
+    const tStart = Date.now();
+    setTurnStartTime(tStart);
+    turnStartTimeRef.current = tStart;
+    setTurnTimeLeft(TURN_DURATION_SECONDS);
     setCurrentTurnPlayerId(startingPlayerId);
     setPhase('PLAYING');
-    await network.syncRoomState({ status: 'playing', current_turn: startingPlayerId });
+
+    network.send('START_GAME', { startingPlayerId, turnStartTime: tStart });
+    await network.syncRoomState({
+      status: 'playing',
+      current_turn: startingPlayerId,
+    });
   };
 
   const handleConfirmSecret = (char: Character) => {
@@ -576,7 +649,7 @@ export function App() {
     network.send('CHOSE_SECRET', { ready: true });
 
     // Se sou o Host e o oponente já estiver pronto, sorteio agora!
-    if (isHost && opponentReady) {
+    if (isHost && (opponentReady || opponentReadyRef.current)) {
       startMatchLottery();
     }
   };
@@ -673,22 +746,31 @@ export function App() {
   const handleAnswerQuestion = (ans: boolean) => {
     if (!questionToAnswer) return;
     const answeredQ = { ...questionToAnswer, answer: ans };
-    network.send('ANSWER_QUESTION', { answer: ans });
+    const tStart = Date.now();
+    network.send('ANSWER_QUESTION', { answer: ans, turnStartTime: tStart });
     setCurrentQuestion(answeredQ);
     setQuestionHistory((prev) =>
       prev.map((q, idx) => (idx === 0 ? answeredQ : q))
     );
     setQuestionToAnswer(null);
+    setTurnStartTime(tStart);
+    turnStartTimeRef.current = tStart;
+    setTurnTimeLeft(TURN_DURATION_SECONDS);
     network.syncRoomState({ current_question: answeredQ });
   };
 
   // Finalizar Turno passa a vez e limpa a pergunta ativa
   const handlePassTurn = () => {
     sounds.playClick();
-    network.send('PASS_TURN', {});
-    setCurrentTurnPlayerId(opponentId);
+    const nextPlayer = opponentIdRef.current || opponentId;
+    const tStart = Date.now();
+    network.send('PASS_TURN', { turnStartTime: tStart });
+    setCurrentTurnPlayerId(nextPlayer);
     setCurrentQuestion(null);
-    network.syncRoomState({ current_turn: opponentId, current_question: null });
+    setTurnStartTime(tStart);
+    turnStartTimeRef.current = tStart;
+    setTurnTimeLeft(TURN_DURATION_SECONDS);
+    network.syncRoomState({ current_turn: nextPlayer, current_question: null });
   };
 
   const handleConfirmGuess = (guessedChar: Character) => {
@@ -728,7 +810,8 @@ export function App() {
     setRematchRequestedByMe(false);
     setRematchRequestedByOpponent(false);
     resetForRematch();
-    const firstTurn = Math.random() < 0.5 ? network.playerId : opponentId;
+    const targetOpp = opponentIdRef.current || opponentId || network.opponentId;
+    const firstTurn = (targetOpp && Math.random() < 0.5) ? network.playerId : (targetOpp || network.playerId);
     setCurrentTurnPlayerId(firstTurn);
     network.syncRoomState({
       status: 'choosing',
@@ -736,6 +819,53 @@ export function App() {
       current_question: null,
     });
   };
+
+  // PONTO 3: Temporizador para cada turno (60s)
+  useEffect(() => {
+    if (phase !== 'PLAYING') return;
+
+    const timer = setInterval(() => {
+      const elapsed = Math.floor((Date.now() - turnStartTimeRef.current) / 1000);
+      const remaining = Math.max(0, TURN_DURATION_SECONDS - elapsed);
+      setTurnTimeLeft(remaining);
+
+      // Sinal sonoro de aviso nos últimos 10 segundos para quem está no turno
+      if (remaining === 10 && currentTurnPlayerId === network.playerId) {
+        sounds.playClick();
+      }
+
+      // Se o tempo esgotar
+      if (remaining === 0) {
+        if (currentTurnPlayerId === network.playerId) {
+          // Sou eu: tempo esgotado, passa a vez automaticamente!
+          sounds.playWrong();
+          handlePassTurn();
+        }
+      }
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [phase, currentTurnPlayerId]);
+
+  // Recuperação de integridade: Garante que nunca fique com o turno vazio
+  useEffect(() => {
+    if (phase === 'PLAYING') {
+      const myId = network.playerId;
+      const oppId = opponentIdRef.current || opponentId;
+      if (!currentTurnPlayerId || (currentTurnPlayerId !== myId && oppId && currentTurnPlayerId !== oppId)) {
+        if (isHost) {
+          const startingId = myId;
+          const tStart = Date.now();
+          setCurrentTurnPlayerId(startingId);
+          setTurnStartTime(tStart);
+          turnStartTimeRef.current = tStart;
+          setTurnTimeLeft(TURN_DURATION_SECONDS);
+          network.send('START_GAME', { startingPlayerId: startingId, turnStartTime: tStart });
+          network.syncRoomState({ current_turn: startingId });
+        }
+      }
+    }
+  }, [phase, currentTurnPlayerId, isHost, opponentId]);
 
   const handleRequestRematch = () => {
     sounds.playClick();
@@ -863,6 +993,20 @@ export function App() {
             {roomCode && (
               <span className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 border border-amber-200 text-xs font-mono text-amber-900 font-extrabold">
                 Sala: {roomCode} ({activeDeck.length} Caras)
+              </span>
+            )}
+            {phase === 'PLAYING' && (
+              <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono font-black border transition-all ${
+                turnTimeLeft <= 10
+                  ? 'bg-rose-50 text-rose-700 border-rose-300 animate-pulse'
+                  : isMyTurn
+                  ? 'bg-sky-50 text-sky-800 border-sky-200'
+                  : 'bg-slate-50 text-slate-700 border-slate-200'
+              }`}>
+                <Clock size={13} className={turnTimeLeft <= 10 ? 'text-rose-600 animate-spin' : isMyTurn ? 'text-sky-600' : 'text-slate-500'} />
+                <span>
+                  {isMyTurn ? 'Sua Vez' : `Vez de ${opponentName}`}: {String(Math.floor(turnTimeLeft / 60)).padStart(2, '0')}:{String(turnTimeLeft % 60).padStart(2, '0')}
+                </span>
               </span>
             )}
           </div>
@@ -1079,6 +1223,8 @@ export function App() {
                 isMyTurn={isMyTurn}
                 opponentName={opponentName}
                 currentQuestion={currentQuestion}
+                timeLeft={turnTimeLeft}
+                totalTime={TURN_DURATION_SECONDS}
                 onAskQuestion={handleAskQuestion}
                 onPassTurn={handlePassTurn}
                 onOpenGuessModal={() => setGuessModalOpen(true)}

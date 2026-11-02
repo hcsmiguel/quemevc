@@ -19,6 +19,7 @@ import {
   LogOut,
   Globe,
   Gamepad2,
+  Wand2,
 } from 'lucide-react';
 import { sounds } from '../utils/sound';
 import type { GameMode, DifficultyCount, RoomConfig } from '../types/game';
@@ -49,7 +50,7 @@ export const Lobby: FC<LobbyProps> = ({
   onOpenLogin,
   onOpenProfile,
   onOpenPublicLobbies,
-  onSelectSavedDeck,
+  onSelectSavedDeck: _onSelectSavedDeck,
   onAbandonWaiting,
   currentUser,
   onLogout,
@@ -67,6 +68,7 @@ export const Lobby: FC<LobbyProps> = ({
   // Configurações da Partida
   const [mode, setMode] = useState<GameMode>('standard');
   const [customDifficulty, setCustomDifficulty] = useState<DifficultyCount>(30);
+  const [selectedSavedDeckId, setSelectedSavedDeckId] = useState<string | null>(null);
   const [isSecretRoom, setIsSecretRoom] = useState(false);
   const [secretPassword, setSecretPassword] = useState('');
 
@@ -120,6 +122,23 @@ export const Lobby: FC<LobbyProps> = ({
         onOpenLogin();
         return;
       }
+
+      // PONTO 1: Se selecionou um baralho salvo existente pela flag única:
+      const selectedDeck = savedDecks.find((d) => d.id === selectedSavedDeckId);
+      if (selectedDeck) {
+        const newCode = await network.generateUniqueRoomCode();
+        onJoinRoom(newCode, name.trim(), true, {
+          mode: 'custom',
+          cardCount: selectedDeck.card_count as DifficultyCount,
+          deckName: selectedDeck.name,
+          customCards: selectedDeck.cards,
+          isSecret: isSecretRoom,
+          password: isSecretRoom ? secretPassword.trim() : undefined,
+        });
+        return;
+      }
+
+      // Se vai montar um novo baralho:
       onOpenDeckBuilder(customDifficulty, isSecretRoom, isSecretRoom ? secretPassword.trim() : undefined);
       return;
     }
@@ -497,32 +516,53 @@ export const Lobby: FC<LobbyProps> = ({
                       </div>
 
                       <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
-                        {savedDecks.map((deck) => (
-                          <div
-                            key={deck.id}
-                            className="flex items-center justify-between bg-white p-2.5 rounded-xl border border-purple-100 shadow-sm hover:border-purple-300 transition-all"
-                          >
-                            <div className="truncate mr-2">
-                              <span className="font-extrabold text-xs text-slate-800 block truncate">
-                                {deck.name}
-                              </span>
-                              <span className="text-[10px] text-purple-600 font-bold">
-                                {deck.card_count} Caras Personalizadas
-                              </span>
-                            </div>
-
-                            <button
-                              type="button"
+                        {savedDecks.map((deck) => {
+                          const isSelected = selectedSavedDeckId === deck.id;
+                          return (
+                            <div
+                              key={deck.id}
                               onClick={() => {
                                 sounds.playClick();
-                                onSelectSavedDeck(deck);
+                                setSelectedSavedDeckId((prev) => (prev === deck.id ? null : deck.id));
                               }}
-                              className="shrink-0 px-3 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-black shadow-tactile-sm transition-all active:translate-y-0.5 cursor-pointer"
+                              className={`flex items-center justify-between p-2.5 rounded-xl border transition-all cursor-pointer ${
+                                isSelected
+                                  ? 'bg-purple-100/90 border-purple-500 shadow-sm ring-2 ring-purple-300'
+                                  : 'bg-white border-purple-100 hover:border-purple-300 hover:bg-purple-50/40'
+                              }`}
                             >
-                              Jogar com este
-                            </button>
-                          </div>
-                        ))}
+                              <div className="flex items-center gap-2.5 truncate mr-2">
+                                <div
+                                  className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 transition-all ${
+                                    isSelected
+                                      ? 'bg-purple-600 text-white'
+                                      : 'border-2 border-slate-300 bg-white'
+                                  }`}
+                                >
+                                  {isSelected && <Check size={12} strokeWidth={3} />}
+                                </div>
+                                <div className="truncate">
+                                  <span className="font-extrabold text-xs text-slate-800 block truncate">
+                                    {deck.name}
+                                  </span>
+                                  <span className="text-[10px] text-purple-600 font-bold">
+                                    {deck.card_count} Caras Personalizadas
+                                  </span>
+                                </div>
+                              </div>
+
+                              {isSelected ? (
+                                <span className="shrink-0 px-2 py-0.5 rounded-lg bg-purple-600 text-white text-[10px] font-black uppercase tracking-wider">
+                                  Selecionado
+                                </span>
+                              ) : (
+                                <span className="shrink-0 px-2 py-0.5 rounded-lg bg-slate-100 text-slate-500 text-[10px] font-bold">
+                                  Selecionar
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                   )}
@@ -539,16 +579,17 @@ export const Lobby: FC<LobbyProps> = ({
                           type="button"
                           onClick={() => {
                             sounds.playClick();
+                            setSelectedSavedDeckId(null);
                             setCustomDifficulty(count);
                           }}
                           className={`py-3 px-2 rounded-2xl border-2 flex flex-col items-center justify-center transition-all cursor-pointer ${
-                            customDifficulty === count
+                            !selectedSavedDeckId && customDifficulty === count
                               ? 'bg-purple-600 border-purple-700 text-white font-black shadow-tactile-sm'
                               : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300 font-bold'
                           }`}
                         >
                           <span className="text-base font-black">{count}</span>
-                          <span className={`text-[10px] font-bold ${customDifficulty === count ? 'text-purple-200' : 'text-slate-500'}`}>
+                          <span className={`text-[10px] font-bold ${!selectedSavedDeckId && customDifficulty === count ? 'text-purple-200' : 'text-slate-500'}`}>
                             Caras
                           </span>
                         </button>
@@ -630,8 +671,20 @@ export const Lobby: FC<LobbyProps> = ({
                   disabled={!name.trim() || isConnecting || (isSecretRoom && !secretPassword.trim())}
                   className="w-full flex items-center justify-center gap-2 py-3.5 px-4 rounded-2xl bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white font-extrabold text-sm shadow-[0_4px_0_#059669] active:translate-y-1 active:shadow-none transition-all cursor-pointer"
                 >
-                  {isConnecting ? <Loader2 size={18} className="animate-spin" /> : <Play size={18} />}
-                  <span>{mode === 'custom' ? 'Montar Baralho' : 'Criar Partida'}</span>
+                  {isConnecting ? (
+                    <Loader2 size={18} className="animate-spin" />
+                  ) : mode === 'custom' && !selectedSavedDeckId ? (
+                    <Wand2 size={18} />
+                  ) : (
+                    <Play size={18} />
+                  )}
+                  <span>
+                    {mode === 'custom'
+                      ? selectedSavedDeckId
+                        ? `Criar Partida (${savedDecks.find((d) => d.id === selectedSavedDeckId)?.name || 'Baralho'})`
+                        : `Montar Baralho (${customDifficulty} Caras)`
+                      : 'Criar Partida'}
+                  </span>
                 </button>
 
                 <button

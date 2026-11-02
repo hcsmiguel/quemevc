@@ -8,15 +8,55 @@ interface QuestionControlProps {
   isMyTurn: boolean;
   opponentName: string;
   currentQuestion: Question | null;
+  timeLeft?: number;
+  totalTime?: number;
   onAskQuestion: (text: string, traitKey?: any, traitValue?: any) => void;
   onPassTurn: () => void;
   onOpenGuessModal: () => void;
 }
 
+const TurnTimerBadge: FC<{ timeLeft: number; totalTime?: number; isOpponent?: boolean }> = ({
+  timeLeft,
+  totalTime = 60,
+  isOpponent = false,
+}) => {
+  const isUrgent = timeLeft <= 10;
+  const minutes = Math.floor(timeLeft / 60);
+  const seconds = timeLeft % 60;
+  const formatted = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+  const pct = Math.min(100, Math.max(0, (timeLeft / totalTime) * 100));
+
+  return (
+    <div
+      className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-mono font-bold transition-all shrink-0 shadow-sm ${
+        isUrgent
+          ? 'bg-rose-100 text-rose-700 border-rose-300 animate-pulse ring-2 ring-rose-200'
+          : isOpponent
+          ? 'bg-slate-100 text-slate-700 border-slate-200'
+          : 'bg-sky-50 text-sky-800 border-sky-200'
+      }`}
+      title={isUrgent ? 'Tempo quase esgotado!' : 'Tempo restante deste turno'}
+    >
+      <Clock size={15} className={isUrgent ? 'text-rose-600 animate-spin' : isOpponent ? 'text-slate-500' : 'text-sky-600'} />
+      <span className="font-extrabold tracking-wider">{formatted}</span>
+      <div className="w-12 h-2 bg-slate-200 rounded-full overflow-hidden hidden sm:block">
+        <div
+          className={`h-full transition-all duration-1000 ${
+            isUrgent ? 'bg-rose-500' : isOpponent ? 'bg-slate-500' : 'bg-sky-500'
+          }`}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+    </div>
+  );
+};
+
 export const QuestionControl: FC<QuestionControlProps> = ({
   isMyTurn,
   opponentName,
   currentQuestion,
+  timeLeft = 60,
+  totalTime = 60,
   onAskQuestion,
   onPassTurn,
   onOpenGuessModal,
@@ -64,22 +104,26 @@ export const QuestionControl: FC<QuestionControlProps> = ({
           </div>
         </div>
 
-        {currentQuestion && currentQuestion.answer !== null && currentQuestion.answer !== undefined && (
-          <div className="text-xs bg-slate-50 px-3.5 py-2 rounded-xl border border-slate-200 text-slate-700 flex items-center gap-2">
-            <span>Última pergunta:</span>
-            <span className="font-bold text-slate-900">"{currentQuestion.text}"</span>
-            <span>➔</span>
-            <span
-              className={`font-black px-2 py-0.5 rounded-lg text-xs ${
-                currentQuestion.answer
-                  ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
-                  : 'bg-rose-100 text-rose-800 border border-rose-300'
-              }`}
-            >
-              {currentQuestion.answer ? 'SIM' : 'NÃO'}
-            </span>
-          </div>
-        )}
+        <div className="flex items-center gap-3 w-full md:w-auto justify-between md:justify-end">
+          {currentQuestion && currentQuestion.answer !== null && currentQuestion.answer !== undefined && (
+            <div className="text-xs bg-slate-50 px-3.5 py-2 rounded-xl border border-slate-200 text-slate-700 flex items-center gap-2">
+              <span>Última pergunta:</span>
+              <span className="font-bold text-slate-900">"{currentQuestion.text}"</span>
+              <span>➔</span>
+              <span
+                className={`font-black px-2 py-0.5 rounded-lg text-xs ${
+                  currentQuestion.answer
+                    ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                    : 'bg-rose-100 text-rose-800 border border-rose-300'
+                }`}
+              >
+                {currentQuestion.answer ? 'SIM' : 'NÃO'}
+              </span>
+            </div>
+          )}
+
+          <TurnTimerBadge timeLeft={timeLeft} totalTime={totalTime} isOpponent={true} />
+        </div>
       </div>
     );
   }
@@ -99,8 +143,11 @@ export const QuestionControl: FC<QuestionControlProps> = ({
             </span>
           </div>
         </div>
-        <div className="text-xs text-amber-800 font-semibold bg-white px-3.5 py-1.5 rounded-xl border border-amber-200">
-          Aguardando {opponentName} responder <strong className="text-emerald-700">SIM</strong> ou <strong className="text-rose-700">NÃO</strong>...
+        <div className="flex items-center gap-3">
+          <div className="text-xs text-amber-800 font-semibold bg-white px-3.5 py-1.5 rounded-xl border border-amber-200">
+            Aguardando {opponentName} responder <strong className="text-emerald-700">SIM</strong> ou <strong className="text-rose-700">NÃO</strong>...
+          </div>
+          <TurnTimerBadge timeLeft={timeLeft} totalTime={totalTime} isOpponent={false} />
         </div>
       </div>
     );
@@ -136,6 +183,7 @@ export const QuestionControl: FC<QuestionControlProps> = ({
         </div>
 
         <div className="flex items-center gap-2.5 w-full md:w-auto">
+          <TurnTimerBadge timeLeft={timeLeft} totalTime={totalTime} isOpponent={false} />
           <button
             onClick={onOpenGuessModal}
             className="flex-1 md:flex-initial flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-xs uppercase tracking-wider shadow-[0_3px_0_#d97706] transition-all active:translate-y-0.5"
@@ -163,13 +211,16 @@ export const QuestionControl: FC<QuestionControlProps> = ({
           <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping" />
           Seu Turno! Faça uma pergunta (A resposta dela será SIM ou NÃO)
         </div>
-        <button
-          onClick={onOpenGuessModal}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-xs uppercase tracking-wider shadow-[0_3px_0_#d97706] transition-all active:translate-y-0.5"
-        >
-          <Trophy size={14} />
-          Já sei quem é!
-        </button>
+        <div className="flex items-center gap-2.5">
+          <TurnTimerBadge timeLeft={timeLeft} totalTime={totalTime} isOpponent={false} />
+          <button
+            onClick={onOpenGuessModal}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-xs uppercase tracking-wider shadow-[0_3px_0_#d97706] transition-all active:translate-y-0.5"
+          >
+            <Trophy size={14} />
+            Já sei quem é!
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-12 gap-2.5 items-center">

@@ -30,6 +30,7 @@ export class NetworkService {
   public isConnected: boolean = false;
   public playerId: string = '';
   public playerName: string = '';
+  public opponentId: string = '';
   public roomCode: string = '';
   public isHost: boolean = false;
 
@@ -64,6 +65,7 @@ export class NetworkService {
     this.roomCode = roomCode.trim();
     this.playerName = playerName.trim();
     this.isHost = true;
+    this.opponentId = '';
     this.hasHandledGuestJoin = false;
 
     // BLOQUEIO 2: Impossibilitar criar uma sala com o mesmo código de outra que já está ocorrendo
@@ -143,6 +145,8 @@ export class NetworkService {
     if (fetchError || !room) {
       throw new Error(`A sala "${this.roomCode}" não foi encontrada. Verifique se digitou o código de 6 números corretamente!`);
     }
+
+    this.opponentId = room.host_id;
 
     if (room.status === 'finished') {
       throw new Error('Esta partida já foi encerrada.');
@@ -227,6 +231,8 @@ export class NetworkService {
 
     if (!room) return null;
 
+    this.opponentId = isHost ? (room.guest_id || '') : room.host_id;
+
     await this.subscribeToRoom(this.roomCode);
     this.startPollingRoom();
     return room as RoomRecord;
@@ -291,24 +297,38 @@ export class NetworkService {
         .maybeSingle();
 
       if (room) {
-        // Dispara JOIN para o Host se acabou de entrar
-        if (this.isHost && room.guest_id && !this.hasHandledGuestJoin && room.status === 'choosing') {
-          this.hasHandledGuestJoin = true;
+        // Dispara JOIN para o Host se o convidado acabou de entrar
+        if (this.isHost && room.guest_id) {
+          this.opponentId = room.guest_id;
+          if (!this.hasHandledGuestJoin && room.status === 'choosing') {
+            this.hasHandledGuestJoin = true;
+            this.messageListeners.forEach((fn) =>
+              fn({
+                type: 'JOIN',
+                senderId: room.guest_id!,
+                senderName: room.guest_name || 'Oponente',
+                payload: { config: room.config },
+                timestamp: Date.now(),
+              })
+            );
+          }
+        }
+
+        // Sincronização redundante de turno e status caso o broadcast falhe
+        if (room.status === 'playing' && room.current_turn) {
           this.messageListeners.forEach((fn) =>
             fn({
-              type: 'JOIN',
-              senderId: room.guest_id!,
-              senderName: room.guest_name || 'Oponente',
-              payload: { config: room.config },
+              type: 'SYNC_GAME_STATE',
+              senderId: 'system',
+              senderName: 'Sistema',
+              payload: {
+                status: 'playing',
+                currentTurnPlayerId: room.current_turn,
+                currentQuestion: room.current_question || null,
+              },
               timestamp: Date.now(),
             })
           );
-        }
-
-        // Se o jogo encerrou no banco e a mensagem de broadcast falhou
-        if (room.status === 'finished') {
-          // notifica ouvintes com GUESS_RESULT redundante
-          // tratado no App.tsx
         }
       }
     }, 2000);
