@@ -41,10 +41,11 @@ export function App() {
   const [isHost, setIsHost] = useState<boolean>(false);
   const [waitingForPlayer, setWaitingForPlayer] = useState<boolean>(false);
   const [isConnecting, setIsConnecting] = useState<boolean>(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
 
   // Baralho e Construtor
-  const [roomConfig, setRoomConfig] = useState<RoomConfig>({
+  const [, setRoomConfig] = useState<RoomConfig>({
     mode: 'standard',
     cardCount: 30,
   });
@@ -107,29 +108,36 @@ export function App() {
     config: RoomConfig
   ) => {
     setIsConnecting(true);
+    setErrorMessage(null);
     setPlayerName(name);
     setRoomCode(code);
     setIsHost(host);
-    setRoomConfig(config);
-
-    const deck = getDeckByDifficulty(config.cardCount, config.customCards);
-    setActiveDeck(deck);
 
     try {
-      await network.connect(code, name);
-      setIsConnecting(false);
-
       if (host) {
+        setRoomConfig(config);
+        const deck = getDeckByDifficulty(config.cardCount, config.customCards);
+        setActiveDeck(deck);
+        await network.createRoom(code, name, config);
+        setIsConnecting(false);
         setWaitingForPlayer(true);
       } else {
-        network.send('JOIN', {
-          playerId: network.playerId,
-          playerName: name,
-        });
+        const room = await network.joinRoom(code, name);
+        setIsConnecting(false);
+        setOpponentName(room.host_name);
+        setOpponentId(room.host_id);
+        if (room.config) {
+          setRoomConfig(room.config);
+          const syncedDeck = getDeckByDifficulty(room.config.cardCount, room.config.customCards);
+          setActiveDeck(syncedDeck);
+        }
+        setWaitingForPlayer(false);
+        setPhase('CHOOSING_SECRET');
       }
-    } catch (err) {
+    } catch (err: any) {
       setIsConnecting(false);
-      alert('Falha ao conectar à sala. Tente novamente em instantes.');
+      setErrorMessage(err.message || 'Erro ao conectar à sala.');
+      sounds.playWrong();
     }
   };
 
@@ -144,30 +152,6 @@ export function App() {
         case 'JOIN': {
           setOpponentName(msg.senderName);
           setOpponentId(msg.senderId);
-          setWaitingForPlayer(false);
-          setPhase('CHOOSING_SECRET');
-
-          if (isHost) {
-            network.send('SYNC_LOBBY', {
-              hostName: playerName,
-              hostId: network.playerId,
-              config: roomConfig,
-            });
-          }
-          break;
-        }
-
-        case 'SYNC_LOBBY': {
-          setOpponentName(msg.payload.hostName);
-          setOpponentId(msg.payload.hostId);
-          if (msg.payload.config) {
-            setRoomConfig(msg.payload.config);
-            const syncedDeck = getDeckByDifficulty(
-              msg.payload.config.cardCount,
-              msg.payload.config.customCards
-            );
-            setActiveDeck(syncedDeck);
-          }
           setWaitingForPlayer(false);
           setPhase('CHOOSING_SECRET');
           break;
@@ -286,7 +270,7 @@ export function App() {
     });
 
     return () => unsubscribe();
-  }, [isHost, playerName, roomConfig]);
+  }, [isHost, playerName]);
 
   const startGame = () => {
     const startingPlayerId = network.playerId;
@@ -310,14 +294,13 @@ export function App() {
       const prevStatus = prev[charId] || 'normal';
       if (prevStatus === newStatus) return prev;
 
-      // Adiciona na pilha de Desfazer
       setUndoStack((old) => [
         ...old,
         {
           type: 'status_change',
           previousStates: { [charId]: prevStatus },
           newStates: { [charId]: newStatus },
-          description: `Alterou carta ${charId} para ${newStatus}`,
+          description: `Alterou carta para ${newStatus}`,
         },
       ]);
 
@@ -340,11 +323,10 @@ export function App() {
         if (c.id === char.id) {
           newStates[c.id] = 'target';
         } else {
-          newStates[c.id] = 'discard'; // Todas as outras viram descarte
+          newStates[c.id] = 'discard';
         }
       });
 
-      // Registra a alteração em lote no histórico de Desfazer
       setUndoStack((old) => [
         ...old,
         {
@@ -359,7 +341,6 @@ export function App() {
     });
   };
 
-  // Cancelar seleção de alvo
   const handleCancelTarget = () => {
     handleUndo();
   };
@@ -371,19 +352,16 @@ export function App() {
     const lastAction = undoStack[undoStack.length - 1];
     setUndoStack((prev) => prev.slice(0, -1));
 
-    // Reverte os estados
     setCardStatuses((prev) => ({
       ...prev,
       ...lastAction.previousStates,
     }));
 
-    // Se o alvo foi desfeito
     if (targetCharacter && lastAction.newStates[targetCharacter.id] === 'target') {
       setTargetCharacter(null);
     }
   };
 
-  // Fazer uma pergunta ao oponente
   const handleAskQuestion = (text: string, traitKey?: any, traitValue?: any) => {
     const q: Question = {
       id: 'q_' + Date.now(),
@@ -527,6 +505,7 @@ export function App() {
             isConnecting={isConnecting}
             waitingForPlayer={waitingForPlayer}
             roomCode={roomCode}
+            errorMessage={errorMessage}
           />
         )}
 
@@ -561,9 +540,7 @@ export function App() {
         {/* 3. TABULEIRO EM JOGO */}
         {phase === 'PLAYING' && (
           <div className="flex-1 flex flex-col lg:flex-row gap-4 items-start">
-            {/* Coluna Principal: Tabuleiro e Controle */}
             <div className="flex-1 w-full flex flex-col gap-4">
-              {/* Barra Superior de Status */}
               <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
                 <div className="md:col-span-5">
                   {mySecretCharacter && (
@@ -582,7 +559,6 @@ export function App() {
                 </div>
               </div>
 
-              {/* Painel Central de Perguntas */}
               <QuestionControl
                 isMyTurn={isMyTurn}
                 opponentName={opponentName}
@@ -592,7 +568,6 @@ export function App() {
                 onOpenGuessModal={() => setGuessModalOpen(true)}
               />
 
-              {/* Grid de Caras do Tabuleiro */}
               <div className="bg-slate-900/40 border border-slate-800/80 rounded-3xl p-3 sm:p-5 shadow-2xl backdrop-blur-sm">
                 <div
                   className={`grid gap-2.5 sm:gap-3 ${
@@ -618,7 +593,6 @@ export function App() {
               </div>
             </div>
 
-            {/* Barra Lateral Direita (Requisito F.b + E.c) */}
             <RightSidebar
               onUndo={handleUndo}
               canUndo={undoStack.length > 0}
@@ -633,7 +607,7 @@ export function App() {
           </div>
         )}
 
-        {/* Modal de Responder Pergunta do Oponente */}
+        {/* Modal de Responder Pergunta */}
         {questionToAnswer && mySecretCharacter && (
           <QuestionAnswerModal
             question={questionToAnswer}
@@ -677,7 +651,7 @@ export function App() {
         />
       </main>
 
-      {/* Chat Rápido Flutuante */}
+      {/* Chat Rápido */}
       {phase === 'PLAYING' && (
         <QuickChat
           onSendMessage={handleSendChat}

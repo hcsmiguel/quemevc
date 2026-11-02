@@ -1,5 +1,5 @@
 import { useState, useEffect, type FC } from 'react';
-import { Users, Copy, Check, Sparkles, Heart, Play, Palette, LayoutGrid, LogIn, User as UserIcon } from 'lucide-react';
+import { Users, Copy, Check, Sparkles, Heart, Play, Palette, LayoutGrid, LogIn, User as UserIcon, AlertCircle, Loader2 } from 'lucide-react';
 import { sounds } from '../utils/sound';
 import type { GameMode, DifficultyCount, RoomConfig } from '../types/game';
 import type { AppUser } from '../services/auth';
@@ -13,6 +13,7 @@ interface LobbyProps {
   isConnecting: boolean;
   waitingForPlayer: boolean;
   roomCode: string;
+  errorMessage?: string | null;
 }
 
 export const Lobby: FC<LobbyProps> = ({
@@ -24,6 +25,7 @@ export const Lobby: FC<LobbyProps> = ({
   isConnecting,
   waitingForPlayer,
   roomCode,
+  errorMessage,
 }) => {
   const [name, setName] = useState(currentUser?.username || '');
   const [inputCode, setInputCode] = useState('');
@@ -54,7 +56,6 @@ export const Lobby: FC<LobbyProps> = ({
     localStorage.setItem('cara_player_name', name.trim());
 
     if (mode === 'custom') {
-      // Abre o construtor de baralho para o usuário montar as caras personalizadas
       onOpenDeckBuilder(difficulty);
       return;
     }
@@ -88,14 +89,14 @@ export const Lobby: FC<LobbyProps> = ({
   if (waitingForPlayer) {
     return (
       <div className="min-h-[80vh] flex items-center justify-center p-4">
-        <div className="bg-slate-900 border-2 border-indigo-500/70 rounded-3xl max-w-md w-full p-8 shadow-2xl text-center">
+        <div className="bg-slate-900 border-2 border-indigo-500/70 rounded-3xl max-w-md w-full p-8 shadow-2xl text-center animate-in zoom-in-95">
           <div className="w-16 h-16 bg-pink-500/20 text-pink-400 border border-pink-500/30 rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse">
             <Heart size={32} />
           </div>
 
           <h2 className="text-2xl font-black text-white mb-2">Sala Criada!</h2>
           <p className="text-sm text-slate-400 mb-6">
-            Mande o código ou o link para ela entrar no outro computador:
+            Mande o código ou o link para o outro jogador entrar:
           </p>
 
           <div className="bg-slate-950 border-2 border-indigo-500/50 rounded-2xl p-4 mb-4">
@@ -109,7 +110,7 @@ export const Lobby: FC<LobbyProps> = ({
 
           <button
             onClick={copyInviteLink}
-            className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-indigo-300 hover:text-white font-bold text-sm border border-slate-700 transition-all mb-6"
+            className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-indigo-300 hover:text-white font-bold text-sm border border-slate-700 transition-all mb-6 active:scale-95"
           >
             {copied ? (
               <>
@@ -135,7 +136,7 @@ export const Lobby: FC<LobbyProps> = ({
 
   return (
     <div className="min-h-[85vh] flex items-center justify-center p-4">
-      <div className="bg-slate-900/90 border-2 border-indigo-500/50 rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl backdrop-blur-xl">
+      <div className="bg-slate-900/90 border-2 border-indigo-500/50 rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl backdrop-blur-xl animate-in fade-in">
         {/* Barra de Usuário no Topo do Card */}
         <div className="flex items-center justify-between pb-4 mb-4 border-b border-slate-800">
           <div className="flex items-center gap-2 text-xs font-bold">
@@ -185,6 +186,14 @@ export const Lobby: FC<LobbyProps> = ({
           </p>
         </div>
 
+        {/* Mensagem de Erro (se houver) */}
+        {errorMessage && (
+          <div className="mb-4 p-3 rounded-2xl bg-red-950/90 border border-red-500/80 text-xs text-red-200 flex items-center gap-2.5 shadow-lg animate-shake">
+            <AlertCircle size={18} className="shrink-0 text-red-400" />
+            <span>{errorMessage}</span>
+          </div>
+        )}
+
         {/* Formulário Principal */}
         <div className="space-y-4">
           <div>
@@ -200,7 +209,7 @@ export const Lobby: FC<LobbyProps> = ({
             />
           </div>
 
-          {/* Requisito D: Modo Padrão vs Modo Personalizado */}
+          {/* Modo do Baralho */}
           <div>
             <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">
               Modo do Baralho:
@@ -240,7 +249,7 @@ export const Lobby: FC<LobbyProps> = ({
             </div>
           </div>
 
-          {/* Requisito C: Quantidade de Caras (15, 30, 45, 60) */}
+          {/* Quantidade de Caras */}
           <div>
             <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">
               Quantidade de Caras:
@@ -280,7 +289,7 @@ export const Lobby: FC<LobbyProps> = ({
             disabled={!name.trim() || isConnecting}
             className="w-full flex items-center justify-center gap-2 py-3.5 px-4 rounded-xl bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-400 hover:to-indigo-500 disabled:opacity-50 text-white font-black text-xs uppercase tracking-wider shadow-lg shadow-indigo-500/30 transition-all active:scale-95"
           >
-            <Play size={16} />
+            {isConnecting ? <Loader2 size={16} className="animate-spin" /> : <Play size={16} />}
             {mode === 'custom' ? 'Criar Caras e Abrir Sala' : 'Criar Nova Sala (Host)'}
           </button>
 
@@ -299,6 +308,7 @@ export const Lobby: FC<LobbyProps> = ({
               placeholder="Ex: CARA-24"
               value={inputCode}
               onChange={(e) => setInputCode(e.target.value.toUpperCase())}
+              onKeyDown={(e) => e.key === 'Enter' && handleJoinWithCode()}
               className="flex-1 bg-slate-950 border border-slate-700 text-amber-400 font-mono font-bold placeholder-slate-600 text-xs rounded-xl px-3 py-2.5 focus:outline-none focus:border-indigo-500"
             />
             <button
@@ -306,8 +316,8 @@ export const Lobby: FC<LobbyProps> = ({
               disabled={!name.trim() || !inputCode.trim() || isConnecting}
               className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-white font-bold text-xs border border-slate-700 transition-all active:scale-95"
             >
-              <Users size={15} />
-              Entrar
+              {isConnecting ? <Loader2 size={15} className="animate-spin" /> : <Users size={15} />}
+              {isConnecting ? 'Entrando...' : 'Entrar'}
             </button>
           </div>
         </div>
