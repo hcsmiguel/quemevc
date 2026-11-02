@@ -23,16 +23,30 @@ import { SecretSelectionModal } from './components/SecretSelectionModal';
 import { Lobby } from './components/Lobby';
 import { QuickChat } from './components/QuickChat';
 import { LoginModal } from './components/LoginModal';
+import { UserDashboardModal } from './components/UserDashboardModal';
 import { CustomDeckBuilder } from './components/CustomDeckBuilder';
 import { RightSidebar } from './components/RightSidebar';
 import { Footer } from './components/Footer';
 import { LegalModal, type LegalTab } from './components/LegalModal';
-import { Volume2, VolumeX, Users, User as UserIcon, LogOut, AlertTriangle } from 'lucide-react';
+import { Volume2, VolumeX, Users, User as UserIcon, LogOut, AlertTriangle, Trophy } from 'lucide-react';
+import type { SavedDeck } from './services/auth';
 
 export function App() {
   // Autenticação
   const [currentUser, setCurrentUser] = useState<AppUser | null>(() => auth.getCurrentUser());
   const [loginModalOpen, setLoginModalOpen] = useState(false);
+  const [userDashboardOpen, setUserDashboardOpen] = useState(false);
+
+  // Escutar login/logout e mudanças de sessão (OAuth Google e Discord)
+  useEffect(() => {
+    const unsubscribe = auth.onAuthChange((user) => {
+      setCurrentUser(user);
+      if (user?.username) {
+        setPlayerName(user.username);
+      }
+    });
+    return () => unsubscribe();
+  }, []);
 
   // Modal Legal (Privacidade e Termos)
   const [legalModalOpen, setLegalModalOpen] = useState(false);
@@ -64,7 +78,7 @@ export function App() {
   const [showAbandonModal, setShowAbandonModal] = useState(false);
 
   // Baralho e Construtor
-  const [, setRoomConfig] = useState<RoomConfig>({
+  const [roomConfig, setRoomConfig] = useState<RoomConfig>({
     mode: 'standard',
     cardCount: 15,
   });
@@ -99,9 +113,23 @@ export function App() {
   // Chat Rápido
   const [chatMessages, setChatMessages] = useState<{ sender: string; text: string; id: string }[]>([]);
 
-  // Referência para o personagem secreto local
+  // Referências para evitar fechamentos obsoletos em listeners de eventos
   const mySecretRef = useRef<Character | null>(null);
   mySecretRef.current = mySecretCharacter;
+
+  const currentUserRef = useRef<AppUser | null>(currentUser);
+  currentUserRef.current = currentUser;
+
+  const opponentNameRef = useRef<string>(opponentName);
+  opponentNameRef.current = opponentName;
+
+  const roomConfigRef = useRef<RoomConfig>(roomConfig);
+  roomConfigRef.current = roomConfig;
+
+  const activeDeckRef = useRef<Character[]>(activeDeck);
+  activeDeckRef.current = activeDeck;
+
+  const hasStartedGameRef = useRef<boolean>(false);
 
   const toggleSound = () => {
     sounds.enabled = !soundEnabled;
@@ -242,6 +270,21 @@ export function App() {
     setRoomCode(code);
     setIsHost(host);
 
+    // PROBLEMA 2 RESOLVIDO: Limpar completamente o histórico ao entrar/criar sala
+    setQuestionHistory([]);
+    setChatMessages([]);
+    setCurrentQuestion(null);
+    setQuestionToAnswer(null);
+    setUndoStack([]);
+    setCardStatuses({});
+    setTargetCharacter(null);
+    setMySecretCharacter(null);
+    setOpponentSecretCharacter(null);
+    setOpponentReady(false);
+    setGameOverResult(null);
+    setWrongGuessAlert(null);
+    hasStartedGameRef.current = false;
+
     try {
       if (host) {
         setRoomConfig(config);
@@ -286,15 +329,19 @@ export function App() {
           break;
         }
 
+        // PROBLEMA 1 RESOLVIDO: Quando oponente escolheu o segredo
         case 'CHOSE_SECRET': {
           setOpponentReady(true);
-          if (mySecretRef.current) {
-            startGame();
+          // Se sou o Host e já escolhi meu segredo, realizo o sorteio 50/50
+          if (isHost && mySecretRef.current) {
+            startMatchLottery();
           }
           break;
         }
 
+        // PROBLEMA 1 RESOLVIDO: Convidado recebe o resultado do sorteio feito pelo Host
         case 'START_GAME': {
+          hasStartedGameRef.current = true;
           setCurrentTurnPlayerId(msg.payload.startingPlayerId);
           setPhase('PLAYING');
           break;
@@ -358,6 +405,17 @@ export function App() {
                 winnerName: msg.senderName,
               });
               setPhase('GAME_OVER');
+
+              // PONTO 2.a: Gravar derrota no histórico do usuário logado
+              if (currentUserRef.current) {
+                auth.recordMatch({
+                  user_id: currentUserRef.current.id,
+                  opponent_name: msg.senderName,
+                  result: 'loss',
+                  deck_mode: roomConfigRef.current.mode,
+                  card_count: activeDeckRef.current.length,
+                });
+              }
             } else {
               // Oponente errou o palpite
               network.send('GUESS_RESULT', {
@@ -383,6 +441,17 @@ export function App() {
               setOpponentSecretCharacter(msg.payload.secretCharacter);
             }
             setPhase('GAME_OVER');
+
+            // PONTO 2.a: Gravar resultado no histórico do usuário logado
+            if (currentUserRef.current) {
+              auth.recordMatch({
+                user_id: currentUserRef.current.id,
+                opponent_name: opponentNameRef.current,
+                result: winnerIsMe ? 'win' : 'loss',
+                deck_mode: roomConfigRef.current.mode,
+                card_count: activeDeckRef.current.length,
+              });
+            }
           } else {
             sounds.playWrong();
             setWrongGuessAlert(
@@ -423,8 +492,13 @@ export function App() {
     return () => unsubscribe();
   }, [isHost, playerName]);
 
-  const startGame = async () => {
-    const startingPlayerId = network.playerId;
+  // PROBLEMA 1 RESOLVIDO: Sorteio 50/50 conduzido EXCLUSIVAMENTE pelo Host
+  const startMatchLottery = async () => {
+    if (!isHost || hasStartedGameRef.current) return;
+    hasStartedGameRef.current = true;
+
+    // Sorteio justo de 50/50 entre Host e Convidado
+    const startingPlayerId = Math.random() < 0.5 ? network.playerId : opponentId;
     network.send('START_GAME', { startingPlayerId });
     setCurrentTurnPlayerId(startingPlayerId);
     setPhase('PLAYING');
@@ -433,10 +507,12 @@ export function App() {
 
   const handleConfirmSecret = (char: Character) => {
     setMySecretCharacter(char);
+    mySecretRef.current = char;
     network.send('CHOSE_SECRET', { ready: true });
 
-    if (opponentReady) {
-      startGame();
+    // Se sou o Host e o oponente já estiver pronto, sorteio agora!
+    if (isHost && opponentReady) {
+      startMatchLottery();
     }
   };
 
@@ -565,6 +641,9 @@ export function App() {
       initialStatuses[c.id] = 'normal';
     });
     setCardStatuses(initialStatuses);
+    // PROBLEMA 2 RESOLVIDO: Limpar completamente histórico e chat em nova partida
+    setQuestionHistory([]);
+    setChatMessages([]);
     setUndoStack([]);
     setTargetCharacter(null);
     setMySecretCharacter(null);
@@ -573,6 +652,8 @@ export function App() {
     setCurrentQuestion(null);
     setQuestionToAnswer(null);
     setGameOverResult(null);
+    setWrongGuessAlert(null);
+    hasStartedGameRef.current = false;
     setPhase('CHOOSING_SECRET');
   };
 
@@ -596,10 +677,31 @@ export function App() {
     setPhase('LOBBY');
     setWaitingForPlayer(false);
     setRoomCode('');
+    // PROBLEMA 2 RESOLVIDO: Limpar histórico ao voltar ao Lobby
+    setQuestionHistory([]);
+    setChatMessages([]);
+    setUndoStack([]);
+    setCardStatuses({});
     setCurrentQuestion(null);
     setQuestionToAnswer(null);
     setMySecretCharacter(null);
+    setOpponentSecretCharacter(null);
+    setOpponentReady(false);
     setGameOverResult(null);
+    setWrongGuessAlert(null);
+    hasStartedGameRef.current = false;
+  };
+
+  // PONTO 2.b: Iniciar partida diretamente com um baralho personalizado salvo
+  const handlePlaySavedDeck = (savedDeck: SavedDeck) => {
+    const randomSuffix = Math.floor(1000 + Math.random() * 9000);
+    const newCode = `CARA-${randomSuffix}`;
+    handleJoinRoom(newCode, playerName || currentUser?.username || 'Host', true, {
+      mode: 'custom',
+      cardCount: savedDeck.card_count as DifficultyCount,
+      deckName: savedDeck.name,
+      customCards: savedDeck.cards,
+    });
   };
 
   const handleSendChat = (text: string) => {
@@ -635,11 +737,35 @@ export function App() {
           </div>
 
           <div className="flex items-center gap-2.5">
-            {currentUser && (
-              <div className="hidden sm:flex items-center gap-1.5 text-xs font-bold text-slate-700 bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-200">
-                <UserIcon size={14} className="text-amber-600" />
+            {currentUser ? (
+              <button
+                onClick={() => setUserDashboardOpen(true)}
+                className="hidden sm:flex items-center gap-2 text-xs font-bold text-slate-700 bg-white hover:bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200 shadow-sm transition-all hover:border-indigo-400 group cursor-pointer"
+                title="Ver estatísticas, vitórias/derrotas e baralhos salvos"
+              >
+                {currentUser.avatarUrl ? (
+                  <img
+                    src={currentUser.avatarUrl}
+                    alt={currentUser.username}
+                    className="w-5 h-5 rounded-full object-cover ring-1 ring-indigo-500 shadow-sm"
+                  />
+                ) : (
+                  <UserIcon size={14} className="text-amber-600" />
+                )}
                 <span>{currentUser.username}</span>
-              </div>
+                <span className="text-[10px] bg-indigo-50 text-indigo-600 font-extrabold px-1.5 py-0.5 rounded-md border border-indigo-100 group-hover:bg-indigo-100 transition-colors flex items-center gap-1">
+                  <Trophy size={10} />
+                  Perfil
+                </span>
+              </button>
+            ) : (
+              <button
+                onClick={() => setLoginModalOpen(true)}
+                className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-all border border-slate-200 cursor-pointer"
+              >
+                <UserIcon size={14} className="text-slate-500" />
+                <span>Entrar</span>
+              </button>
             )}
 
             {phase === 'PLAYING' && (
@@ -654,7 +780,7 @@ export function App() {
             <button
               onClick={toggleSound}
               title={soundEnabled ? 'Silenciar Sons' : 'Ativar Sons'}
-              className="p-2 rounded-xl bg-white hover:bg-slate-100 text-slate-600 hover:text-slate-900 border border-slate-200 shadow-sm transition-all"
+              className="p-2 rounded-xl bg-white hover:bg-slate-100 text-slate-600 hover:text-slate-900 border border-slate-200 shadow-sm transition-all cursor-pointer"
             >
               {soundEnabled ? <Volume2 size={18} /> : <VolumeX size={18} />}
             </button>
@@ -664,7 +790,7 @@ export function App() {
               <button
                 onClick={() => setShowAbandonModal(true)}
                 title="Voltar ao Menu Principal"
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 text-xs font-extrabold uppercase tracking-wider transition-all active:scale-95 shadow-sm"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 text-xs font-extrabold uppercase tracking-wider transition-all active:scale-95 shadow-sm cursor-pointer"
               >
                 <LogOut size={14} />
                 <span className="hidden sm:inline">Menu Principal</span>
@@ -691,6 +817,8 @@ export function App() {
               setIsBuildingDeck(true);
             }}
             onOpenLogin={() => setLoginModalOpen(true)}
+            onOpenDashboard={() => setUserDashboardOpen(true)}
+            onSelectSavedDeck={handlePlaySavedDeck}
             currentUser={currentUser}
             onLogout={() => {
               auth.logout();
@@ -708,13 +836,15 @@ export function App() {
           <CustomDeckBuilder
             targetCount={deckTargetCount}
             roomCode={roomCode || 'temp'}
-            onFinishDeck={(customCards) => {
+            currentUser={currentUser}
+            onFinishDeck={(customCards, customDeckName) => {
               setIsBuildingDeck(false);
               const randomSuffix = Math.floor(1000 + Math.random() * 9000);
               const newCode = `CARA-${randomSuffix}`;
               handleJoinRoom(newCode, playerName || currentUser?.username || 'Host', true, {
                 mode: 'custom',
                 cardCount: deckTargetCount,
+                deckName: customDeckName,
                 customCards,
               });
             }}
@@ -880,6 +1010,19 @@ export function App() {
             setPlayerName(user.username);
           }}
         />
+
+        {/* Modal de Dashboard do Usuário Logado (Ponto 2.a & 2.b) */}
+        {currentUser && (
+          <UserDashboardModal
+            isOpen={userDashboardOpen}
+            onClose={() => setUserDashboardOpen(false)}
+            currentUser={currentUser}
+            onSelectSavedDeck={(savedDeck) => {
+              setUserDashboardOpen(false);
+              handlePlaySavedDeck(savedDeck);
+            }}
+          />
+        )}
       </main>
 
       {/* Chat Rápido */}

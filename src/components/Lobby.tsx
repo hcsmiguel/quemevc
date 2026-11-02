@@ -13,10 +13,12 @@ import {
   Loader2,
   KeyRound,
   HelpCircle,
+  Trophy,
+  Layers,
 } from 'lucide-react';
 import { sounds } from '../utils/sound';
 import type { GameMode, DifficultyCount, RoomConfig } from '../types/game';
-import type { AppUser } from '../services/auth';
+import { auth, type AppUser, type SavedDeck } from '../services/auth';
 import { STANDARD_60_CHARACTERS } from '../utils/characters';
 import { Avatar } from './Avatar';
 
@@ -24,6 +26,8 @@ interface LobbyProps {
   onJoinRoom: (roomCode: string, playerName: string, isHost: boolean, config: RoomConfig) => void;
   onOpenDeckBuilder: (targetCount: DifficultyCount) => void;
   onOpenLogin: () => void;
+  onOpenDashboard: () => void;
+  onSelectSavedDeck: (deck: SavedDeck) => void;
   currentUser: AppUser | null;
   onLogout: () => void;
   isConnecting: boolean;
@@ -36,6 +40,8 @@ export const Lobby: FC<LobbyProps> = ({
   onJoinRoom,
   onOpenDeckBuilder,
   onOpenLogin,
+  onOpenDashboard,
+  onSelectSavedDeck,
   currentUser,
   onLogout,
   isConnecting,
@@ -47,12 +53,22 @@ export const Lobby: FC<LobbyProps> = ({
   const [name, setName] = useState(currentUser?.username || '');
   const [inputCode, setInputCode] = useState('');
   const [copied, setCopied] = useState(false);
+  const [savedDecks, setSavedDecks] = useState<SavedDeck[]>([]);
 
   // Configurações da Partida
   const [mode, setMode] = useState<GameMode>('standard');
   const [customDifficulty, setCustomDifficulty] = useState<DifficultyCount>(30);
 
   const activeDifficulty: DifficultyCount = mode === 'standard' ? 15 : customDifficulty;
+
+  // Carregar baralhos salvos do usuário logado (Ponto 2.b)
+  useEffect(() => {
+    if (currentUser?.id) {
+      auth.getUserSavedDecks(currentUser.id).then(setSavedDecks);
+    } else {
+      setSavedDecks([]);
+    }
+  }, [currentUser]);
 
   // Caracteres para o peeker decorativo
   const peekingCharacters = STANDARD_60_CHARACTERS.slice(0, 5);
@@ -196,15 +212,32 @@ export const Lobby: FC<LobbyProps> = ({
         <div className="bg-white border-2 border-slate-200 rounded-3xl p-6 sm:p-8 shadow-xl relative z-10 animate-in fade-in duration-200">
           {/* Barra Superior do Card (Status do Usuário) */}
           <div className="flex items-center justify-between pb-4 mb-5 border-b border-slate-100">
-            <div className="flex items-center gap-2 text-xs font-semibold">
+            <div className="flex items-center gap-2.5 text-xs font-semibold">
               {currentUser ? (
-                <div className="flex items-center gap-2">
-                  <span className="w-7 h-7 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center font-bold">
-                    <UserIcon size={14} />
-                  </span>
-                  <span className="text-slate-600">
-                    Olá, <strong className="text-slate-900">{currentUser.username}</strong>
-                  </span>
+                <div className="flex items-center gap-2.5">
+                  {currentUser.avatarUrl ? (
+                    <img
+                      src={currentUser.avatarUrl}
+                      alt={currentUser.username}
+                      className="w-8 h-8 rounded-xl object-cover ring-2 ring-indigo-500/50 shadow-sm"
+                    />
+                  ) : (
+                    <span className="w-8 h-8 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center font-bold">
+                      <UserIcon size={15} />
+                    </span>
+                  )}
+                  <div>
+                    <span className="text-slate-600 block leading-tight text-xs">
+                      Olá, <strong className="text-slate-900">{currentUser.username}</strong>
+                    </span>
+                    {currentUser.provider && currentUser.provider !== 'email' ? (
+                      <span className="text-[10px] font-bold text-indigo-600 uppercase">
+                        via {currentUser.provider}
+                      </span>
+                    ) : (
+                      <span className="text-[10px] text-slate-400">Conta Ativa</span>
+                    )}
+                  </div>
                 </div>
               ) : (
                 <span className="text-slate-500 font-medium flex items-center gap-1.5">
@@ -214,14 +247,25 @@ export const Lobby: FC<LobbyProps> = ({
               )}
             </div>
 
-            <div>
+            <div className="flex items-center gap-1.5">
               {currentUser ? (
-                <button
-                  onClick={onLogout}
-                  className="text-xs text-slate-400 hover:text-rose-600 font-semibold transition-colors px-2 py-1 rounded-lg hover:bg-rose-50"
-                >
-                  Sair
-                </button>
+                <>
+                  <button
+                    type="button"
+                    onClick={onOpenDashboard}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold transition-all border border-indigo-200 shadow-sm cursor-pointer"
+                    title="Ver estatísticas, histórico de oponentes e baralhos"
+                  >
+                    <Trophy size={13} className="text-indigo-600" />
+                    <span>Meu Perfil</span>
+                  </button>
+                  <button
+                    onClick={onLogout}
+                    className="text-xs text-slate-400 hover:text-rose-600 font-semibold transition-colors px-2 py-1.5 rounded-lg hover:bg-rose-50"
+                  >
+                    Sair
+                  </button>
+                </>
               ) : (
                 <button
                   onClick={onOpenLogin}
@@ -367,35 +411,85 @@ export const Lobby: FC<LobbyProps> = ({
                   </span>
                 </div>
               ) : (
-                <div className="animate-in fade-in">
-                  <label className="block text-xs font-extrabold text-purple-900 uppercase tracking-wider mb-1.5">
-                    Quantidade de Caras Personalizadas:
-                  </label>
-                  <div className="grid grid-cols-3 gap-2">
-                    {(
-                      [
-                        { count: 30, label: 'Médio' },
-                        { count: 45, label: 'Difícil' },
-                        { count: 60, label: 'Hardcore' },
-                      ] as const
-                    ).map(({ count, label }) => (
-                      <button
-                        key={count}
-                        type="button"
-                        onClick={() => {
-                          sounds.playClick();
-                          setCustomDifficulty(count);
-                        }}
-                        className={`p-2.5 rounded-2xl border-2 flex flex-col items-center justify-center transition-all ${
-                          customDifficulty === count
-                            ? 'bg-purple-600 border-purple-700 text-white font-black shadow-tactile-sm'
-                            : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
-                        }`}
-                      >
-                        <span className="text-sm font-black">{count}</span>
-                        <span className="text-[10px] uppercase font-bold">{label}</span>
-                      </button>
-                    ))}
+                <div className="space-y-3.5 animate-in fade-in">
+                  {/* PONTO 2.b: Baralhos Salvos do Usuário */}
+                  {currentUser && savedDecks.length > 0 && (
+                    <div className="bg-purple-50/70 border border-purple-200 rounded-2xl p-3 shadow-sm">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-[11px] font-black text-purple-900 uppercase tracking-wider flex items-center gap-1.5">
+                          <Layers size={13} className="text-purple-600" />
+                          Seus Baralhos Salvos ({savedDecks.length})
+                        </span>
+                        <button
+                          type="button"
+                          onClick={onOpenDashboard}
+                          className="text-[10px] font-extrabold text-purple-700 hover:text-purple-900 underline"
+                        >
+                          Gerenciar
+                        </button>
+                      </div>
+
+                      <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
+                        {savedDecks.map((deck) => (
+                          <div
+                            key={deck.id}
+                            className="flex items-center justify-between bg-white p-2.5 rounded-xl border border-purple-100 shadow-sm hover:border-purple-300 transition-all"
+                          >
+                            <div className="truncate mr-2">
+                              <span className="font-extrabold text-xs text-slate-800 block truncate">
+                                {deck.name}
+                              </span>
+                              <span className="text-[10px] text-purple-600 font-bold">
+                                {deck.card_count} Caras Personalizadas
+                              </span>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                sounds.playClick();
+                                onSelectSavedDeck(deck);
+                              }}
+                              className="shrink-0 px-3 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-black shadow-tactile-sm transition-all active:translate-y-0.5 cursor-pointer"
+                            >
+                              Jogar com este
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="block text-xs font-extrabold text-purple-900 uppercase tracking-wider mb-1.5">
+                      {savedDecks.length > 0 ? 'Ou crie um novo baralho com:' : 'Quantidade de Caras Personalizadas:'}
+                    </label>
+                    <div className="grid grid-cols-3 gap-2">
+                      {(
+                        [
+                          { count: 30, label: 'Médio' },
+                          { count: 45, label: 'Difícil' },
+                          { count: 60, label: 'Hardcore' },
+                        ] as const
+                      ).map(({ count, label }) => (
+                        <button
+                          key={count}
+                          type="button"
+                          onClick={() => {
+                            sounds.playClick();
+                            setCustomDifficulty(count);
+                          }}
+                          className={`p-2.5 rounded-2xl border-2 flex flex-col items-center justify-center transition-all ${
+                            customDifficulty === count
+                              ? 'bg-purple-600 border-purple-700 text-white font-black shadow-tactile-sm'
+                              : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
+                          }`}
+                        >
+                          <span className="text-sm font-black">{count}</span>
+                          <span className="text-[10px] uppercase font-bold">{label}</span>
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
               )}
