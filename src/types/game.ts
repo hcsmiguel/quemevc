@@ -82,6 +82,7 @@ export interface NetworkMessage {
     | 'MAKE_GUESS' 
     | 'GUESS_RESULT' 
     | 'REMATCH' 
+    | 'ABANDON_GAME'
     | 'CHAT';
   senderId: string;
   senderName: string;

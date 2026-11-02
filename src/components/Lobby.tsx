@@ -33,7 +33,10 @@ export const Lobby: FC<LobbyProps> = ({
 
   // Configurações da Partida
   const [mode, setMode] = useState<GameMode>('standard');
-  const [difficulty, setDifficulty] = useState<DifficultyCount>(30);
+  // Ponto 1.b: Modo padrão tem fixo 15 caras; Modo personalizado tem opções 30, 45, 60
+  const [customDifficulty, setCustomDifficulty] = useState<DifficultyCount>(30);
+
+  const activeDifficulty: DifficultyCount = mode === 'standard' ? 15 : customDifficulty;
 
   useEffect(() => {
     if (currentUser?.username) {
@@ -56,7 +59,7 @@ export const Lobby: FC<LobbyProps> = ({
     localStorage.setItem('cara_player_name', name.trim());
 
     if (mode === 'custom') {
-      onOpenDeckBuilder(difficulty);
+      onOpenDeckBuilder(customDifficulty);
       return;
     }
 
@@ -64,7 +67,7 @@ export const Lobby: FC<LobbyProps> = ({
     const newCode = `CARA-${randomSuffix}`;
     onJoinRoom(newCode, name.trim(), true, {
       mode: 'standard',
-      cardCount: difficulty,
+      cardCount: 15,
     });
   };
 
@@ -74,7 +77,7 @@ export const Lobby: FC<LobbyProps> = ({
     localStorage.setItem('cara_player_name', name.trim());
     onJoinRoom(inputCode.trim().toUpperCase(), name.trim(), false, {
       mode: 'standard',
-      cardCount: difficulty,
+      cardCount: 15,
     });
   };
 
@@ -249,39 +252,47 @@ export const Lobby: FC<LobbyProps> = ({
             </div>
           </div>
 
-          {/* Quantidade de Caras */}
-          <div>
-            <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">
-              Quantidade de Caras:
-            </label>
-            <div className="grid grid-cols-4 gap-2">
-              {(
-                [
-                  { count: 15, label: 'Fácil' },
-                  { count: 30, label: 'Médio' },
-                  { count: 45, label: 'Difícil' },
-                  { count: 60, label: 'Hardcore' },
-                ] as const
-              ).map(({ count, label }) => (
-                <button
-                  key={count}
-                  type="button"
-                  onClick={() => {
-                    sounds.playClick();
-                    setDifficulty(count);
-                  }}
-                  className={`p-2 rounded-xl border flex flex-col items-center justify-center transition-all ${
-                    difficulty === count
-                      ? 'bg-indigo-600 border-indigo-400 text-white shadow-md'
-                      : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700'
-                  }`}
-                >
-                  <span className="text-sm font-black">{count}</span>
-                  <span className="text-[10px] uppercase font-bold">{label}</span>
-                </button>
-              ))}
+          {/* Ponto 1.b: Se Modo Padrão -> 15 Caras fixo. Se Modo Personalizado -> Opções 30, 45, 60 */}
+          {mode === 'standard' ? (
+            <div className="bg-slate-950/70 border border-slate-800 p-3 rounded-2xl flex items-center justify-between text-xs">
+              <span className="text-slate-300 font-bold">Quantidade de Caras:</span>
+              <span className="px-3 py-1 rounded-xl bg-indigo-600/30 text-indigo-300 font-black border border-indigo-500/40">
+                15 Caras (Padrão)
+              </span>
             </div>
-          </div>
+          ) : (
+            <div className="animate-in fade-in">
+              <label className="block text-xs font-bold text-amber-300 uppercase tracking-wider mb-1.5">
+                Quantidade de Caras Personalizadas:
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                {(
+                  [
+                    { count: 30, label: 'Médio' },
+                    { count: 45, label: 'Difícil' },
+                    { count: 60, label: 'Hardcore' },
+                  ] as const
+                ).map(({ count, label }) => (
+                  <button
+                    key={count}
+                    type="button"
+                    onClick={() => {
+                      sounds.playClick();
+                      setCustomDifficulty(count);
+                    }}
+                    className={`p-2.5 rounded-xl border flex flex-col items-center justify-center transition-all ${
+                      customDifficulty === count
+                        ? 'bg-amber-500 border-amber-400 text-slate-950 font-black shadow-lg shadow-amber-500/30'
+                        : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700'
+                    }`}
+                  >
+                    <span className="text-sm font-black">{count}</span>
+                    <span className="text-[10px] uppercase font-bold">{label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Botão Criar Sala */}
           <button
@@ -290,7 +301,9 @@ export const Lobby: FC<LobbyProps> = ({
             className="w-full flex items-center justify-center gap-2 py-3.5 px-4 rounded-xl bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-400 hover:to-indigo-500 disabled:opacity-50 text-white font-black text-xs uppercase tracking-wider shadow-lg shadow-indigo-500/30 transition-all active:scale-95"
           >
             {isConnecting ? <Loader2 size={16} className="animate-spin" /> : <Play size={16} />}
-            {mode === 'custom' ? 'Criar Caras e Abrir Sala' : 'Criar Nova Sala (Host)'}
+            {mode === 'custom'
+              ? `Criar ${activeDifficulty} Caras e Abrir Sala`
+              : 'Criar Nova Sala (15 Caras)'}
           </button>
 
           {/* Divisor */}

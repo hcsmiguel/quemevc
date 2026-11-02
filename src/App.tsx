@@ -25,7 +25,7 @@ import { QuickChat } from './components/QuickChat';
 import { LoginModal } from './components/LoginModal';
 import { CustomDeckBuilder } from './components/CustomDeckBuilder';
 import { RightSidebar } from './components/RightSidebar';
-import { Volume2, VolumeX, Users, User as UserIcon } from 'lucide-react';
+import { Volume2, VolumeX, Users, User as UserIcon, LogOut, AlertTriangle } from 'lucide-react';
 
 export function App() {
   // Autenticação
@@ -44,12 +44,15 @@ export function App() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
 
+  // Modal de Confirmação para Abandonar Partida
+  const [showAbandonModal, setShowAbandonModal] = useState(false);
+
   // Baralho e Construtor
   const [, setRoomConfig] = useState<RoomConfig>({
     mode: 'standard',
-    cardCount: 30,
+    cardCount: 15,
   });
-  const [activeDeck, setActiveDeck] = useState<Character[]>(() => STANDARD_60_CHARACTERS.slice(0, 30));
+  const [activeDeck, setActiveDeck] = useState<Character[]>(() => STANDARD_60_CHARACTERS.slice(0, 15));
   const [isBuildingDeck, setIsBuildingDeck] = useState(false);
   const [deckTargetCount, setDeckTargetCount] = useState<DifficultyCount>(30);
 
@@ -63,7 +66,7 @@ export function App() {
   const [opponentSecretCharacter, setOpponentSecretCharacter] = useState<Character | null>(null);
   const [opponentReady, setOpponentReady] = useState<boolean>(false);
 
-  // Turno e Perguntas
+  // Turno e Perguntas (Erro 1: persistência estrita)
   const [currentTurnPlayerId, setCurrentTurnPlayerId] = useState<string>('');
   const [currentQuestion, setCurrentQuestion] = useState<Question | null>(null);
   const [questionToAnswer, setQuestionToAnswer] = useState<Question | null>(null);
@@ -113,29 +116,20 @@ export function App() {
 
   useEffect(() => {
     const handlePopState = () => {
-      setPhase((curr) => {
-        if (curr === 'CHOOSING_SECRET') {
-          setWaitingForPlayer(false);
-          return 'LOBBY';
-        }
-        if (curr === 'PLAYING') {
-          const confirmLeave = window.confirm('Deseja voltar para a tela inicial? A partida atual será pausada.');
-          if (confirmLeave) {
-            return 'LOBBY';
-          } else {
-            window.history.pushState({ phase: 'PLAYING' }, '', window.location.href);
-            return 'PLAYING';
-          }
-        }
-        return curr;
-      });
+      if (phase === 'CHOOSING_SECRET') {
+        setWaitingForPlayer(false);
+        setPhase('LOBBY');
+      } else if (phase === 'PLAYING') {
+        setShowAbandonModal(true);
+        window.history.pushState({ phase: 'PLAYING' }, '', window.location.href);
+      }
     };
 
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-  }, []);
+  }, [phase]);
 
-  // PONTO 2: F5 / Atualizar Página (Restaurar Sessão)
+  // PONTO 2 & ERRO 1: F5 / Atualizar Página (Restaurar Sessão e Turno com Pergunta Ativa)
   useEffect(() => {
     const restoreSession = async () => {
       const saved = localStorage.getItem('cara_active_session');
@@ -160,7 +154,14 @@ export function App() {
           if (session.cardStatuses) setCardStatuses(session.cardStatuses);
           if (session.mySecretCharacter) setMySecretCharacter(session.mySecretCharacter);
           if (session.opponentSecretCharacter) setOpponentSecretCharacter(session.opponentSecretCharacter);
-          if (session.currentTurnPlayerId) setCurrentTurnPlayerId(session.currentTurnPlayerId);
+          
+          // Restaurar turno e pergunta ativa (ERRO 1 RESOLVIDO)
+          const activeTurn = room.current_turn || session.currentTurnPlayerId || '';
+          setCurrentTurnPlayerId(activeTurn);
+          const activeQuestion = room.current_question || session.currentQuestion || null;
+          setCurrentQuestion(activeQuestion);
+          if (session.questionHistory) setQuestionHistory(session.questionHistory);
+
           setPhase(session.phase || 'PLAYING');
         } else {
           localStorage.removeItem('cara_active_session');
@@ -188,6 +189,8 @@ export function App() {
         activeDeck,
         cardStatuses,
         currentTurnPlayerId,
+        currentQuestion,
+        questionHistory,
       };
       localStorage.setItem('cara_active_session', JSON.stringify(sessionData));
     } else if (phase === 'LOBBY' && !waitingForPlayer) {
@@ -205,6 +208,8 @@ export function App() {
     activeDeck,
     cardStatuses,
     currentTurnPlayerId,
+    currentQuestion,
+    questionHistory,
     waitingForPlayer,
   ]);
 
@@ -249,7 +254,7 @@ export function App() {
     }
   };
 
-  // 2. Ouvinte de Mensagens da Rede (CORREÇÃO DO BUG DO LOOP)
+  // 2. Ouvinte de Mensagens da Rede (CORREÇÃO DE ERRO 1 E ERRO 2)
   useEffect(() => {
     const unsubscribe = network.onMessage((msg: NetworkMessage) => {
       if (msg.senderId === network.playerId && msg.type !== 'GUESS_RESULT') {
@@ -261,7 +266,6 @@ export function App() {
           setOpponentName(msg.senderName);
           setOpponentId(msg.senderId);
           setWaitingForPlayer(false);
-          // Correção do Bug 1: Apenas entra em CHOOSING_SECRET se estiver no LOBBY!
           setPhase((curr) => (curr === 'LOBBY' ? 'CHOOSING_SECRET' : curr));
           break;
         }
@@ -315,18 +319,31 @@ export function App() {
           break;
         }
 
+        // ERRO 2 RESOLVIDO: Tratar quando o oponente faz um palpite
         case 'MAKE_GUESS': {
           const guessedId = msg.payload.characterId;
           const mySecret = mySecretRef.current;
           if (mySecret) {
             if (mySecret.id === guessedId) {
+              // 1. O oponente acertou! Enviar resultado vitorioso para ele
               network.send('GUESS_RESULT', {
                 correct: true,
                 winnerId: msg.senderId,
                 winnerName: msg.senderName,
                 secretCharacter: mySecret,
               });
+
+              // 2. Atualizar no Supabase que a partida acabou
+              network.syncRoomState({ status: 'finished' });
+
+              // 3. Imediatamente acionar derrota para quem perdeu! (Sem continuar jogando sozinho)
+              setGameOverResult({
+                isWinner: false,
+                winnerName: msg.senderName,
+              });
+              setPhase('GAME_OVER');
             } else {
+              // Oponente errou o palpite
               network.send('GUESS_RESULT', {
                 correct: false,
                 guesserId: msg.senderId,
@@ -338,6 +355,7 @@ export function App() {
           break;
         }
 
+        // Resultado do Palpite Final recebido pelo vencedor ou quando errou
         case 'GUESS_RESULT': {
           if (msg.payload.correct) {
             const winnerIsMe = msg.payload.winnerId === network.playerId;
@@ -368,6 +386,14 @@ export function App() {
           break;
         }
 
+        // Oponente abandonou a partida
+        case 'ABANDON_GAME': {
+          sounds.playWrong();
+          alert(`${msg.senderName} abandonou a partida. Retornando ao menu principal.`);
+          handleExitToLobby();
+          break;
+        }
+
         case 'CHAT': {
           setChatMessages((prev) => [
             ...prev.slice(-15),
@@ -386,7 +412,7 @@ export function App() {
     network.send('START_GAME', { startingPlayerId });
     setCurrentTurnPlayerId(startingPlayerId);
     setPhase('PLAYING');
-    await network.updateRoomStatus('playing', startingPlayerId);
+    await network.syncRoomState({ status: 'playing', current_turn: startingPlayerId });
   };
 
   const handleConfirmSecret = (char: Character) => {
@@ -469,6 +495,7 @@ export function App() {
     }
   };
 
+  // ERRO 1: Ao enviar pergunta, sincroniza imediatamente no banco e bloqueia novas perguntas
   const handleAskQuestion = (text: string, traitKey?: any, traitValue?: any) => {
     const q: Question = {
       id: 'q_' + Date.now(),
@@ -483,23 +510,28 @@ export function App() {
     setCurrentQuestion(q);
     setQuestionHistory((prev) => [q, ...prev]);
     network.send('ASK_QUESTION', { text, traitKey, traitValue });
+    network.syncRoomState({ current_question: q });
   };
 
   const handleAnswerQuestion = (ans: boolean) => {
     if (!questionToAnswer) return;
+    const answeredQ = { ...questionToAnswer, answer: ans };
     network.send('ANSWER_QUESTION', { answer: ans });
-    setCurrentQuestion((prev) => (prev ? { ...prev, answer: ans } : null));
+    setCurrentQuestion(answeredQ);
     setQuestionHistory((prev) =>
-      prev.map((q, idx) => (idx === 0 ? { ...q, answer: ans } : q))
+      prev.map((q, idx) => (idx === 0 ? answeredQ : q))
     );
     setQuestionToAnswer(null);
+    network.syncRoomState({ current_question: answeredQ });
   };
 
+  // Finalizar Turno passa a vez e limpa a pergunta ativa
   const handlePassTurn = () => {
     sounds.playClick();
     network.send('PASS_TURN', {});
     setCurrentTurnPlayerId(opponentId);
     setCurrentQuestion(null);
+    network.syncRoomState({ current_turn: opponentId, current_question: null });
   };
 
   const handleConfirmGuess = (guessedChar: Character) => {
@@ -533,14 +565,25 @@ export function App() {
     resetForRematch();
   };
 
-  // Requisito 3: Limpeza completa do Storage do Supabase ao encerrar a partida
-  const handleExitAndCleanup = async () => {
+  // PONTO 1: Abandonar partida e voltar ao menu principal
+  const handleConfirmAbandon = async () => {
+    setShowAbandonModal(false);
+    network.send('ABANDON_GAME', {});
+    await handleExitToLobby();
+  };
+
+  const handleExitToLobby = async () => {
     if (roomCode) {
       await network.cleanupStorageAndRoom(roomCode);
     }
     localStorage.removeItem('cara_active_session');
     setPhase('LOBBY');
     setWaitingForPlayer(false);
+    setRoomCode('');
+    setCurrentQuestion(null);
+    setQuestionToAnswer(null);
+    setMySecretCharacter(null);
+    setGameOverResult(null);
   };
 
   const handleSendChat = (text: string) => {
@@ -569,7 +612,7 @@ export function App() {
             )}
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5">
             {currentUser && (
               <div className="hidden sm:flex items-center gap-1.5 text-xs font-bold text-slate-300 bg-slate-800/60 px-2.5 py-1 rounded-lg border border-slate-700">
                 <UserIcon size={13} className="text-amber-400" />
@@ -593,6 +636,18 @@ export function App() {
             >
               {soundEnabled ? <Volume2 size={17} /> : <VolumeX size={17} />}
             </button>
+
+            {/* PONTO 1: Botão no Canto Superior Direito para Voltar ao Menu Principal */}
+            {phase !== 'LOBBY' && (
+              <button
+                onClick={() => setShowAbandonModal(true)}
+                title="Voltar ao Menu Principal"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-950/80 hover:bg-red-900 border border-red-800/80 text-red-200 text-xs font-black uppercase tracking-wider transition-all active:scale-95 shadow-md shadow-red-950/50"
+              >
+                <LogOut size={14} />
+                <span className="hidden sm:inline">Menu Principal</span>
+              </button>
+            )}
           </div>
         </div>
       </header>
@@ -677,7 +732,7 @@ export function App() {
                 </div>
               </div>
 
-              {/* Requisito 2: Painel de Perguntas Personalizadas */}
+              {/* Painel de Perguntas Personalizadas (Erro 1 resolvido: não permite perguntar 2x) */}
               <QuestionControl
                 isMyTurn={isMyTurn}
                 opponentName={opponentName}
@@ -746,7 +801,7 @@ export function App() {
           />
         )}
 
-        {/* Modal de Fim de Jogo com Opção de Limpar Storage */}
+        {/* Modal de Fim de Jogo: Vencedor e Perdedor simultâneos (ERRO 2 RESOLVIDO) */}
         {phase === 'GAME_OVER' && gameOverResult && mySecretCharacter && (
           <GameOverModal
             isWinner={gameOverResult.isWinner}
@@ -757,8 +812,41 @@ export function App() {
             }
             opponentName={opponentName}
             onRematch={handleRequestRematch}
-            onExit={handleExitAndCleanup}
+            onExit={handleExitToLobby}
           />
+        )}
+
+        {/* Modal de Confirmação de Abandonar Partida (PONTO 1.a) */}
+        {showAbandonModal && (
+          <div className="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4">
+            <div className="bg-slate-900 border-2 border-red-500/80 rounded-3xl max-w-sm w-full p-6 shadow-2xl text-center animate-in zoom-in-95">
+              <div className="w-14 h-14 bg-red-500/20 text-red-400 rounded-full flex items-center justify-center mx-auto mb-3 border border-red-500/30">
+                <AlertTriangle size={30} />
+              </div>
+
+              <h3 className="text-lg font-black text-white mb-2">
+                Abandonar Partida?
+              </h3>
+              <p className="text-xs text-slate-400 mb-6 leading-relaxed">
+                Você deseja realmente abandonar a partida atual e voltar ao menu principal?
+              </p>
+
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  onClick={() => setShowAbandonModal(false)}
+                  className="py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs uppercase tracking-wider transition-all"
+                >
+                  Não
+                </button>
+                <button
+                  onClick={handleConfirmAbandon}
+                  className="py-2.5 px-4 rounded-xl bg-red-600 hover:bg-red-500 text-white font-black text-xs uppercase tracking-wider shadow-lg shadow-red-600/30 transition-all active:scale-95"
+                >
+                  Sim, Abandonar
+                </button>
+              </div>
+            </div>
+          </div>
         )}
 
         {/* Modal de Login / Cadastro */}
