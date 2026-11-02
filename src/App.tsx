@@ -1244,16 +1244,26 @@ export function App() {
             roomCode={roomCode || 'temp'}
             currentUser={currentUser}
             initialDeck={editingDeck}
+            isFromProfile={phase === 'PROFILE'}
             onFinishDeck={async (customCards, customDeckName) => {
               setIsBuildingDeck(false);
-              if (editingDeck) {
-                await auth.updateSavedDeck(
-                  editingDeck.id,
-                  editingDeck.user_id || currentUser?.id || 'guest',
-                  customDeckName || editingDeck.name || 'Baralho Personalizado',
-                  customCards.length,
-                  customCards
-                );
+              if (phase === 'PROFILE' || editingDeck) {
+                if (editingDeck) {
+                  await auth.updateSavedDeck(
+                    editingDeck.id,
+                    editingDeck.user_id || currentUser?.id || 'guest',
+                    customDeckName || editingDeck.name || 'Baralho Personalizado',
+                    customCards.length,
+                    customCards
+                  );
+                } else if (currentUser) {
+                  await auth.saveDeck(
+                    currentUser.id,
+                    customDeckName || 'Baralho Personalizado',
+                    customCards.length,
+                    customCards
+                  );
+                }
                 setEditingDeck(null);
                 setPhase('PROFILE');
                 return;
@@ -1271,9 +1281,11 @@ export function App() {
             }}
             onCancel={() => {
               setIsBuildingDeck(false);
-              if (editingDeck) {
+              if (editingDeck || phase === 'PROFILE') {
                 setEditingDeck(null);
                 setPhase('PROFILE');
+              } else {
+                setPhase('CREATE_LOBBY');
               }
             }}
           />

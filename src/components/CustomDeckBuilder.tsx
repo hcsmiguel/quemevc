@@ -23,7 +23,8 @@ interface CustomDeckBuilderProps {
   roomCode?: string;
   currentUser: AppUser | null;
   initialDeck?: SavedDeck | null;
-  onFinishDeck: (cards: Character[], deckName?: string) => void;
+  isFromProfile?: boolean;
+  onFinishDeck: (cards: Character[], deckName?: string, savedToProfile?: boolean) => void;
   onCancel: () => void;
 }
 
@@ -32,11 +33,13 @@ export const CustomDeckBuilder: FC<CustomDeckBuilderProps> = ({
   roomCode = 'temp',
   currentUser,
   initialDeck = null,
+  isFromProfile = false,
   onFinishDeck,
   onCancel,
 }) => {
   const [cards, setCards] = useState<Character[]>(() => initialDeck ? [...initialDeck.cards] : []);
   const [deckName, setDeckName] = useState(() => initialDeck?.name || '');
+  const [saveToProfile, setSaveToProfile] = useState(false);
   const [isCropperOpen, setIsCropperOpen] = useState(false);
   const [isSavingDeck, setIsSavingDeck] = useState(false);
 
@@ -189,14 +192,22 @@ export const CustomDeckBuilder: FC<CustomDeckBuilderProps> = ({
     setEditingCardId(null);
   };
 
+  const requiresTitle = isFromProfile || saveToProfile;
+  const isTitleMissing = requiresTitle && !deckName.trim();
+  const isComplete = cards.length >= targetCount;
+  const isFormValid = isComplete && !isTitleMissing;
+
   const handleConfirm = async () => {
-    if (cards.length < targetCount) return;
+    if (!isComplete || isTitleMissing) {
+      if (isTitleMissing) sounds.playWrong();
+      return;
+    }
     sounds.playWin();
     setIsSavingDeck(true);
 
     const finalDeckName = deckName.trim() || `Baralho ${targetCount} Caras`;
 
-    // Se estiver editando um baralho existente (Ponto 3.e)
+    // 1. Se estiver editando um baralho existente (Ponto 3.e)
     if (initialDeck && currentUser) {
       try {
         await auth.updateSavedDeck(
@@ -209,8 +220,9 @@ export const CustomDeckBuilder: FC<CustomDeckBuilderProps> = ({
       } catch (err) {
         console.warn('Erro ao atualizar baralho existente:', err);
       }
-    } else if (currentUser) {
-      // Salva no perfil do usuário automaticamente
+    } 
+    // 2. Se veio do perfil criando novo, OU se no lobby marcou para salvar no perfil
+    else if ((isFromProfile || saveToProfile) && currentUser) {
       try {
         await auth.saveDeck(currentUser.id, finalDeckName, targetCount, cards.slice(0, targetCount));
       } catch (err) {
@@ -219,10 +231,8 @@ export const CustomDeckBuilder: FC<CustomDeckBuilderProps> = ({
     }
 
     setIsSavingDeck(false);
-    onFinishDeck(cards.slice(0, targetCount), finalDeckName);
+    onFinishDeck(cards.slice(0, targetCount), finalDeckName, isFromProfile || saveToProfile);
   };
-
-  const isComplete = cards.length >= targetCount;
 
   return (
     <div className="min-h-[85vh] max-w-5xl mx-auto w-full p-4 flex flex-col gap-4 animate-in fade-in duration-200">
@@ -259,33 +269,83 @@ export const CustomDeckBuilder: FC<CustomDeckBuilderProps> = ({
 
           <button
             onClick={handleConfirm}
-            disabled={!isComplete || isSavingDeck}
+            disabled={!isFormValid || isSavingDeck}
             className="flex items-center gap-2 px-6 py-3.5 rounded-2xl bg-emerald-500 hover:bg-emerald-600 disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none text-white font-extrabold text-sm shadow-[0_4px_0_#059669] active:translate-y-1 active:shadow-none transition-all cursor-pointer"
           >
             <Check size={16} />
             <span>
               {isSavingDeck
                 ? 'Salvando...'
-                : initialDeck
-                ? 'Salvar Alterações'
+                : isFromProfile
+                ? (initialDeck ? 'Salvar Alterações' : 'Salvar no Meu Perfil')
                 : 'Iniciar Partida'}
             </span>
           </button>
         </div>
       </div>
 
-      {/* Nome do Baralho */}
-      <div className="bg-white border-2 border-slate-200 rounded-3xl p-4 sm:p-5 shadow-sm text-xs">
-        <label className="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-1.5">
-          Nome do Baralho:
-        </label>
+      {/* Nome do Baralho e Checkbox Salvar no Perfil */}
+      <div className="bg-white border-2 border-slate-200 rounded-3xl p-4 sm:p-5 shadow-sm text-xs space-y-3">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <div>
+            <label className="block text-xs font-black text-slate-800 uppercase tracking-wider">
+              Nome do Baralho:
+              {requiresTitle ? (
+                <span className="text-rose-500 font-extrabold ml-1.5">* (Obrigatório)</span>
+              ) : (
+                <span className="text-slate-400 font-medium ml-1.5">(Opcional)</span>
+              )}
+            </label>
+            <p className="text-[11px] text-slate-500 mt-0.5">
+              {requiresTitle
+                ? 'Defina um título para salvar e identificar este baralho no seu perfil.'
+                : 'Sem título, o baralho será utilizado apenas nesta partida sem salvar no perfil.'}
+            </p>
+          </div>
+
+          {/* Checkbox: Visível apenas ao criar a partir do Lobby e se o usuário estiver logado */}
+          {!isFromProfile && currentUser && (
+            <label className={`flex items-center gap-2.5 px-3.5 py-2 rounded-2xl border-2 transition-all cursor-pointer select-none shrink-0 ${
+              saveToProfile
+                ? 'bg-purple-50 border-purple-400 text-purple-900 shadow-sm font-black'
+                : 'bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300 font-bold'
+            }`}>
+              <input
+                type="checkbox"
+                checked={saveToProfile}
+                onChange={(e) => {
+                  sounds.playClick();
+                  setSaveToProfile(e.target.checked);
+                }}
+                className="w-4 h-4 text-purple-600 rounded focus:ring-purple-500 cursor-pointer accent-purple-600"
+              />
+              <span className="text-xs">
+                Salvar este baralho no meu perfil
+              </span>
+            </label>
+          )}
+        </div>
+
         <input
           type="text"
-          placeholder="Ex: Família, Amigos da Faculdade, Famosos..."
+          placeholder={
+            requiresTitle
+              ? 'Ex: Amigos da Faculdade, Família, Personagens...'
+              : 'Ex: Baralho para esta partida (opcional)...'
+          }
           value={deckName}
           onChange={(e) => setDeckName(e.target.value)}
-          className="w-full bg-slate-50 border-2 border-slate-200 text-slate-900 placeholder-slate-400 text-sm font-semibold rounded-2xl px-4 py-2.5 focus:outline-none focus:bg-white focus:border-sky-400 focus:ring-4 focus:ring-sky-100 transition-all"
+          className={`w-full bg-slate-50 border-2 text-slate-900 placeholder-slate-400 text-sm font-semibold rounded-2xl px-4 py-2.5 focus:outline-none focus:bg-white transition-all ${
+            isTitleMissing
+              ? 'border-amber-300 focus:border-amber-500 focus:ring-4 focus:ring-amber-100'
+              : 'border-slate-200 focus:border-sky-400 focus:ring-4 focus:ring-sky-100'
+          }`}
         />
+        {isTitleMissing && (
+          <p className="text-[11px] text-amber-700 font-bold animate-in fade-in">
+            ⚠️ O título é obrigatório quando a opção de salvar no perfil estiver ativada.
+          </p>
+        )}
       </div>
 
       {/* Barra de Ações Rápidas (Minhas Caras / Aleatório) */}
