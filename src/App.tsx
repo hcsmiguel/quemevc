@@ -715,7 +715,16 @@ export function App() {
   const isMyTurn = currentTurnPlayerId === network.playerId;
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] text-slate-800 flex flex-col selection:bg-sky-200 selection:text-sky-900 font-sans">
+    <div className="min-h-screen text-slate-800 flex flex-col selection:bg-sky-200 selection:text-sky-900 font-sans relative">
+      {/* Wallpaper de Fundo Personalizado (Padrão Doodle Responsivo) */}
+      <div
+        className="fixed inset-0 pointer-events-none -z-10 bg-repeat bg-[length:540px_auto] opacity-90 transition-opacity"
+        style={{
+          backgroundImage: "url('/wallpaper.jpg')",
+          backgroundColor: '#F0F4F8',
+        }}
+      />
+
       {/* Barra Superior */}
       <header className="border-b border-slate-200/90 bg-white/85 backdrop-blur-md sticky top-0 z-30 transition-colors">
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
