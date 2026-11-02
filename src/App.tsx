@@ -907,14 +907,14 @@ export function App() {
 
               <div className="bg-slate-100/70 border-2 border-slate-200 rounded-3xl p-3 sm:p-5 shadow-sm">
                 <div
-                  className={`grid gap-2.5 sm:gap-3 ${
+                  className={`grid gap-2 sm:gap-2.5 ${
                     activeDeck.length <= 15
                       ? 'grid-cols-3 sm:grid-cols-5'
                       : activeDeck.length <= 30
                       ? 'grid-cols-3 sm:grid-cols-5 md:grid-cols-6'
-                      : activeDeck.length <= 45
-                      ? 'grid-cols-3 sm:grid-cols-6 md:grid-cols-9'
-                      : 'grid-cols-4 sm:grid-cols-6 md:grid-cols-10'
+                      : activeDeck.length <= 60
+                      ? 'grid-cols-4 sm:grid-cols-6 md:grid-cols-10'
+                      : 'grid-cols-4 sm:grid-cols-6 md:grid-cols-9 lg:grid-cols-10'
                   }`}
                 >
                   {activeDeck.map((char) => (

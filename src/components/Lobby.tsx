@@ -15,6 +15,7 @@ import {
   HelpCircle,
   Trophy,
   Layers,
+  Lock,
 } from 'lucide-react';
 import { sounds } from '../utils/sound';
 import type { GameMode, DifficultyCount, RoomConfig } from '../types/game';
@@ -89,12 +90,24 @@ export const Lobby: FC<LobbyProps> = ({
     }
   }, [currentUser]);
 
+  // Se o usuário deslogar, reverter para o modo padrão
+  useEffect(() => {
+    if (!currentUser && mode === 'custom') {
+      setMode('standard');
+    }
+  }, [currentUser, mode]);
+
   const handleCreateRoom = () => {
     if (!name.trim()) return;
     sounds.playClick();
     localStorage.setItem('cara_player_name', name.trim());
 
     if (mode === 'custom') {
+      if (!currentUser) {
+        sounds.playWrong();
+        onOpenLogin();
+        return;
+      }
       onOpenDeckBuilder(customDifficulty);
       return;
     }
@@ -278,17 +291,14 @@ export const Lobby: FC<LobbyProps> = ({
             </div>
           </div>
 
-          {/* Título e Apresentação do Jogo */}
+          {/* Ícone de Lupa Solitário e Apresentação do Jogo (Ponto 1) */}
           <div className="text-center mb-6 flex flex-col items-center">
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-100/80 text-amber-900 text-[11px] font-bold border border-amber-200 mb-2">
-              <span>Edição 2 Jogadores Online</span>
-            </div>
             <img
-              src="/logo-horizontal.svg"
+              src="/logo-icon.svg"
               alt="Tá na Cara!"
-              className="h-12 sm:h-14 w-auto object-contain my-1"
+              className="h-16 w-16 sm:h-20 sm:w-20 object-contain my-1 drop-shadow-sm hover:scale-105 transition-transform"
             />
-            <p className="text-xs text-slate-500 mt-1">
+            <p className="text-xs text-slate-500 mt-2">
               O clássico jogo de adivinhação, feito para jogar a dois em tempo real
             </p>
           </div>
@@ -384,24 +394,51 @@ export const Lobby: FC<LobbyProps> = ({
                   <button
                     type="button"
                     onClick={() => {
+                      if (!currentUser) {
+                        sounds.playWrong();
+                        onOpenLogin();
+                        return;
+                      }
                       sounds.playClick();
                       setMode('custom');
                     }}
-                    className={`p-3 rounded-2xl border-2 text-left transition-all ${
-                      mode === 'custom'
+                    className={`p-3 rounded-2xl border-2 text-left transition-all cursor-pointer ${
+                      !currentUser
+                        ? 'bg-slate-50 border-slate-200 text-slate-400 hover:border-amber-300 hover:bg-amber-50/40'
+                        : mode === 'custom'
                         ? 'bg-purple-50 border-purple-400 text-purple-950 shadow-tactile-sm'
                         : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
                     }`}
                   >
-                    <div className="flex items-center gap-1.5 font-bold text-xs mb-0.5">
-                      <Palette size={15} className="text-purple-600" />
-                      <span>Personalizado</span>
+                    <div className="flex items-center justify-between mb-0.5">
+                      <div className="flex items-center gap-1.5 font-bold text-xs">
+                        <Palette size={15} className={!currentUser ? 'text-slate-400' : 'text-purple-600'} />
+                        <span className={!currentUser ? 'text-slate-600' : ''}>Personalizado</span>
+                      </div>
+                      {!currentUser && (
+                        <Lock size={13} className="text-amber-600" />
+                      )}
                     </div>
                     <span className="text-[11px] text-slate-500 block">
-                      Suas próprias fotos
+                      {!currentUser ? 'Requer Login' : 'Suas próprias fotos'}
                     </span>
                   </button>
                 </div>
+
+                {/* PONTO 2: Mensagem sutil com cadeado quando não logado */}
+                {!currentUser && (
+                  <div className="mt-2.5 flex items-center gap-2 p-2.5 rounded-xl bg-amber-50/80 border border-amber-200/80 text-[11px] text-amber-900 font-medium">
+                    <Lock size={13} className="text-amber-600 shrink-0" />
+                    <span>Faça login para criar salas personalizadas.</span>
+                    <button
+                      type="button"
+                      onClick={onOpenLogin}
+                      className="ml-auto font-bold text-amber-700 hover:text-amber-950 underline cursor-pointer"
+                    >
+                      Entrar
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* Opções de Quantidade de Cartas */}
@@ -462,18 +499,13 @@ export const Lobby: FC<LobbyProps> = ({
                     </div>
                   )}
 
+                  {/* PONTO 2.a: 3 opções (30, 60 e 90 caras) sem legendas */}
                   <div>
                     <label className="block text-xs font-extrabold text-purple-900 uppercase tracking-wider mb-1.5">
                       {savedDecks.length > 0 ? 'Ou crie um novo baralho com:' : 'Quantidade de Caras Personalizadas:'}
                     </label>
                     <div className="grid grid-cols-3 gap-2">
-                      {(
-                        [
-                          { count: 30, label: 'Médio' },
-                          { count: 45, label: 'Difícil' },
-                          { count: 60, label: 'Hardcore' },
-                        ] as const
-                      ).map(({ count, label }) => (
+                      {([30, 60, 90] as const).map((count) => (
                         <button
                           key={count}
                           type="button"
@@ -481,14 +513,16 @@ export const Lobby: FC<LobbyProps> = ({
                             sounds.playClick();
                             setCustomDifficulty(count);
                           }}
-                          className={`p-2.5 rounded-2xl border-2 flex flex-col items-center justify-center transition-all ${
+                          className={`py-3 px-2 rounded-2xl border-2 flex flex-col items-center justify-center transition-all cursor-pointer ${
                             customDifficulty === count
                               ? 'bg-purple-600 border-purple-700 text-white font-black shadow-tactile-sm'
-                              : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
+                              : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300 font-bold'
                           }`}
                         >
-                          <span className="text-sm font-black">{count}</span>
-                          <span className="text-[10px] uppercase font-bold">{label}</span>
+                          <span className="text-base font-black">{count}</span>
+                          <span className={`text-[10px] font-bold ${customDifficulty === count ? 'text-purple-200' : 'text-slate-500'}`}>
+                            Caras
+                          </span>
                         </button>
                       ))}
                     </div>
