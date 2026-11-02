@@ -139,11 +139,11 @@ export const CreateLobbyPage: FC<CreateLobbyPageProps> = ({
         </div>
 
         {/* 1. SEÇÃO: MODO DE JOGO & MODO CALL */}
-        <div className="space-y-2.5">
+        <div className="space-y-3">
           <label className="block text-xs font-black text-slate-800 uppercase tracking-wider">
             1. Comunicação da Partida:
           </label>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-2">
             {/* Opção A: Perguntas pelo Site */}
             <div
               onClick={() => {
@@ -188,7 +188,7 @@ export const CreateLobbyPage: FC<CreateLobbyPageProps> = ({
                   : 'bg-white border-slate-200 hover:border-slate-300'
               }`}
             >
-              <span className="absolute top-3 right-3 px-2 py-0.5 rounded-full bg-purple-600 text-white text-[9px] font-black uppercase tracking-wider">
+              <span className="absolute -top-2.5 right-4 px-2.5 py-0.5 rounded-full bg-purple-600 text-white text-[9px] font-black uppercase tracking-wider shadow-sm z-10 pointer-events-none">
                 Recomendado em Call
               </span>
               <div className="flex items-center gap-3 mb-2">
