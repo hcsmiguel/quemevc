@@ -1,17 +1,18 @@
 import { useState, type FC } from 'react';
 import type { Character } from '../types/game';
-import { CHARACTERS } from '../utils/characters';
 import { Avatar } from './Avatar';
 import { Sparkles, Dices, ShieldCheck, Check } from 'lucide-react';
 import { sounds } from '../utils/sound';
 
 interface SecretSelectionModalProps {
+  cards: Character[];
   opponentName: string;
   opponentReady: boolean;
   onConfirmSelection: (character: Character) => void;
 }
 
 export const SecretSelectionModal: FC<SecretSelectionModalProps> = ({
+  cards,
   opponentName,
   opponentReady,
   onConfirmSelection,
@@ -26,9 +27,9 @@ export const SecretSelectionModal: FC<SecretSelectionModalProps> = ({
   };
 
   const handleRandom = () => {
-    if (isReady) return;
+    if (isReady || cards.length === 0) return;
     sounds.playClick();
-    const randomChar = CHARACTERS[Math.floor(Math.random() * CHARACTERS.length)];
+    const randomChar = cards[Math.floor(Math.random() * cards.length)];
     setSelectedChar(randomChar);
   };
 
@@ -41,7 +42,7 @@ export const SecretSelectionModal: FC<SecretSelectionModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4">
-      <div className="bg-slate-900 border-2 border-indigo-500/70 rounded-3xl max-w-3xl w-full max-h-[92vh] flex flex-col p-6 shadow-2xl animate-in zoom-in-95 duration-200">
+      <div className="bg-slate-900 border-2 border-indigo-500/70 rounded-3xl max-w-4xl w-full max-h-[92vh] flex flex-col p-6 shadow-2xl animate-in zoom-in-95 duration-200">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-slate-800 pb-4 mb-4 gap-2">
           <div>
@@ -70,8 +71,8 @@ export const SecretSelectionModal: FC<SecretSelectionModalProps> = ({
 
         {/* Grade de Personagens */}
         <div className="flex-1 overflow-y-auto pr-1 mb-4">
-          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2.5">
-            {CHARACTERS.map((char) => {
+          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2.5">
+            {cards.map((char) => {
               const isSelected = selectedChar?.id === char.id;
               return (
                 <div
@@ -84,7 +85,7 @@ export const SecretSelectionModal: FC<SecretSelectionModalProps> = ({
                   } ${isReady ? 'pointer-events-none opacity-60' : ''}`}
                 >
                   <Avatar character={char} size={64} className="mb-1" />
-                  <span className="text-xs font-bold text-slate-200">{char.name}</span>
+                  <span className="text-xs font-bold text-slate-200 truncate w-full text-center">{char.name}</span>
                   {isSelected && (
                     <div className="absolute top-1 right-1 w-5 h-5 rounded-full bg-amber-400 text-slate-950 flex items-center justify-center font-bold text-xs">
                       ✓

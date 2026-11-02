@@ -1,7 +1,17 @@
 import { useState, useEffect, useRef } from 'react';
-import { CHARACTERS } from './utils/characters';
-import type { Character, GamePhase, Question, NetworkMessage } from './types/game';
+import { getDeckByDifficulty, STANDARD_60_CHARACTERS } from './utils/characters';
+import type {
+  Character,
+  GamePhase,
+  Question,
+  NetworkMessage,
+  RoomConfig,
+  DifficultyCount,
+  CardStatus,
+  UndoAction,
+} from './types/game';
 import { network } from './services/network';
+import { auth, type AppUser } from './services/auth';
 import { sounds } from './utils/sound';
 import { Card } from './components/Card';
 import { SecretCardBadge } from './components/SecretCardBadge';
@@ -12,10 +22,17 @@ import { GameOverModal } from './components/GameOverModal';
 import { SecretSelectionModal } from './components/SecretSelectionModal';
 import { Lobby } from './components/Lobby';
 import { QuickChat } from './components/QuickChat';
-import { Volume2, VolumeX, Users } from 'lucide-react';
+import { LoginModal } from './components/LoginModal';
+import { CustomDeckBuilder } from './components/CustomDeckBuilder';
+import { RightSidebar } from './components/RightSidebar';
+import { Volume2, VolumeX, Users, User as UserIcon } from 'lucide-react';
 
 export function App() {
-  // Estados da Sala e Conexão
+  // Autenticação
+  const [currentUser, setCurrentUser] = useState<AppUser | null>(() => auth.getCurrentUser());
+  const [loginModalOpen, setLoginModalOpen] = useState(false);
+
+  // Fases e Configuração do Jogo
   const [phase, setPhase] = useState<GamePhase>('LOBBY');
   const [roomCode, setRoomCode] = useState<string>('');
   const [playerName, setPlayerName] = useState<string>('');
@@ -26,16 +43,30 @@ export function App() {
   const [isConnecting, setIsConnecting] = useState<boolean>(false);
   const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
 
-  // Estados do Jogo Local (100% Privados)
+  // Baralho e Construtor
+  const [roomConfig, setRoomConfig] = useState<RoomConfig>({
+    mode: 'standard',
+    cardCount: 30,
+  });
+  const [activeDeck, setActiveDeck] = useState<Character[]>(() => STANDARD_60_CHARACTERS.slice(0, 30));
+  const [isBuildingDeck, setIsBuildingDeck] = useState(false);
+  const [deckTargetCount, setDeckTargetCount] = useState<DifficultyCount>(30);
+
+  // Estados do Tabuleiro e Ações (Requisitos E e F)
+  const [cardStatuses, setCardStatuses] = useState<Record<string, CardStatus>>({});
+  const [undoStack, setUndoStack] = useState<UndoAction[]>([]);
+  const [targetCharacter, setTargetCharacter] = useState<Character | null>(null);
+
+  // Personagens Secretos
   const [mySecretCharacter, setMySecretCharacter] = useState<Character | null>(null);
   const [opponentSecretCharacter, setOpponentSecretCharacter] = useState<Character | null>(null);
   const [opponentReady, setOpponentReady] = useState<boolean>(false);
-  const [flippedIds, setFlippedIds] = useState<Set<string>>(new Set());
 
-  // Estados do Turno
+  // Turno e Perguntas
   const [currentTurnPlayerId, setCurrentTurnPlayerId] = useState<string>('');
   const [currentQuestion, setCurrentQuestion] = useState<Question | null>(null);
   const [questionToAnswer, setQuestionToAnswer] = useState<Question | null>(null);
+  const [questionHistory, setQuestionHistory] = useState<Question[]>([]);
   const [guessModalOpen, setGuessModalOpen] = useState<boolean>(false);
   const [wrongGuessAlert, setWrongGuessAlert] = useState<string | null>(null);
 
@@ -45,7 +76,7 @@ export function App() {
     winnerName: string;
   } | null>(null);
 
-  // Mensagens do Chat
+  // Chat Rápido
   const [chatMessages, setChatMessages] = useState<{ sender: string; text: string; id: string }[]>([]);
 
   // Referência para o personagem secreto local
@@ -57,11 +88,32 @@ export function App() {
     setSoundEnabled(!soundEnabled);
   };
 
-  const handleJoinRoom = async (code: string, name: string, host: boolean) => {
+  // Inicializar statuses das cartas quando o deck mudar
+  useEffect(() => {
+    const initialStatuses: Record<string, CardStatus> = {};
+    activeDeck.forEach((c) => {
+      initialStatuses[c.id] = 'normal';
+    });
+    setCardStatuses(initialStatuses);
+    setUndoStack([]);
+    setTargetCharacter(null);
+  }, [activeDeck]);
+
+  // 1. Criar ou Entrar na Sala
+  const handleJoinRoom = async (
+    code: string,
+    name: string,
+    host: boolean,
+    config: RoomConfig
+  ) => {
     setIsConnecting(true);
     setPlayerName(name);
     setRoomCode(code);
     setIsHost(host);
+    setRoomConfig(config);
+
+    const deck = getDeckByDifficulty(config.cardCount, config.customCards);
+    setActiveDeck(deck);
 
     try {
       await network.connect(code, name);
@@ -70,7 +122,10 @@ export function App() {
       if (host) {
         setWaitingForPlayer(true);
       } else {
-        network.send('JOIN', { playerId: network.playerId, playerName: name });
+        network.send('JOIN', {
+          playerId: network.playerId,
+          playerName: name,
+        });
       }
     } catch (err) {
       setIsConnecting(false);
@@ -78,6 +133,7 @@ export function App() {
     }
   };
 
+  // 2. Ouvinte de Mensagens da Rede
   useEffect(() => {
     const unsubscribe = network.onMessage((msg: NetworkMessage) => {
       if (msg.senderId === network.playerId && msg.type !== 'GUESS_RESULT') {
@@ -92,7 +148,11 @@ export function App() {
           setPhase('CHOOSING_SECRET');
 
           if (isHost) {
-            network.send('SYNC_LOBBY', { hostName: playerName, hostId: network.playerId });
+            network.send('SYNC_LOBBY', {
+              hostName: playerName,
+              hostId: network.playerId,
+              config: roomConfig,
+            });
           }
           break;
         }
@@ -100,6 +160,14 @@ export function App() {
         case 'SYNC_LOBBY': {
           setOpponentName(msg.payload.hostName);
           setOpponentId(msg.payload.hostId);
+          if (msg.payload.config) {
+            setRoomConfig(msg.payload.config);
+            const syncedDeck = getDeckByDifficulty(
+              msg.payload.config.cardCount,
+              msg.payload.config.customCards
+            );
+            setActiveDeck(syncedDeck);
+          }
           setWaitingForPlayer(false);
           setPhase('CHOOSING_SECRET');
           break;
@@ -133,6 +201,7 @@ export function App() {
           };
           setCurrentQuestion(q);
           setQuestionToAnswer(q);
+          setQuestionHistory((prev) => [q, ...prev]);
           break;
         }
 
@@ -140,6 +209,9 @@ export function App() {
           sounds.playAnswer(msg.payload.answer);
           setCurrentQuestion((prev) =>
             prev ? { ...prev, answer: msg.payload.answer } : null
+          );
+          setQuestionHistory((prev) =>
+            prev.map((q, idx) => (idx === 0 ? { ...q, answer: msg.payload.answer } : q))
           );
           break;
         }
@@ -214,7 +286,7 @@ export function App() {
     });
 
     return () => unsubscribe();
-  }, [isHost, playerName]);
+  }, [isHost, playerName, roomConfig]);
 
   const startGame = () => {
     const startingPlayerId = network.playerId;
@@ -232,18 +304,86 @@ export function App() {
     }
   };
 
-  const handleToggleCard = (charId: string) => {
-    setFlippedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(charId)) {
-        next.delete(charId);
-      } else {
-        next.add(charId);
-      }
-      return next;
+  // Requisito E.a & E.b: Marcar como Suspeito, Descarte ou Normal + Empilhar Undo
+  const handleSetCardStatus = (charId: string, newStatus: CardStatus) => {
+    setCardStatuses((prev) => {
+      const prevStatus = prev[charId] || 'normal';
+      if (prevStatus === newStatus) return prev;
+
+      // Adiciona na pilha de Desfazer
+      setUndoStack((old) => [
+        ...old,
+        {
+          type: 'status_change',
+          previousStates: { [charId]: prevStatus },
+          newStates: { [charId]: newStatus },
+          description: `Alterou carta ${charId} para ${newStatus}`,
+        },
+      ]);
+
+      return {
+        ...prev,
+        [charId]: newStatus,
+      };
     });
   };
 
+  // Requisito E.c: Ao clicar em 'É o cara!', virar todas as outras caras e exibir 'Confirmar Resposta'
+  const handleTargetSelect = (char: Character) => {
+    setTargetCharacter(char);
+
+    setCardStatuses((prev) => {
+      const previousStates: Record<string, CardStatus> = { ...prev };
+      const newStates: Record<string, CardStatus> = {};
+
+      activeDeck.forEach((c) => {
+        if (c.id === char.id) {
+          newStates[c.id] = 'target';
+        } else {
+          newStates[c.id] = 'discard'; // Todas as outras viram descarte
+        }
+      });
+
+      // Registra a alteração em lote no histórico de Desfazer
+      setUndoStack((old) => [
+        ...old,
+        {
+          type: 'status_change',
+          previousStates,
+          newStates,
+          description: `Selecionou ${char.name} como alvo final`,
+        },
+      ]);
+
+      return newStates;
+    });
+  };
+
+  // Cancelar seleção de alvo
+  const handleCancelTarget = () => {
+    handleUndo();
+  };
+
+  // Requisito F.b: Desfazer a última ação
+  const handleUndo = () => {
+    if (undoStack.length === 0) return;
+
+    const lastAction = undoStack[undoStack.length - 1];
+    setUndoStack((prev) => prev.slice(0, -1));
+
+    // Reverte os estados
+    setCardStatuses((prev) => ({
+      ...prev,
+      ...lastAction.previousStates,
+    }));
+
+    // Se o alvo foi desfeito
+    if (targetCharacter && lastAction.newStates[targetCharacter.id] === 'target') {
+      setTargetCharacter(null);
+    }
+  };
+
+  // Fazer uma pergunta ao oponente
   const handleAskQuestion = (text: string, traitKey?: any, traitValue?: any) => {
     const q: Question = {
       id: 'q_' + Date.now(),
@@ -256,6 +396,7 @@ export function App() {
       timestamp: Date.now(),
     };
     setCurrentQuestion(q);
+    setQuestionHistory((prev) => [q, ...prev]);
     network.send('ASK_QUESTION', { text, traitKey, traitValue });
   };
 
@@ -263,6 +404,9 @@ export function App() {
     if (!questionToAnswer) return;
     network.send('ANSWER_QUESTION', { answer: ans });
     setCurrentQuestion((prev) => (prev ? { ...prev, answer: ans } : null));
+    setQuestionHistory((prev) =>
+      prev.map((q, idx) => (idx === 0 ? { ...q, answer: ans } : q))
+    );
     setQuestionToAnswer(null);
   };
 
@@ -275,6 +419,7 @@ export function App() {
 
   const handleConfirmGuess = (guessedChar: Character) => {
     setGuessModalOpen(false);
+    setTargetCharacter(null);
     network.send('MAKE_GUESS', {
       characterId: guessedChar.id,
       characterName: guessedChar.name,
@@ -282,7 +427,13 @@ export function App() {
   };
 
   const resetForRematch = () => {
-    setFlippedIds(new Set());
+    const initialStatuses: Record<string, CardStatus> = {};
+    activeDeck.forEach((c) => {
+      initialStatuses[c.id] = 'normal';
+    });
+    setCardStatuses(initialStatuses);
+    setUndoStack([]);
+    setTargetCharacter(null);
     setMySecretCharacter(null);
     setOpponentSecretCharacter(null);
     setOpponentReady(false);
@@ -306,7 +457,6 @@ export function App() {
   };
 
   const isMyTurn = currentTurnPlayerId === network.playerId;
-  const remainingCardsCount = CHARACTERS.length - flippedIds.size;
 
   return (
     <div className="min-h-screen bg-[#080d1a] text-slate-100 flex flex-col selection:bg-indigo-500 selection:text-white">
@@ -319,12 +469,19 @@ export function App() {
             </span>
             {roomCode && (
               <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-slate-800 border border-slate-700 text-xs font-mono text-amber-300 font-bold">
-                Sala: {roomCode}
+                Sala: {roomCode} ({activeDeck.length} Caras)
               </span>
             )}
           </div>
 
           <div className="flex items-center gap-3">
+            {currentUser && (
+              <div className="hidden sm:flex items-center gap-1.5 text-xs font-bold text-slate-300 bg-slate-800/60 px-2.5 py-1 rounded-lg border border-slate-700">
+                <UserIcon size={13} className="text-amber-400" />
+                <span>{currentUser.username}</span>
+              </div>
+            )}
+
             {phase === 'PLAYING' && (
               <div className="flex items-center gap-2 bg-slate-800/80 px-3 py-1 rounded-xl border border-slate-700 text-xs font-bold">
                 <Users size={14} className="text-indigo-400" />
@@ -353,74 +510,130 @@ export function App() {
           </div>
         )}
 
-        {phase === 'LOBBY' && (
+        {/* 1. LOBBY */}
+        {phase === 'LOBBY' && !isBuildingDeck && (
           <Lobby
             onJoinRoom={handleJoinRoom}
+            onOpenDeckBuilder={(count) => {
+              setDeckTargetCount(count);
+              setIsBuildingDeck(true);
+            }}
+            onOpenLogin={() => setLoginModalOpen(true)}
+            currentUser={currentUser}
+            onLogout={() => {
+              auth.logout();
+              setCurrentUser(null);
+            }}
             isConnecting={isConnecting}
             waitingForPlayer={waitingForPlayer}
             roomCode={roomCode}
           />
         )}
 
+        {/* 1.1 CONSTRUTOR DE BARALHO PERSONALIZADO */}
+        {phase === 'LOBBY' && isBuildingDeck && (
+          <CustomDeckBuilder
+            targetCount={deckTargetCount}
+            onFinishDeck={(customCards) => {
+              setIsBuildingDeck(false);
+              const randomSuffix = Math.floor(1000 + Math.random() * 9000);
+              const newCode = `CARA-${randomSuffix}`;
+              handleJoinRoom(newCode, playerName || currentUser?.username || 'Host', true, {
+                mode: 'custom',
+                cardCount: deckTargetCount,
+                customCards,
+              });
+            }}
+            onCancel={() => setIsBuildingDeck(false)}
+          />
+        )}
+
+        {/* 2. ESCOLHA DO PERSONAGEM SECRETO */}
         {phase === 'CHOOSING_SECRET' && (
           <SecretSelectionModal
+            cards={activeDeck}
             opponentName={opponentName}
             opponentReady={opponentReady}
             onConfirmSelection={handleConfirmSecret}
           />
         )}
 
+        {/* 3. TABULEIRO EM JOGO */}
         {phase === 'PLAYING' && (
-          <div className="flex-1 flex flex-col gap-4">
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
-              <div className="md:col-span-4">
-                {mySecretCharacter && (
-                  <SecretCardBadge character={mySecretCharacter} />
-                )}
-              </div>
-
-              <div className="md:col-span-8 flex items-center justify-between bg-slate-900/60 border border-slate-800 rounded-2xl p-3 text-xs font-bold text-slate-300">
-                <div className="flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full bg-indigo-500" />
-                  <span>Seu Tabuleiro:</span>
-                  <span className="text-amber-400 font-extrabold text-sm">
-                    {remainingCardsCount} suspeitos ativos
-                  </span>
-                  <span className="text-slate-500">
-                    ({flippedIds.size} eliminados)
-                  </span>
+          <div className="flex-1 flex flex-col lg:flex-row gap-4 items-start">
+            {/* Coluna Principal: Tabuleiro e Controle */}
+            <div className="flex-1 w-full flex flex-col gap-4">
+              {/* Barra Superior de Status */}
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
+                <div className="md:col-span-5">
+                  {mySecretCharacter && (
+                    <SecretCardBadge character={mySecretCharacter} />
+                  )}
                 </div>
 
-                <div className="text-[11px] text-slate-400 hidden sm:block">
-                  💡 Clique nas cartas para eliminá-las (só você vê o que abaixou)
+                <div className="md:col-span-7 flex items-center justify-between bg-slate-900/60 border border-slate-800 rounded-2xl p-3 text-xs font-bold text-slate-300">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-indigo-500" />
+                    <span>Dica:</span>
+                    <span className="text-slate-400 font-normal">
+                      Clique em qualquer cara para marcar <strong>'É o cara!'</strong>, <strong>'Suspeito'</strong> ou <strong>'Descarte'</strong>.
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Painel Central de Perguntas */}
+              <QuestionControl
+                isMyTurn={isMyTurn}
+                opponentName={opponentName}
+                currentQuestion={currentQuestion}
+                onAskQuestion={handleAskQuestion}
+                onPassTurn={handlePassTurn}
+                onOpenGuessModal={() => setGuessModalOpen(true)}
+              />
+
+              {/* Grid de Caras do Tabuleiro */}
+              <div className="bg-slate-900/40 border border-slate-800/80 rounded-3xl p-3 sm:p-5 shadow-2xl backdrop-blur-sm">
+                <div
+                  className={`grid gap-2.5 sm:gap-3 ${
+                    activeDeck.length <= 15
+                      ? 'grid-cols-3 sm:grid-cols-5'
+                      : activeDeck.length <= 30
+                      ? 'grid-cols-3 sm:grid-cols-5 md:grid-cols-6'
+                      : activeDeck.length <= 45
+                      ? 'grid-cols-3 sm:grid-cols-6 md:grid-cols-9'
+                      : 'grid-cols-4 sm:grid-cols-6 md:grid-cols-10'
+                  }`}
+                >
+                  {activeDeck.map((char) => (
+                    <Card
+                      key={char.id}
+                      character={char}
+                      status={cardStatuses[char.id] || 'normal'}
+                      onSetStatus={handleSetCardStatus}
+                      onTargetSelect={handleTargetSelect}
+                    />
+                  ))}
                 </div>
               </div>
             </div>
 
-            <QuestionControl
-              isMyTurn={isMyTurn}
+            {/* Barra Lateral Direita (Requisito F.b + E.c) */}
+            <RightSidebar
+              onUndo={handleUndo}
+              canUndo={undoStack.length > 0}
+              targetCharacter={targetCharacter}
+              onConfirmTargetGuess={handleConfirmGuess}
+              onCancelTarget={handleCancelTarget}
+              cardStatuses={cardStatuses}
+              totalCards={activeDeck.length}
+              questionHistory={questionHistory}
               opponentName={opponentName}
-              currentQuestion={currentQuestion}
-              onAskQuestion={handleAskQuestion}
-              onPassTurn={handlePassTurn}
-              onOpenGuessModal={() => setGuessModalOpen(true)}
             />
-
-            <div className="flex-1 bg-slate-900/40 border border-slate-800/80 rounded-3xl p-3 sm:p-5 shadow-2xl backdrop-blur-sm">
-              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3 sm:gap-3.5">
-                {CHARACTERS.map((char) => (
-                  <Card
-                    key={char.id}
-                    character={char}
-                    isFlipped={flippedIds.has(char.id)}
-                    onToggle={handleToggleCard}
-                  />
-                ))}
-              </div>
-            </div>
           </div>
         )}
 
+        {/* Modal de Responder Pergunta do Oponente */}
         {questionToAnswer && mySecretCharacter && (
           <QuestionAnswerModal
             question={questionToAnswer}
@@ -429,14 +642,17 @@ export function App() {
           />
         )}
 
+        {/* Modal de Palpite Final */}
         {guessModalOpen && (
           <GuessModal
+            cards={activeDeck}
             opponentName={opponentName}
             onConfirmGuess={handleConfirmGuess}
             onClose={() => setGuessModalOpen(false)}
           />
         )}
 
+        {/* Modal de Fim de Jogo */}
         {phase === 'GAME_OVER' && gameOverResult && mySecretCharacter && (
           <GameOverModal
             isWinner={gameOverResult.isWinner}
@@ -449,8 +665,19 @@ export function App() {
             onRematch={handleRequestRematch}
           />
         )}
+
+        {/* Modal de Login / Cadastro */}
+        <LoginModal
+          isOpen={loginModalOpen}
+          onClose={() => setLoginModalOpen(false)}
+          onLoginSuccess={(user) => {
+            setCurrentUser(user);
+            setPlayerName(user.username);
+          }}
+        />
       </main>
 
+      {/* Chat Rápido Flutuante */}
       {phase === 'PLAYING' && (
         <QuickChat
           onSendMessage={handleSendChat}

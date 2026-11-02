@@ -1,17 +1,18 @@
 import { useState, type FC } from 'react';
 import type { Character } from '../types/game';
-import { CHARACTERS } from '../utils/characters';
 import { Avatar } from './Avatar';
 import { Trophy, X, AlertTriangle } from 'lucide-react';
 import { sounds } from '../utils/sound';
 
 interface GuessModalProps {
+  cards: Character[];
   opponentName: string;
   onConfirmGuess: (character: Character) => void;
   onClose: () => void;
 }
 
 export const GuessModal: FC<GuessModalProps> = ({
+  cards,
   opponentName,
   onConfirmGuess,
   onClose,
@@ -30,7 +31,7 @@ export const GuessModal: FC<GuessModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4">
-      <div className="bg-slate-900 border-2 border-amber-500/70 rounded-3xl max-w-2xl w-full max-h-[90vh] flex flex-col p-6 shadow-2xl animate-in zoom-in-95 duration-200">
+      <div className="bg-slate-900 border-2 border-amber-500/70 rounded-3xl max-w-3xl w-full max-h-[90vh] flex flex-col p-6 shadow-2xl animate-in zoom-in-95 duration-200">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-slate-800 pb-4 mb-4">
           <div className="flex items-center gap-3">
@@ -85,15 +86,15 @@ export const GuessModal: FC<GuessModalProps> = ({
           </div>
         ) : (
           <div className="flex-1 overflow-y-auto pr-1">
-            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2.5">
-              {CHARACTERS.map((char) => (
+            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2.5">
+              {cards.map((char) => (
                 <div
                   key={char.id}
                   onClick={() => handleSelect(char)}
                   className="bg-slate-800/80 hover:bg-slate-700 border border-slate-700 hover:border-amber-400 rounded-xl p-2 flex flex-col items-center cursor-pointer transition-all hover:scale-105 active:scale-95"
                 >
                   <Avatar character={char} size={58} className="mb-1" />
-                  <span className="text-xs font-bold text-slate-200">{char.name}</span>
+                  <span className="text-xs font-bold text-slate-200 truncate w-full text-center">{char.name}</span>
                 </div>
               ))}
             </div>

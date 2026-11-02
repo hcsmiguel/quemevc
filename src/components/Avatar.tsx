@@ -8,7 +8,43 @@ interface AvatarProps {
 }
 
 export const Avatar: FC<AvatarProps> = ({ character, size = 120, className = '' }) => {
-  const { traits, hairHex, eyeHex, avatarBg } = character;
+  // Se for uma foto personalizada carregada pelo usuário:
+  if (character.imageUrl) {
+    return (
+      <div
+        className={`relative rounded-2xl overflow-hidden flex items-center justify-center select-none bg-slate-900 border border-slate-700/80 ${className}`}
+        style={{
+          width: size,
+          height: size,
+          boxShadow: 'inset 0 2px 4px rgba(255,255,255,0.1), 0 4px 6px -1px rgba(0,0,0,0.3)',
+        }}
+      >
+        <img
+          src={character.imageUrl}
+          alt={character.name}
+          className="w-full h-full object-cover object-center pointer-events-none"
+          loading="lazy"
+        />
+      </div>
+    );
+  }
+
+  // Se for o avatar padrão SVG:
+  const traits = character.traits || {
+    gender: 'masculino',
+    hairColor: 'castanho',
+    hairStyle: 'curto',
+    eyeColor: 'castanho',
+    glasses: false,
+    hat: false,
+    beard: false,
+    earrings: false,
+    smile: true,
+  };
+  const hairHex = character.hairHex || '#B45309';
+  const eyeHex = character.eyeHex || '#78350F';
+  const avatarBg = character.avatarBg || '#3B82F6';
+
   const isFemale = traits.gender === 'feminino';
   const skinTone = isFemale ? '#FDE2D2' : '#F6D2BD';
   const skinShadow = isFemale ? '#F2C8B4' : '#E8B99D';

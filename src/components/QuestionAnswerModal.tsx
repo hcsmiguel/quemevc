@@ -47,11 +47,13 @@ export const QuestionAnswerModal: FC<QuestionAnswerModalProps> = ({
           <div>
             <span className="text-xs text-indigo-400 font-semibold block">Seu Personagem:</span>
             <span className="text-sm font-bold text-white">{mySecretCharacter.name}</span>
-            <div className="text-[11px] text-slate-400 mt-0.5">
-              {mySecretCharacter.traits.glasses ? '👓 Tem óculos' : 'Sem óculos'} •{' '}
-              {mySecretCharacter.traits.hat ? '🧢 Tem chapéu' : 'Sem chapéu'} •{' '}
-              {mySecretCharacter.traits.beard ? '🧔 Tem barba' : 'Sem barba'}
-            </div>
+            {mySecretCharacter.traits && (
+              <div className="text-[11px] text-slate-400 mt-0.5">
+                {mySecretCharacter.traits.glasses ? '👓 Tem óculos' : 'Sem óculos'} •{' '}
+                {mySecretCharacter.traits.hat ? '🧢 Tem chapéu' : 'Sem chapéu'} •{' '}
+                {mySecretCharacter.traits.beard ? '🧔 Tem barba' : 'Sem barba'}
+              </div>
+            )}
           </div>
         </div>
 

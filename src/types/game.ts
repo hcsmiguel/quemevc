@@ -9,19 +9,32 @@ export interface CharacterTraits {
   hairStyle: HairStyle;
   eyeColor: EyeColor;
   glasses: boolean;
-  hat: boolean; // chapéu, gorro ou boné
-  beard: boolean; // barba ou bigode
-  earrings: boolean; // brincos
-  smile: boolean; // sorriso aberto
+  hat: boolean;
+  beard: boolean;
+  earrings: boolean;
+  smile: boolean;
 }
 
 export interface Character {
   id: string;
   name: string;
-  traits: CharacterTraits;
-  avatarBg: string;
-  hairHex: string;
-  eyeHex: string;
+  imageUrl?: string; // Para caras personalizadas
+  traits?: CharacterTraits; // Para caras padrão
+  avatarBg?: string;
+  hairHex?: string;
+  eyeHex?: string;
+}
+
+export type CardStatus = 'normal' | 'suspect' | 'discard' | 'target';
+
+export type GameMode = 'standard' | 'custom';
+export type DifficultyCount = 15 | 30 | 45 | 60;
+
+export interface RoomConfig {
+  mode: GameMode;
+  cardCount: DifficultyCount;
+  deckName?: string;
+  customCards?: Character[];
 }
 
 export type GamePhase = 
@@ -37,7 +50,7 @@ export interface Question {
   text: string;
   traitKey?: keyof CharacterTraits;
   traitValue?: any;
-  answer?: boolean | null; // null = aguardando resposta
+  answer?: boolean | null;
   timestamp: number;
 }
 
@@ -47,6 +60,13 @@ export interface PlayerInfo {
   isHost: boolean;
   secretCharacterId?: string | null;
   ready: boolean;
+}
+
+export interface UndoAction {
+  type: 'status_change';
+  previousStates: Record<string, CardStatus>;
+  newStates: Record<string, CardStatus>;
+  description: string;
 }
 
 export interface NetworkMessage {
