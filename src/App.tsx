@@ -25,12 +25,28 @@ import { QuickChat } from './components/QuickChat';
 import { LoginModal } from './components/LoginModal';
 import { CustomDeckBuilder } from './components/CustomDeckBuilder';
 import { RightSidebar } from './components/RightSidebar';
+import { Footer } from './components/Footer';
+import { LegalModal, type LegalTab } from './components/LegalModal';
 import { Volume2, VolumeX, Users, User as UserIcon, LogOut, AlertTriangle } from 'lucide-react';
 
 export function App() {
   // Autenticação
   const [currentUser, setCurrentUser] = useState<AppUser | null>(() => auth.getCurrentUser());
   const [loginModalOpen, setLoginModalOpen] = useState(false);
+
+  // Modal Legal (Privacidade e Termos)
+  const [legalModalOpen, setLegalModalOpen] = useState(false);
+  const [legalModalTab, setLegalModalTab] = useState<LegalTab>('privacy');
+
+  const handleOpenPrivacy = () => {
+    setLegalModalTab('privacy');
+    setLegalModalOpen(true);
+  };
+
+  const handleOpenTerms = () => {
+    setLegalModalTab('terms');
+    setLegalModalOpen(true);
+  };
 
   // Fases e Configuração do Jogo
   const [phase, setPhase] = useState<GamePhase>('LOBBY');
@@ -597,16 +613,22 @@ export function App() {
   const isMyTurn = currentTurnPlayerId === network.playerId;
 
   return (
-    <div className="min-h-screen bg-[#080d1a] text-slate-100 flex flex-col selection:bg-indigo-500 selection:text-white">
+    <div className="min-h-screen bg-[#F8FAFC] text-slate-800 flex flex-col selection:bg-sky-200 selection:text-sky-900 font-sans">
       {/* Barra Superior */}
-      <header className="border-b border-slate-800/80 bg-slate-900/60 backdrop-blur-md sticky top-0 z-30">
-        <div className="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between">
+      <header className="border-b border-slate-200/90 bg-white/85 backdrop-blur-md sticky top-0 z-30 transition-colors">
+        <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <span className="text-xl font-black bg-gradient-to-r from-amber-400 via-pink-400 to-indigo-400 bg-clip-text text-transparent">
-              🎭 Cara a Cara
+            <span
+              onClick={phase === 'LOBBY' ? undefined : () => setShowAbandonModal(true)}
+              className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-2 cursor-pointer select-none"
+            >
+              <span className="w-8 h-8 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center text-sm shadow-tactile-sm">
+                🎭
+              </span>
+              <span>Cara a Cara</span>
             </span>
             {roomCode && (
-              <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-slate-800 border border-slate-700 text-xs font-mono text-amber-300 font-bold">
+              <span className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 border border-amber-200 text-xs font-mono text-amber-900 font-extrabold">
                 Sala: {roomCode} ({activeDeck.length} Caras)
               </span>
             )}
@@ -614,27 +636,27 @@ export function App() {
 
           <div className="flex items-center gap-2.5">
             {currentUser && (
-              <div className="hidden sm:flex items-center gap-1.5 text-xs font-bold text-slate-300 bg-slate-800/60 px-2.5 py-1 rounded-lg border border-slate-700">
-                <UserIcon size={13} className="text-amber-400" />
+              <div className="hidden sm:flex items-center gap-1.5 text-xs font-bold text-slate-700 bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-200">
+                <UserIcon size={14} className="text-amber-600" />
                 <span>{currentUser.username}</span>
               </div>
             )}
 
             {phase === 'PLAYING' && (
-              <div className="flex items-center gap-2 bg-slate-800/80 px-3 py-1 rounded-xl border border-slate-700 text-xs font-bold">
-                <Users size={14} className="text-indigo-400" />
-                <span className="text-slate-300">{playerName}</span>
-                <span className="text-slate-500">vs</span>
-                <span className="text-pink-400">{opponentName}</span>
+              <div className="flex items-center gap-2 bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-bold">
+                <Users size={14} className="text-sky-600" />
+                <span className="text-slate-700">{playerName}</span>
+                <span className="text-slate-400">vs</span>
+                <span className="text-rose-600 font-extrabold">{opponentName}</span>
               </div>
             )}
 
             <button
               onClick={toggleSound}
               title={soundEnabled ? 'Silenciar Sons' : 'Ativar Sons'}
-              className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
+              className="p-2 rounded-xl bg-white hover:bg-slate-100 text-slate-600 hover:text-slate-900 border border-slate-200 shadow-sm transition-all"
             >
-              {soundEnabled ? <Volume2 size={17} /> : <VolumeX size={17} />}
+              {soundEnabled ? <Volume2 size={18} /> : <VolumeX size={18} />}
             </button>
 
             {/* PONTO 1: Botão no Canto Superior Direito para Voltar ao Menu Principal */}
@@ -642,7 +664,7 @@ export function App() {
               <button
                 onClick={() => setShowAbandonModal(true)}
                 title="Voltar ao Menu Principal"
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-950/80 hover:bg-red-900 border border-red-800/80 text-red-200 text-xs font-black uppercase tracking-wider transition-all active:scale-95 shadow-md shadow-red-950/50"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 text-xs font-extrabold uppercase tracking-wider transition-all active:scale-95 shadow-sm"
               >
                 <LogOut size={14} />
                 <span className="hidden sm:inline">Menu Principal</span>
@@ -655,7 +677,7 @@ export function App() {
       {/* Conteúdo Principal */}
       <main className="flex-1 max-w-7xl w-full mx-auto p-4 flex flex-col">
         {wrongGuessAlert && (
-          <div className="mb-4 bg-red-950/90 border-2 border-red-500/80 rounded-2xl p-3.5 text-center text-sm font-black text-red-200 shadow-xl animate-bounce">
+          <div className="mb-4 bg-rose-50 border-2 border-rose-300 rounded-2xl p-3.5 text-center text-sm font-extrabold text-rose-800 shadow-sm animate-bounce">
             ⚠️ {wrongGuessAlert}
           </div>
         )}
@@ -721,11 +743,11 @@ export function App() {
                   )}
                 </div>
 
-                <div className="md:col-span-7 flex items-center justify-between bg-slate-900/60 border border-slate-800 rounded-2xl p-3 text-xs font-bold text-slate-300">
+                <div className="md:col-span-7 flex items-center justify-between bg-white border border-slate-200 rounded-2xl p-3 text-xs font-bold text-slate-700 shadow-sm">
                   <div className="flex items-center gap-2">
-                    <span className="w-2.5 h-2.5 rounded-full bg-indigo-500" />
+                    <span className="w-2.5 h-2.5 rounded-full bg-sky-500" />
                     <span>Dica:</span>
-                    <span className="text-slate-400 font-normal">
+                    <span className="text-slate-500 font-medium">
                       Clique em qualquer cara para marcar <strong>'É o cara!'</strong>, <strong>'Suspeito'</strong> ou <strong>'Descarte'</strong>.
                     </span>
                   </div>
@@ -742,7 +764,7 @@ export function App() {
                 onOpenGuessModal={() => setGuessModalOpen(true)}
               />
 
-              <div className="bg-slate-900/40 border border-slate-800/80 rounded-3xl p-3 sm:p-5 shadow-2xl backdrop-blur-sm">
+              <div className="bg-slate-100/70 border-2 border-slate-200 rounded-3xl p-3 sm:p-5 shadow-sm">
                 <div
                   className={`grid gap-2.5 sm:gap-3 ${
                     activeDeck.length <= 15
@@ -818,29 +840,29 @@ export function App() {
 
         {/* Modal de Confirmação de Abandonar Partida (PONTO 1.a) */}
         {showAbandonModal && (
-          <div className="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4">
-            <div className="bg-slate-900 border-2 border-red-500/80 rounded-3xl max-w-sm w-full p-6 shadow-2xl text-center animate-in zoom-in-95">
-              <div className="w-14 h-14 bg-red-500/20 text-red-400 rounded-full flex items-center justify-center mx-auto mb-3 border border-red-500/30">
-                <AlertTriangle size={30} />
+          <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-white border-2 border-slate-200 rounded-3xl max-w-sm w-full p-6 shadow-2xl text-center animate-in zoom-in-95">
+              <div className="w-14 h-14 bg-rose-100 text-rose-600 rounded-2xl flex items-center justify-center mx-auto mb-3 border border-rose-200 shadow-tactile-sm">
+                <AlertTriangle size={28} />
               </div>
 
-              <h3 className="text-lg font-black text-white mb-2">
+              <h3 className="text-lg font-black text-slate-900 mb-1">
                 Abandonar Partida?
               </h3>
-              <p className="text-xs text-slate-400 mb-6 leading-relaxed">
+              <p className="text-xs text-slate-500 mb-6 leading-relaxed">
                 Você deseja realmente abandonar a partida atual e voltar ao menu principal?
               </p>
 
               <div className="grid grid-cols-2 gap-3">
                 <button
                   onClick={() => setShowAbandonModal(false)}
-                  className="py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs uppercase tracking-wider transition-all"
+                  className="py-2.5 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-xs uppercase tracking-wider transition-all"
                 >
-                  Não
+                  Continuar Jogando
                 </button>
                 <button
                   onClick={handleConfirmAbandon}
-                  className="py-2.5 px-4 rounded-xl bg-red-600 hover:bg-red-500 text-white font-black text-xs uppercase tracking-wider shadow-lg shadow-red-600/30 transition-all active:scale-95"
+                  className="py-2.5 px-4 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-xs uppercase tracking-wider shadow-tactile-sm transition-all active:translate-y-0.5"
                 >
                   Sim, Abandonar
                 </button>
@@ -867,6 +889,19 @@ export function App() {
           recentMessages={chatMessages}
         />
       )}
+
+      {/* Rodapé (Footer) com Política de Privacidade e Termos */}
+      <Footer
+        onOpenPrivacy={handleOpenPrivacy}
+        onOpenTerms={handleOpenTerms}
+      />
+
+      {/* Modal Legal de Privacidade e Termos de Uso */}
+      <LegalModal
+        isOpen={legalModalOpen}
+        initialTab={legalModalTab}
+        onClose={() => setLegalModalOpen(false)}
+      />
     </div>
   );
 }

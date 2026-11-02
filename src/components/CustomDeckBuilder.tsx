@@ -3,7 +3,7 @@ import type { Character, DifficultyCount } from '../types/game';
 import { STANDARD_60_CHARACTERS } from '../utils/characters';
 import { Avatar } from './Avatar';
 import { ImageCropperModal } from './ImageCropperModal';
-import { Plus, Trash2, Sparkles, Check, Wand2, ArrowLeft } from 'lucide-react';
+import { Plus, Trash2, Check, Wand2, ArrowLeft } from 'lucide-react';
 import { sounds } from '../utils/sound';
 
 interface CustomDeckBuilderProps {
@@ -54,21 +54,23 @@ export const CustomDeckBuilder: FC<CustomDeckBuilderProps> = ({
   return (
     <div className="min-h-[85vh] max-w-5xl mx-auto w-full p-4 flex flex-col gap-4 animate-in fade-in duration-200">
       {/* Top Header */}
-      <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-5 shadow-xl flex flex-col md:flex-row items-center justify-between gap-4">
+      <div className="bg-white border-2 border-slate-200 rounded-3xl p-5 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <button
             onClick={onCancel}
-            className="p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl transition-colors"
+            className="p-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl transition-colors cursor-pointer"
           >
             <ArrowLeft size={18} />
           </button>
           <div>
-            <h2 className="text-xl font-black text-white flex items-center gap-2">
-              <Sparkles className="text-amber-400" size={20} />
+            <h2 className="text-xl font-extrabold text-slate-900 flex items-center gap-2">
+              <span className="w-8 h-8 rounded-xl bg-purple-100 text-purple-800 flex items-center justify-center text-sm shadow-tactile-sm">
+                🎨
+              </span>
               Criar Baralho de Caras Personalizadas
             </h2>
-            <p className="text-xs text-slate-400">
-              Adicione fotos de amigos, familiares ou celebridades para jogar!
+            <p className="text-xs text-slate-500">
+              Adicione fotos de amigos, familiares ou quem você quiser para jogar!
             </p>
           </div>
         </div>
@@ -76,8 +78,8 @@ export const CustomDeckBuilder: FC<CustomDeckBuilderProps> = ({
         {/* Contador de Progresso */}
         <div className="flex items-center gap-3">
           <div className="text-right">
-            <span className="text-xs text-slate-400 block font-bold">Progresso:</span>
-            <span className={`text-lg font-black ${isComplete ? 'text-emerald-400' : 'text-amber-400'}`}>
+            <span className="text-xs text-slate-500 block font-bold">Progresso:</span>
+            <span className={`text-lg font-black ${isComplete ? 'text-emerald-700' : 'text-amber-700'}`}>
               {cards.length} / {targetCount} Caras
             </span>
           </div>
@@ -85,7 +87,7 @@ export const CustomDeckBuilder: FC<CustomDeckBuilderProps> = ({
           <button
             onClick={handleConfirm}
             disabled={!isComplete}
-            className="flex items-center gap-2 px-5 py-3 rounded-2xl bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 disabled:opacity-40 text-white font-black text-xs uppercase tracking-wider shadow-lg shadow-emerald-500/20 transition-all active:scale-95"
+            className="flex items-center gap-2 px-5 py-3 rounded-2xl bg-emerald-500 hover:bg-emerald-600 disabled:opacity-40 text-white font-extrabold text-xs uppercase tracking-wider shadow-[0_3px_0_#059669] active:translate-y-0.5 transition-all cursor-pointer"
           >
             <Check size={16} />
             Iniciar Jogo
@@ -94,7 +96,7 @@ export const CustomDeckBuilder: FC<CustomDeckBuilderProps> = ({
       </div>
 
       {/* Grid de Caras Adicionadas */}
-      <div className="flex-1 bg-slate-900/40 border border-slate-800/80 rounded-3xl p-4 sm:p-6 shadow-2xl overflow-y-auto">
+      <div className="flex-1 bg-slate-100/70 border-2 border-slate-200 rounded-3xl p-4 sm:p-6 shadow-sm overflow-y-auto">
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-6 gap-3.5">
           {/* Botão Adicionar Nova Cara */}
           <button
@@ -103,32 +105,32 @@ export const CustomDeckBuilder: FC<CustomDeckBuilderProps> = ({
               setIsCropperOpen(true);
             }}
             disabled={isComplete}
-            className="border-2 border-dashed border-indigo-500/60 hover:border-indigo-400 disabled:opacity-40 rounded-2xl p-4 flex flex-col items-center justify-center text-center transition-all bg-indigo-950/20 hover:bg-indigo-950/40 group min-h-[160px]"
+            className="border-2 border-dashed border-sky-300 hover:border-sky-400 disabled:opacity-40 rounded-2xl p-4 flex flex-col items-center justify-center text-center transition-all bg-sky-50/50 hover:bg-sky-50 group min-h-[160px] cursor-pointer"
           >
-            <div className="w-12 h-12 rounded-xl bg-indigo-600/30 text-indigo-400 group-hover:scale-110 flex items-center justify-center mb-2 transition-transform">
+            <div className="w-12 h-12 rounded-2xl bg-sky-100 text-sky-700 group-hover:scale-110 flex items-center justify-center mb-2 transition-transform shadow-tactile-sm">
               <Plus size={26} />
             </div>
-            <span className="text-xs font-bold text-slate-200">Adicionar Foto</span>
-            <span className="text-[10px] text-slate-400 mt-0.5">Upload ou Ctrl+V</span>
+            <span className="text-xs font-bold text-slate-800">Adicionar Foto</span>
+            <span className="text-[10px] text-slate-500 mt-0.5">Upload ou Ctrl+V</span>
           </button>
 
           {/* Lista de Caras adicionadas */}
           {cards.map((char, index) => (
             <div
               key={char.id}
-              className="relative group bg-slate-800/90 border border-slate-700/80 rounded-2xl p-2.5 flex flex-col items-center justify-between shadow-md hover:border-indigo-400 transition-all"
+              className="relative group bg-white border-2 border-slate-200 rounded-2xl p-2.5 flex flex-col items-center justify-between shadow-sm hover:border-sky-400 transition-all"
             >
               <Avatar character={char} size={78} className="my-1" />
-              <span className="text-xs font-bold text-slate-200 truncate w-full text-center mt-1">
+              <span className="text-xs font-bold text-slate-800 truncate w-full text-center mt-1">
                 {char.name}
               </span>
-              <span className="text-[10px] text-slate-500 font-semibold">#{index + 1}</span>
+              <span className="text-[10px] text-slate-400 font-semibold">#{index + 1}</span>
 
               {/* Botão Remover */}
               <button
                 onClick={() => handleRemoveCard(char.id)}
                 title="Remover"
-                className="absolute top-1.5 right-1.5 p-1.5 bg-red-950/80 hover:bg-red-900 text-red-400 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity border border-red-800"
+                className="absolute top-1.5 right-1.5 p-1.5 bg-rose-100 hover:bg-rose-200 text-rose-700 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity border border-rose-300 cursor-pointer"
               >
                 <Trash2 size={13} />
               </button>
@@ -138,18 +140,18 @@ export const CustomDeckBuilder: FC<CustomDeckBuilderProps> = ({
       </div>
 
       {/* Rodapé com Ajuda e Preenchimento Automático */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-slate-900/80 p-4 rounded-2xl border border-slate-800 text-xs text-slate-400">
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-slate-200 text-xs text-slate-600 shadow-sm">
         <div>
           Faltam <strong>{Math.max(0, targetCount - cards.length)}</strong> caras para completar o modo{' '}
-          <span className="text-indigo-400 font-bold">{targetCount} Caras</span>.
+          <span className="text-sky-700 font-bold">{targetCount} Caras</span>.
         </div>
 
         {!isComplete && (
           <button
             onClick={handleAutoFillRemaining}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-300 font-bold border border-slate-700 transition-colors"
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 font-extrabold border border-amber-300 transition-colors cursor-pointer"
           >
-            <Wand2 size={15} />
+            <Wand2 size={15} className="text-amber-700" />
             Completar restante com caras prontas
           </button>
         )}

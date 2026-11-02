@@ -30,24 +30,24 @@ export const GuessModal: FC<GuessModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4">
-      <div className="bg-slate-900 border-2 border-amber-500/70 rounded-3xl max-w-3xl w-full max-h-[90vh] flex flex-col p-6 shadow-2xl animate-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
+      <div className="bg-white border-2 border-slate-200 rounded-3xl max-w-3xl w-full max-h-[90vh] flex flex-col p-6 shadow-2xl animate-in zoom-in-95 duration-200">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-slate-800 pb-4 mb-4">
+        <div className="flex items-center justify-between border-b border-slate-100 pb-4 mb-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center justify-center">
-              <Trophy size={22} />
+            <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center shadow-tactile-sm">
+              <Trophy size={22} className="text-amber-700" />
             </div>
             <div>
-              <h2 className="text-lg font-black text-white">Dar Palpite Final</h2>
-              <p className="text-xs text-slate-400">
-                Quem é o personagem secreto de <span className="text-amber-400 font-bold">{opponentName}</span>?
+              <h2 className="text-lg font-black text-slate-900">Dar Palpite Final</h2>
+              <p className="text-xs text-slate-500">
+                Quem é o personagem secreto de <strong className="text-rose-600 font-extrabold">{opponentName}</strong>?
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-2 text-slate-400 hover:text-white rounded-xl bg-slate-800 hover:bg-slate-700"
+            className="p-2 text-slate-400 hover:text-slate-700 rounded-xl hover:bg-slate-100 transition-colors"
           >
             <X size={18} />
           </button>
@@ -57,28 +57,28 @@ export const GuessModal: FC<GuessModalProps> = ({
         {selectedChar ? (
           <div className="my-auto py-6 flex flex-col items-center text-center">
             <div className="relative mb-3">
-              <Avatar character={selectedChar} size={110} className="ring-4 ring-amber-400 shadow-2xl" />
+              <Avatar character={selectedChar} size={110} className="ring-4 ring-amber-400 shadow-xl" />
             </div>
-            <h3 className="text-2xl font-black text-white mb-1">{selectedChar.name}</h3>
+            <h3 className="text-2xl font-black text-slate-900 mb-1">{selectedChar.name}</h3>
             
-            <div className="bg-amber-950/60 border border-amber-800/80 rounded-2xl p-4 my-5 max-w-md flex items-start gap-3 text-left">
-              <AlertTriangle size={22} className="text-amber-400 shrink-0 mt-0.5" />
-              <div className="text-xs text-amber-200/90 leading-relaxed">
-                Atenção: Se você <strong className="text-white">acertar</strong>, você vence o jogo imediatamente!
-                Se você <strong className="text-white">errar</strong>, seu palpite será anunciado e você perderá a vez.
+            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 my-5 max-w-md flex items-start gap-3 text-left">
+              <AlertTriangle size={22} className="text-amber-600 shrink-0 mt-0.5" />
+              <div className="text-xs text-amber-950 leading-relaxed font-medium">
+                Atenção: Se você <strong className="text-emerald-700 font-bold">acertar</strong>, você vence o jogo imediatamente!
+                Se você <strong className="text-rose-700 font-bold">errar</strong>, seu palpite será revelado e você perderá a vez.
               </div>
             </div>
 
             <div className="flex items-center gap-4 w-full max-w-sm mt-2">
               <button
                 onClick={() => setSelectedChar(null)}
-                className="flex-1 py-3 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-sm transition-all"
+                className="flex-1 py-3 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-xs uppercase tracking-wider border border-slate-200 transition-all cursor-pointer"
               >
                 Escolher Outro
               </button>
               <button
                 onClick={handleConfirm}
-                className="flex-1 py-3 px-4 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-sm shadow-lg shadow-amber-500/30 transition-all active:scale-95"
+                className="flex-1 py-3 px-4 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-xs uppercase tracking-wider shadow-[0_3px_0_#d97706] transition-all active:translate-y-0.5 cursor-pointer"
               >
                 Confirmar Chute!
               </button>
@@ -91,10 +91,10 @@ export const GuessModal: FC<GuessModalProps> = ({
                 <div
                   key={char.id}
                   onClick={() => handleSelect(char)}
-                  className="bg-slate-800/80 hover:bg-slate-700 border border-slate-700 hover:border-amber-400 rounded-xl p-2 flex flex-col items-center cursor-pointer transition-all hover:scale-105 active:scale-95"
+                  className="bg-white hover:bg-slate-50 border-2 border-slate-200 hover:border-amber-400 rounded-2xl p-2 flex flex-col items-center cursor-pointer transition-all hover:scale-105 active:scale-95 shadow-sm"
                 >
                   <Avatar character={char} size={58} className="mb-1" />
-                  <span className="text-xs font-bold text-slate-200 truncate w-full text-center">{char.name}</span>
+                  <span className="text-xs font-bold text-slate-800 truncate w-full text-center">{char.name}</span>
                 </div>
               ))}
             </div>

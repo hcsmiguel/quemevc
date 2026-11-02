@@ -1,7 +1,7 @@
 import { useState, type FC } from 'react';
 import type { Character } from '../types/game';
 import { Avatar } from './Avatar';
-import { Sparkles, Dices, ShieldCheck, Check } from 'lucide-react';
+import { Dices, ShieldCheck, Check } from 'lucide-react';
 import { sounds } from '../utils/sound';
 
 interface SecretSelectionModalProps {
@@ -41,28 +41,30 @@ export const SecretSelectionModal: FC<SecretSelectionModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4">
-      <div className="bg-slate-900 border-2 border-indigo-500/70 rounded-3xl max-w-4xl w-full max-h-[92vh] flex flex-col p-6 shadow-2xl animate-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
+      <div className="bg-white border-2 border-slate-200 rounded-3xl max-w-4xl w-full max-h-[92vh] flex flex-col p-6 shadow-2xl animate-in zoom-in-95 duration-200">
         {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-slate-800 pb-4 mb-4 gap-2">
+        <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-slate-100 pb-4 mb-4 gap-2">
           <div>
-            <h2 className="text-xl font-black text-white flex items-center gap-2">
-              <Sparkles className="text-amber-400" size={22} />
+            <h2 className="text-xl font-extrabold text-slate-900 flex items-center gap-2">
+              <span className="w-8 h-8 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center text-sm shadow-tactile-sm">
+                🎴
+              </span>
               Escolha seu Personagem Secreto
             </h2>
-            <p className="text-xs text-slate-400">
-              Este é o personagem que <span className="text-indigo-400 font-bold">{opponentName}</span> terá que adivinhar!
+            <p className="text-xs text-slate-500">
+              Este é o personagem que <strong className="text-sky-700">{opponentName}</strong> terá que adivinhar!
             </p>
           </div>
 
           <div className="flex items-center gap-2 text-xs">
-            <span className="text-slate-400">Status de {opponentName}:</span>
+            <span className="text-slate-500 font-medium">Status de {opponentName}:</span>
             {opponentReady ? (
-              <span className="px-2.5 py-1 rounded-full bg-emerald-950 text-emerald-400 border border-emerald-800 flex items-center gap-1 font-bold">
+              <span className="px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200 flex items-center gap-1 font-bold">
                 <Check size={13} /> Escolheu!
               </span>
             ) : (
-              <span className="px-2.5 py-1 rounded-full bg-slate-800 text-slate-400 border border-slate-700 animate-pulse">
+              <span className="px-2.5 py-1 rounded-full bg-slate-100 text-slate-500 border border-slate-200 animate-pulse font-medium">
                 Escolhendo...
               </span>
             )}
@@ -80,14 +82,14 @@ export const SecretSelectionModal: FC<SecretSelectionModalProps> = ({
                   onClick={() => handleSelect(char)}
                   className={`relative p-2 rounded-2xl flex flex-col items-center cursor-pointer transition-all border-2 ${
                     isSelected
-                      ? 'bg-indigo-900/60 border-amber-400 scale-105 shadow-lg shadow-amber-500/20'
-                      : 'bg-slate-800/80 hover:bg-slate-750 border-slate-700/80 hover:border-indigo-400/60'
+                      ? 'bg-sky-50 border-sky-400 scale-105 shadow-md'
+                      : 'bg-white hover:bg-slate-50 border-slate-200 hover:border-slate-300 shadow-sm'
                   } ${isReady ? 'pointer-events-none opacity-60' : ''}`}
                 >
                   <Avatar character={char} size={64} className="mb-1" />
-                  <span className="text-xs font-bold text-slate-200 truncate w-full text-center">{char.name}</span>
+                  <span className="text-xs font-bold text-slate-800 truncate w-full text-center">{char.name}</span>
                   {isSelected && (
-                    <div className="absolute top-1 right-1 w-5 h-5 rounded-full bg-amber-400 text-slate-950 flex items-center justify-center font-bold text-xs">
+                    <div className="absolute top-1 right-1 w-5 h-5 rounded-full bg-emerald-500 text-white flex items-center justify-center font-bold text-xs shadow-sm">
                       ✓
                     </div>
                   )}
@@ -98,31 +100,31 @@ export const SecretSelectionModal: FC<SecretSelectionModalProps> = ({
         </div>
 
         {/* Barra de Ação Inferior */}
-        <div className="border-t border-slate-800 pt-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="border-t border-slate-100 pt-4 flex flex-col sm:flex-row items-center justify-between gap-4">
           <button
             onClick={handleRandom}
             disabled={isReady}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-slate-300 font-bold text-xs uppercase tracking-wider transition-all"
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 disabled:opacity-50 text-slate-700 font-extrabold text-xs uppercase tracking-wider border border-slate-200 transition-all cursor-pointer"
           >
-            <Dices size={16} />
+            <Dices size={16} className="text-amber-600" />
             Sortear Aleatório
           </button>
 
           <div className="flex items-center gap-3 w-full sm:w-auto">
             {selectedChar && (
-              <div className="flex items-center gap-2 bg-slate-950/80 px-3 py-1.5 rounded-xl border border-slate-800">
+              <div className="flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200">
                 <Avatar character={selectedChar} size={34} />
-                <span className="text-xs font-black text-white">{selectedChar.name}</span>
+                <span className="text-xs font-black text-slate-800">{selectedChar.name}</span>
               </div>
             )}
 
             <button
               onClick={handleConfirm}
               disabled={!selectedChar || isReady}
-              className={`flex-1 sm:flex-initial flex items-center justify-center gap-2 py-3 px-6 rounded-xl font-black text-sm uppercase tracking-wide transition-all shadow-lg ${
+              className={`flex-1 sm:flex-initial flex items-center justify-center gap-2 py-3 px-6 rounded-xl font-extrabold text-sm uppercase tracking-wider transition-all shadow-[0_3px_0_#059669] active:translate-y-0.5 cursor-pointer ${
                 isReady
                   ? 'bg-emerald-600 text-white cursor-default'
-                  : 'bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-400 hover:to-indigo-500 text-white shadow-indigo-500/30 active:scale-95 disabled:bg-slate-800 disabled:text-slate-600'
+                  : 'bg-emerald-500 hover:bg-emerald-600 text-white disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none'
               }`}
             >
               {isReady ? (

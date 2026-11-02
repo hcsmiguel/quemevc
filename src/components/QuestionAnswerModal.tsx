@@ -21,34 +21,34 @@ export const QuestionAnswerModal: FC<QuestionAnswerModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-slate-900 border-2 border-amber-500/70 rounded-3xl max-w-md w-full p-6 shadow-2xl text-center animate-in fade-in zoom-in-95 duration-200">
-        <div className="w-14 h-14 bg-amber-500/20 text-amber-400 rounded-full flex items-center justify-center mx-auto mb-4 border border-amber-500/40">
-          <HelpCircle size={32} />
+    <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
+      <div className="bg-white border-2 border-slate-200 rounded-3xl max-w-md w-full p-6 shadow-2xl text-center animate-in fade-in zoom-in-95 duration-200">
+        <div className="w-14 h-14 bg-amber-100 text-amber-800 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-tactile-sm">
+          <HelpCircle size={30} className="text-amber-700" />
         </div>
 
-        <h3 className="text-xl font-black text-white mb-1">
+        <h3 className="text-xl font-extrabold text-slate-900 mb-1">
           Pergunta de {question.senderName}!
         </h3>
-        <p className="text-sm text-slate-400 mb-5">
-          Responda com base no seu personagem secreto.
+        <p className="text-xs text-slate-500 mb-5">
+          Responda com base no seu personagem secreto:
         </p>
 
         {/* Pergunta em destaque */}
-        <div className="bg-slate-800/90 border border-slate-700 rounded-2xl p-4 mb-5 shadow-inner">
-          <span className="text-lg font-bold text-amber-300">
+        <div className="bg-amber-50/80 border-2 border-amber-200 rounded-2xl p-4 mb-5 shadow-sm">
+          <span className="text-lg font-bold text-amber-950">
             "{question.text}"
           </span>
         </div>
 
         {/* Lembrete de quem você é */}
-        <div className="bg-slate-950/70 border border-slate-800 rounded-xl p-3 mb-6 flex items-center gap-3 text-left">
-          <Avatar character={mySecretCharacter} size={46} />
+        <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3 mb-6 flex items-center gap-3 text-left">
+          <Avatar character={mySecretCharacter} size={48} />
           <div>
-            <span className="text-xs text-indigo-400 font-semibold block">Seu Personagem:</span>
-            <span className="text-sm font-bold text-white">{mySecretCharacter.name}</span>
+            <span className="text-[10px] uppercase font-bold text-sky-700 block">Seu Personagem:</span>
+            <span className="text-sm font-extrabold text-slate-900">{mySecretCharacter.name}</span>
             {mySecretCharacter.traits && (
-              <div className="text-[11px] text-slate-400 mt-0.5">
+              <div className="text-[11px] text-slate-500 mt-0.5">
                 {mySecretCharacter.traits.glasses ? '👓 Tem óculos' : 'Sem óculos'} •{' '}
                 {mySecretCharacter.traits.hat ? '🧢 Tem chapéu' : 'Sem chapéu'} •{' '}
                 {mySecretCharacter.traits.beard ? '🧔 Tem barba' : 'Sem barba'}
@@ -61,16 +61,16 @@ export const QuestionAnswerModal: FC<QuestionAnswerModalProps> = ({
         <div className="grid grid-cols-2 gap-4">
           <button
             onClick={() => handleAnswer(false)}
-            className="flex items-center justify-center gap-2 py-3.5 px-4 rounded-xl bg-red-600 hover:bg-red-500 active:scale-95 text-white font-extrabold text-lg shadow-lg shadow-red-600/30 transition-all"
+            className="flex items-center justify-center gap-2 py-3.5 px-4 rounded-2xl bg-rose-500 hover:bg-rose-600 text-white font-extrabold text-lg shadow-[0_4px_0_#e11d48] active:translate-y-1 active:shadow-none transition-all cursor-pointer"
           >
-            <X size={24} />
+            <X size={22} />
             NÃO
           </button>
           <button
             onClick={() => handleAnswer(true)}
-            className="flex items-center justify-center gap-2 py-3.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-extrabold text-lg shadow-lg shadow-emerald-600/30 transition-all"
+            className="flex items-center justify-center gap-2 py-3.5 px-4 rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-white font-extrabold text-lg shadow-[0_4px_0_#059669] active:translate-y-1 active:shadow-none transition-all cursor-pointer"
           >
-            <Check size={24} />
+            <Check size={22} />
             SIM
           </button>
         </div>

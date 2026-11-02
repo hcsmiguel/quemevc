@@ -53,45 +53,45 @@ export const GameOverModal: FC<GameOverModalProps> = ({
   }, [isWinner]);
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4">
-      <div className="bg-slate-900 border-2 border-amber-500/80 rounded-3xl max-w-lg w-full p-6 text-center shadow-2xl animate-in zoom-in-95 duration-300">
+    <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
+      <div className="bg-white border-2 border-slate-200 rounded-3xl max-w-lg w-full p-6 text-center shadow-2xl animate-in zoom-in-95 duration-300">
         <div className="mb-4">
           {isWinner ? (
-            <div className="w-16 h-16 bg-amber-500/20 text-amber-400 border-2 border-amber-500/40 rounded-full flex items-center justify-center mx-auto shadow-lg shadow-amber-500/20">
-              <Trophy size={36} />
+            <div className="w-16 h-16 bg-amber-100 text-amber-700 rounded-2xl flex items-center justify-center mx-auto shadow-tactile-sm">
+              <Trophy size={34} />
             </div>
           ) : (
-            <div className="w-16 h-16 bg-indigo-500/20 text-indigo-400 border-2 border-indigo-500/40 rounded-full flex items-center justify-center mx-auto">
-              <Heart size={36} />
+            <div className="w-16 h-16 bg-rose-100 text-rose-600 rounded-2xl flex items-center justify-center mx-auto shadow-tactile-sm">
+              <Heart size={34} className="fill-rose-500 text-rose-500" />
             </div>
           )}
         </div>
 
-        <h2 className="text-3xl font-black text-white mb-1">
+        <h2 className="text-3xl font-black text-slate-900 mb-1">
           {isWinner ? '🎉 Você Venceu!' : `👏 ${winnerName} Venceu!`}
         </h2>
-        <p className="text-sm text-slate-400 mb-6">
+        <p className="text-xs text-slate-500 mb-6">
           {isWinner
             ? `Você descobriu o personagem secreto de ${opponentName}!`
             : `${opponentName} descobriu o seu personagem primeiro!`}
         </p>
 
-        <div className="bg-slate-950/70 border border-slate-800 rounded-2xl p-4 mb-6">
-          <div className="text-xs uppercase font-extrabold text-slate-400 tracking-wider mb-4">
+        <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 mb-6">
+          <div className="text-[10px] uppercase font-extrabold text-slate-400 tracking-wider mb-4">
             Revelação das Cartas Secretas
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-            <div className="flex flex-col items-center bg-slate-900/80 p-3 rounded-xl border border-slate-700/60">
-              <span className="text-[11px] text-indigo-400 font-bold mb-2">Seu Personagem:</span>
+            <div className="flex flex-col items-center bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
+              <span className="text-[11px] text-sky-800 font-bold mb-2">Seu Personagem:</span>
               <Avatar character={mySecretCharacter} size={70} className="mb-2" />
-              <span className="text-sm font-black text-white">{mySecretCharacter.name}</span>
+              <span className="text-sm font-black text-slate-900">{mySecretCharacter.name}</span>
             </div>
 
-            <div className="flex flex-col items-center bg-slate-900/80 p-3 rounded-xl border border-slate-700/60">
-              <span className="text-[11px] text-pink-400 font-bold mb-2">Personagem de {opponentName}:</span>
+            <div className="flex flex-col items-center bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
+              <span className="text-[11px] text-rose-700 font-bold mb-2">Personagem de {opponentName}:</span>
               <Avatar character={opponentSecretCharacter} size={70} className="mb-2" />
-              <span className="text-sm font-black text-white">{opponentSecretCharacter.name}</span>
+              <span className="text-sm font-black text-slate-900">{opponentSecretCharacter.name}</span>
             </div>
           </div>
         </div>
@@ -99,16 +99,16 @@ export const GameOverModal: FC<GameOverModalProps> = ({
         <div className="space-y-2.5">
           <button
             onClick={onRematch}
-            className="w-full flex items-center justify-center gap-2 py-3.5 px-6 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-base shadow-xl shadow-amber-500/25 transition-all active:scale-95"
+            className="w-full flex items-center justify-center gap-2 py-3.5 px-6 rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-white font-extrabold text-sm shadow-[0_4px_0_#059669] active:translate-y-1 active:shadow-none transition-all cursor-pointer"
           >
-            <RotateCcw size={20} />
+            <RotateCcw size={18} />
             Jogar Outra Partida!
           </button>
 
           {onExit && (
             <button
               onClick={onExit}
-              className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white font-bold text-xs transition-colors"
+              className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs border border-slate-200 transition-colors cursor-pointer"
             >
               <LogOut size={16} />
               Encerrar Partida e Voltar ao Menu
