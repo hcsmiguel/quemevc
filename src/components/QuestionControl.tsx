@@ -78,10 +78,10 @@ export const QuestionControl: FC<QuestionControlProps> = ({
                 Vez de {opponentName} • Modo Call (Voz)
               </div>
               <div className="text-sm font-bold text-slate-900">
-                Aguardando <strong className="text-purple-700">{opponentName}</strong> falar a pergunta na chamada...
+                É a vez de <strong className="text-purple-700">{opponentName}</strong> fazer uma pergunta a você!
               </div>
               <div className="text-[11px] text-slate-500 font-medium mt-0.5">
-                Responda SIM ou NÃO falando em voz alta!
+                Responda SIM ou NÃO.
               </div>
             </div>
           </div>
@@ -104,10 +104,10 @@ export const QuestionControl: FC<QuestionControlProps> = ({
               </span>
             </div>
             <div className="text-sm font-extrabold text-slate-900 mt-0.5">
-              Faça sua pergunta falando na chamada/pessoalmente para <strong className="text-purple-700">{opponentName}</strong>!
+              É a sua vez de fazer uma pergunta para <strong className="text-purple-700">{opponentName}</strong>!
             </div>
             <div className="text-[11px] text-purple-700 font-semibold mt-0.5">
-              👉 Ouça a resposta em voz alta, marque ou descarte as cartas no tabuleiro e finalize seu turno.
+              Lembre-se que deve ser uma pergunta de SIM ou NÃO.
             </div>
           </div>
         </div>
@@ -157,7 +157,10 @@ export const QuestionControl: FC<QuestionControlProps> = ({
               Vez do Oponente
             </div>
             <div className="text-sm font-bold text-slate-900">
-              Aguardando <strong className="text-rose-600">{opponentName}</strong> fazer uma pergunta...
+              É a vez de <strong className="text-rose-600">{opponentName}</strong> fazer uma pergunta a você!
+            </div>
+            <div className="text-[11px] text-slate-500 font-medium mt-0.5">
+              Responda SIM ou NÃO.
             </div>
           </div>
         </div>
@@ -265,9 +268,16 @@ export const QuestionControl: FC<QuestionControlProps> = ({
   return (
     <div className="bg-white border-2 border-slate-200 rounded-2xl p-4 shadow-sm flex flex-col gap-3">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2 text-sky-800 font-black text-xs uppercase tracking-wider">
-          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping" />
-          Seu Turno! Faça uma pergunta (A resposta dela será SIM ou NÃO)
+        <div>
+          <div className="flex items-center gap-2 text-sm font-extrabold text-slate-900">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping" />
+            <span>
+              É a sua vez de fazer uma pergunta para <strong className="text-sky-700">{opponentName}</strong>!
+            </span>
+          </div>
+          <div className="text-[11px] text-slate-500 font-medium mt-0.5">
+            Lembre-se que deve ser uma pergunta de SIM ou NÃO.
+          </div>
         </div>
         <div className="flex items-center gap-2.5">
           <TurnTimerBadge timeLeft={timeLeft} totalTime={totalTime} isOpponent={false} />

@@ -22,7 +22,7 @@ export const Footer: FC<FooterProps> = ({ onOpenPrivacy, onOpenTerms }) => {
               <span>Tá na Cara!</span>
             </div>
             <p className="text-[11px] text-slate-500">
-              Jogo de adivinhação para 2 jogadores em tempo real • Sem anúncios
+              Jogo de adivinhação para 2 jogadores em tempo real
             </p>
           </div>
         </div>

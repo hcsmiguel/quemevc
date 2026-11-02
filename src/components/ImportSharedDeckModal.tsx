@@ -9,6 +9,7 @@ interface ImportSharedDeckModalProps {
   onOpenLogin: () => void;
   onPlayDeck: (deck: SavedDeck) => void;
   onClose: () => void;
+  onGoToProfile?: () => void;
 }
 
 export const ImportSharedDeckModal: FC<ImportSharedDeckModalProps> = ({
@@ -17,6 +18,7 @@ export const ImportSharedDeckModal: FC<ImportSharedDeckModalProps> = ({
   onOpenLogin,
   onPlayDeck,
   onClose,
+  onGoToProfile,
 }) => {
   const [deck, setDeck] = useState<SavedDeck | null>(null);
   const [loading, setLoading] = useState(true);
@@ -179,9 +181,23 @@ export const ImportSharedDeckModal: FC<ImportSharedDeckModalProps> = ({
 
             {/* Sucesso ao Salvar */}
             {savedSuccess && (
-              <div className="p-3 rounded-2xl bg-emerald-50 border-2 border-emerald-300 text-emerald-800 text-xs font-black flex items-center gap-2 animate-in fade-in">
-                <Check size={18} className="text-emerald-600 shrink-0" />
-                <span>{savedSuccess}</span>
+              <div className="p-3 rounded-2xl bg-emerald-50 border-2 border-emerald-300 text-emerald-800 text-xs font-black flex items-center justify-between gap-2 animate-in fade-in">
+                <div className="flex items-center gap-2">
+                  <Check size={18} className="text-emerald-600 shrink-0" />
+                  <span>{savedSuccess}</span>
+                </div>
+                {onGoToProfile && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onClose();
+                      onGoToProfile();
+                    }}
+                    className="shrink-0 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black uppercase transition-all shadow-sm cursor-pointer"
+                  >
+                    Ver no Perfil
+                  </button>
+                )}
               </div>
             )}
 

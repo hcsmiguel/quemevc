@@ -76,8 +76,14 @@ export function App() {
     setLegalModalOpen(true);
   };
 
-  // Fases e Configuração do Jogo
-  const [phase, setPhase] = useState<GamePhase>('LOBBY');
+  // Fases e Configuração do Jogo (com suporte a rotas dinâmicas /perfil, /criar-lobby, /lobbies)
+  const [phase, setPhase] = useState<GamePhase>(() => {
+    const path = window.location.pathname.toLowerCase();
+    if (path === '/perfil') return 'PROFILE';
+    if (path === '/criar-lobby') return 'CREATE_LOBBY';
+    if (path === '/lobbies') return 'PUBLIC_LOBBIES';
+    return 'LOBBY';
+  });
   const [roomCode, setRoomCode] = useState<string>('');
   const [playerName, setPlayerName] = useState<string>('');
   const [opponentName, setOpponentName] = useState<string>('Oponente');
@@ -200,33 +206,86 @@ export function App() {
     });
   }, [activeDeck]);
 
-  // PONTO 1: Botão Voltar do Navegador (popstate)
-  useEffect(() => {
-    window.history.replaceState({ phase: 'LOBBY' }, '', window.location.href);
-  }, []);
-
-  useEffect(() => {
-    if (phase !== 'LOBBY') {
-      window.history.pushState({ phase }, '', window.location.href);
+  // PONTO 1: URLs Dinâmicas e Sincronização com as Rotas do Site
+  const getPathForPhase = (p: GamePhase): string => {
+    switch (p) {
+      case 'PROFILE':
+        return '/perfil';
+      case 'CREATE_LOBBY':
+        return '/criar-lobby';
+      case 'PUBLIC_LOBBIES':
+        return '/lobbies';
+      default:
+        return '/';
     }
-  }, [phase]);
+  };
 
+  // Atualizar URL na barra de endereços dinamicamente quando a fase mudar
+  useEffect(() => {
+    const targetPath = getPathForPhase(phase);
+    const currentPath = window.location.pathname;
+
+    const url = new URL(window.location.href);
+    // Se não há importDeckId ativo, remover import_deck da URL
+    if (!importDeckId) {
+      url.searchParams.delete('import_deck');
+    }
+
+    const newSearch = url.search ? url.search : '';
+    const newUrl = `${targetPath}${newSearch}`;
+
+    if (currentPath !== targetPath || (!importDeckId && window.location.search.includes('import_deck'))) {
+      window.history.pushState({ phase, path: targetPath }, '', newUrl);
+    }
+  }, [phase, importDeckId]);
+
+  // Se o modal de importação for fechado, limpar ?import_deck da URL para evitar que F5 reabra o modal
+  useEffect(() => {
+    if (!importDeckId && window.location.search.includes('import_deck')) {
+      const url = new URL(window.location.href);
+      url.searchParams.delete('import_deck');
+      const newUrl = url.pathname + (url.search ? url.search : '');
+      window.history.replaceState({ phase }, '', newUrl);
+    }
+  }, [importDeckId, phase]);
+
+  // Se tentar acessar /perfil diretamente sem login, abrir modal de login
+  useEffect(() => {
+    if (phase === 'PROFILE' && !currentUser) {
+      setLoginModalOpen(true);
+    }
+  }, [phase, currentUser]);
+
+  // Tratar botão Voltar / Avançar do Navegador (popstate)
   useEffect(() => {
     const handlePopState = () => {
-      if (phase === 'PROFILE') {
-        setPhase('LOBBY');
-      } else if (phase === 'CHOOSING_SECRET') {
-        setWaitingForPlayer(false);
-        setPhase('LOBBY');
-      } else if (phase === 'PLAYING') {
+      if (phase === 'PLAYING') {
         setShowAbandonModal(true);
         window.history.pushState({ phase: 'PLAYING' }, '', window.location.href);
+        return;
+      }
+
+      const path = window.location.pathname.toLowerCase();
+      if (path === '/perfil') {
+        if (currentUser) {
+          setPhase('PROFILE');
+        } else {
+          setPhase('LOBBY');
+          setLoginModalOpen(true);
+        }
+      } else if (path === '/criar-lobby') {
+        setPhase('CREATE_LOBBY');
+      } else if (path === '/lobbies') {
+        setPhase('PUBLIC_LOBBIES');
+      } else {
+        setPhase('LOBBY');
+        setWaitingForPlayer(false);
       }
     };
 
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-  }, [phase]);
+  }, [phase, currentUser]);
 
   // PONTO 2 & ERRO 1: F5 / Atualizar Página (Restaurar Sessão e Turno com Pergunta Ativa)
   useEffect(() => {
@@ -1444,6 +1503,7 @@ export function App() {
               handlePlaySavedDeck(deck);
             }}
             onClose={() => setImportDeckId(null)}
+            onGoToProfile={() => setPhase('PROFILE')}
           />
         )}
 
