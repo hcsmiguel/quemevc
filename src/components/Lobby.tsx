@@ -11,7 +11,6 @@ import {
   Loader2,
   KeyRound,
   HelpCircle,
-  Trophy,
   LogOut,
   Gamepad2,
   PlusCircle,
@@ -43,7 +42,7 @@ export const Lobby: FC<LobbyProps> = ({
   onJoinRoom,
   onOpenCreateLobby,
   onOpenLogin,
-  onOpenProfile,
+  onOpenProfile: _onOpenProfile,
   onOpenPublicLobbies,
   onAbandonWaiting,
   currentUser,
@@ -362,23 +361,14 @@ export const Lobby: FC<LobbyProps> = ({
 
             <div className="flex items-center gap-1.5">
               {currentUser ? (
-                <>
-                  <button
-                    type="button"
-                    onClick={onOpenProfile}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold transition-all border border-indigo-200 shadow-sm cursor-pointer active:scale-95"
-                    title="Ver perfil exclusivo, baralhos salvos e histórico"
-                  >
-                    <Trophy size={13} className="text-indigo-600" />
-                    <span>Meu Perfil</span>
-                  </button>
-                  <button
-                    onClick={onLogout}
-                    className="text-xs text-slate-400 hover:text-rose-600 font-semibold transition-colors px-2 py-1.5 rounded-lg hover:bg-rose-50 cursor-pointer"
-                  >
-                    Sair
-                  </button>
-                </>
+                <button
+                  onClick={onLogout}
+                  className="text-xs text-slate-400 hover:text-rose-600 font-semibold transition-colors px-2.5 py-1.5 rounded-xl hover:bg-rose-50 border border-transparent hover:border-rose-100 cursor-pointer flex items-center gap-1"
+                  title="Sair da conta"
+                >
+                  <LogOut size={13} />
+                  <span>Sair</span>
+                </button>
               ) : (
                 <button
                   onClick={onOpenLogin}
@@ -404,25 +394,9 @@ export const Lobby: FC<LobbyProps> = ({
             <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
               Tá na Cara!
             </h1>
-            <p className="text-xs sm:text-sm text-slate-500 mt-1 max-w-xs sm:max-w-sm mx-auto leading-relaxed">
+            <p className="text-xs sm:text-sm text-slate-500 mt-1 whitespace-nowrap">
               O clássico jogo de adivinhação, feito para jogar a dois em tempo real
             </p>
-
-            {/* Badges Orgânicos Pastéis de Benefícios */}
-            <div className="flex flex-wrap items-center justify-center gap-2 mt-3.5">
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200/70 text-[11px] font-bold text-emerald-800 shadow-xs">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                1v1 em Tempo Real
-              </span>
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-50 border border-amber-200/70 text-[11px] font-bold text-amber-800 shadow-xs">
-                <Sparkles size={12} className="text-amber-500" />
-                100% Grátis
-              </span>
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-sky-50 border border-sky-200/70 text-[11px] font-bold text-sky-800 shadow-xs">
-                <Clock size={12} className="text-sky-500" />
-                Partidas Rápidas
-              </span>
-            </div>
           </div>
 
           {/* Alerta de Erro */}
@@ -486,12 +460,12 @@ export const Lobby: FC<LobbyProps> = ({
           {/* Conteúdo da Aba 1: CRIAR LOBBY */}
           {activeTab === 'create' && (
             <div className="space-y-4 animate-in fade-in duration-150">
-              <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-xs text-slate-600 flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-sky-100 text-sky-600 flex items-center justify-center shrink-0">
-                  <Play size={16} />
+              <div className="p-3.5 rounded-2xl bg-slate-50/80 border border-slate-200/80 text-xs text-slate-600 flex items-center gap-3">
+                <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0 shadow-xs">
+                  <Sparkles size={16} />
                 </div>
-                <span>
-                  Crie seu lobby para configurar o modo de jogo (padrão, personalizado ou <strong>Modo Call</strong>), tamanho do baralho e privacidade.
+                <span className="leading-relaxed">
+                  Configure as regras na próxima etapa, convide quem você quiser e descubra quem tem o melhor palpite!
                 </span>
               </div>
 
