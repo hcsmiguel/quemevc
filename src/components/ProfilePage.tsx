@@ -143,18 +143,26 @@ export const ProfilePage: FC<ProfilePageProps> = ({
     sounds.playClick();
     const nextVal = !deck.is_public;
     setSavedDecks((prev) =>
-      prev.map((d) => (d.id === deck.id ? { ...d, is_public: nextVal } : d))
+      prev.map((d) =>
+        d.id === deck.id
+          ? { ...d, is_public: nextVal, author_name: nextVal ? currentUser.username : d.author_name }
+          : d
+      )
     );
-    await auth.toggleDeckPublic(deck.id, currentUser.id, nextVal);
+    await auth.toggleDeckPublic(deck.id, currentUser.id, nextVal, currentUser.username);
   };
 
   const handleToggleFacePublic = async (face: SavedFace) => {
     sounds.playClick();
     const nextVal = !face.is_public;
     setSavedFaces((prev) =>
-      prev.map((f) => (f.id === face.id ? { ...f, is_public: nextVal } : f))
+      prev.map((f) =>
+        f.id === face.id
+          ? { ...f, is_public: nextVal, author_name: nextVal ? currentUser.username : f.author_name }
+          : f
+      )
     );
-    await auth.toggleFacePublic(face.id, currentUser.id, nextVal);
+    await auth.toggleFacePublic(face.id, currentUser.id, nextVal, currentUser.username);
   };
 
   // Feedback de link copiado por ID do baralho

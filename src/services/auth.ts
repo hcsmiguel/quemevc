@@ -481,11 +481,14 @@ export class AuthService {
   }
 
   // Alternar Visibilidade Pública do Baralho
-  public async toggleDeckPublic(deckId: string, userId: string, isPublic: boolean): Promise<boolean> {
+  public async toggleDeckPublic(deckId: string, userId: string, isPublic: boolean, authorName?: string): Promise<boolean> {
     try {
+      const payload: any = { is_public: isPublic };
+      if (authorName) payload.author_name = authorName;
+
       const { error } = await supabase
         .from('saved_decks')
-        .update({ is_public: isPublic })
+        .update(payload)
         .eq('id', deckId)
         .eq('user_id', userId);
       if (!error) return true;
@@ -495,7 +498,9 @@ export class AuthService {
 
     const localKey = `cara_saved_decks_${userId}`;
     const localSaved: SavedDeck[] = JSON.parse(localStorage.getItem(localKey) || '[]');
-    const updated = localSaved.map((d) => (d.id === deckId ? { ...d, is_public: isPublic } : d));
+    const updated = localSaved.map((d) =>
+      d.id === deckId ? { ...d, is_public: isPublic, ...(authorName ? { author_name: authorName } : {}) } : d
+    );
     localStorage.setItem(localKey, JSON.stringify(updated));
     return true;
   }
@@ -588,11 +593,14 @@ export class AuthService {
   }
 
   // Alternar Visibilidade Pública de uma Cara
-  public async toggleFacePublic(faceId: string, userId: string, isPublic: boolean): Promise<boolean> {
+  public async toggleFacePublic(faceId: string, userId: string, isPublic: boolean, authorName?: string): Promise<boolean> {
     try {
+      const payload: any = { is_public: isPublic };
+      if (authorName) payload.author_name = authorName;
+
       const { error } = await supabase
         .from('saved_faces')
-        .update({ is_public: isPublic })
+        .update(payload)
         .eq('id', faceId)
         .eq('user_id', userId);
       if (!error) return true;
@@ -602,7 +610,9 @@ export class AuthService {
 
     const localKey = `cara_saved_faces_${userId}`;
     const localSaved: SavedFace[] = JSON.parse(localStorage.getItem(localKey) || '[]');
-    const updated = localSaved.map((f) => (f.id === faceId ? { ...f, is_public: isPublic } : f));
+    const updated = localSaved.map((f) =>
+      f.id === faceId ? { ...f, is_public: isPublic, ...(authorName ? { author_name: authorName } : {}) } : f
+    );
     localStorage.setItem(localKey, JSON.stringify(updated));
     return true;
   }
