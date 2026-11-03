@@ -1109,30 +1109,30 @@ export function App() {
               currentUser ? (
                 <button
                   onClick={() => setPhase('PROFILE')}
-                  className="hidden sm:flex items-center gap-2 text-xs font-bold text-slate-700 bg-white hover:bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200 shadow-sm transition-all hover:border-indigo-400 group cursor-pointer"
+                  className="flex items-center gap-1.5 text-xs font-bold text-slate-700 bg-white hover:bg-slate-50 px-2 py-1 sm:px-3 sm:py-1.5 rounded-xl border border-slate-200 shadow-sm transition-all hover:border-indigo-400 group cursor-pointer shrink-0"
                   title="Ver estatísticas e baralhos salvos"
                 >
                   {currentUser.avatarUrl ? (
                     <img
                       src={currentUser.avatarUrl}
                       alt={currentUser.username}
-                      className="w-5 h-5 rounded-full object-cover ring-1 ring-indigo-500 shadow-sm"
+                      className="w-5 h-5 rounded-full object-cover ring-1 ring-indigo-500 shadow-sm shrink-0"
                     />
                   ) : (
-                    <UserIcon size={14} className="text-amber-600" />
+                    <UserIcon size={14} className="text-amber-600 shrink-0" />
                   )}
-                  <span>{currentUser.username}</span>
+                  <span className="hidden md:inline max-w-[80px] truncate">{currentUser.username}</span>
                   <span className="text-[10px] bg-indigo-50 text-indigo-600 font-extrabold px-1.5 py-0.5 rounded-md border border-indigo-100 group-hover:bg-indigo-100 transition-colors flex items-center gap-1">
                     <Trophy size={10} />
-                    Perfil
+                    <span>Perfil</span>
                   </span>
                 </button>
               ) : (
                 <button
                   onClick={() => setLoginModalOpen(true)}
-                  className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-all border border-slate-200 cursor-pointer"
+                  className="flex items-center gap-1 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-all border border-slate-200 cursor-pointer shrink-0"
                 >
-                  <UserIcon size={14} className="text-slate-500" />
+                  <UserIcon size={13} className="text-slate-500 shrink-0" />
                   <span>Entrar</span>
                 </button>
               )

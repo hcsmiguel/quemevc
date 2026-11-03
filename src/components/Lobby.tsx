@@ -218,32 +218,32 @@ export const Lobby: FC<LobbyProps> = ({
   }
 
   return (
-    <div className="min-h-[80vh] flex flex-col items-center justify-center py-6 px-4">
+    <div className="min-h-[75vh] flex flex-col items-center justify-center py-3 sm:py-6 px-3 sm:px-4">
       {/* Container Principal */}
       <div className="relative max-w-lg w-full">
         {/* Card Principal */}
-        <div className="bg-white border-2 border-slate-200 rounded-3xl p-6 sm:p-8 shadow-xl relative z-10 animate-in fade-in duration-200">
+        <div className="bg-white border-2 border-slate-200 rounded-2xl sm:rounded-3xl p-4 sm:p-7 shadow-xl relative z-10 animate-in fade-in duration-200">
           {/* Barra Superior do Card (Status do Usuário Integrado) */}
-          <div className="flex items-center justify-between pb-4 mb-4 border-b border-slate-100">
-            <div className="flex items-center gap-2.5 text-xs font-semibold">
+          <div className="flex items-center justify-between pb-3 mb-3 border-b border-slate-100">
+            <div className="flex items-center gap-2 text-xs font-semibold min-w-0">
               {currentUser ? (
-                <div className="flex items-center gap-2.5">
-                  <div className="relative">
+                <div className="flex items-center gap-2 min-w-0">
+                  <div className="relative shrink-0">
                     {currentUser.avatarUrl ? (
                       <img
                         src={currentUser.avatarUrl}
                         alt={currentUser.username}
-                        className="w-8 h-8 rounded-xl object-cover ring-2 ring-indigo-500/40 shadow-sm"
+                        className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl object-cover ring-2 ring-indigo-500/40 shadow-sm"
                       />
                     ) : (
-                      <span className="w-8 h-8 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center font-bold">
-                        <UserIcon size={15} />
+                      <span className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center font-bold">
+                        <UserIcon size={14} />
                       </span>
                     )}
-                    <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-white" title="Online" />
+                    <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-white" title="Online" />
                   </div>
-                  <div>
-                    <span className="text-slate-700 block leading-tight text-xs font-semibold">
+                  <div className="min-w-0">
+                    <span className="text-slate-700 block leading-tight text-xs font-semibold truncate max-w-[140px] sm:max-w-none">
                       Olá, <strong className="text-slate-900 font-extrabold">{currentUser.username}</strong>
                     </span>
                     <span className="text-[10px] text-slate-400 font-medium flex items-center gap-1">
@@ -252,34 +252,34 @@ export const Lobby: FC<LobbyProps> = ({
                       ) : (
                         <span>Conta Ativa</span>
                       )}
-                      <span>• Pronto para jogar</span>
+                      <span className="hidden xs:inline">• Pronto para jogar</span>
                     </span>
                   </div>
                 </div>
               ) : (
                 <div className="flex items-center gap-2 text-xs text-slate-500 font-semibold">
-                  <span className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse" />
+                  <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
                   <span>Jogando como visitante</span>
                 </div>
               )}
             </div>
 
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1.5 shrink-0">
               {currentUser ? (
                 <button
                   onClick={onLogout}
-                  className="text-xs text-slate-400 hover:text-rose-600 font-semibold transition-colors px-2.5 py-1.5 rounded-xl hover:bg-rose-50 border border-transparent hover:border-rose-100 cursor-pointer flex items-center gap-1"
+                  className="text-[11px] sm:text-xs text-slate-400 hover:text-rose-600 font-semibold transition-colors px-2 py-1 rounded-lg hover:bg-rose-50 border border-transparent hover:border-rose-100 cursor-pointer flex items-center gap-1"
                   title="Sair da conta"
                 >
-                  <LogOut size={13} />
+                  <LogOut size={12} />
                   <span>Sair</span>
                 </button>
               ) : (
                 <button
                   onClick={onOpenLogin}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-all border border-slate-200 cursor-pointer active:scale-95"
+                  className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] sm:text-xs font-bold transition-all border border-slate-200 cursor-pointer active:scale-95"
                 >
-                  <LogIn size={13} />
+                  <LogIn size={12} />
                   <span>Entrar / Cadastrar</span>
                 </button>
               )}
@@ -287,46 +287,43 @@ export const Lobby: FC<LobbyProps> = ({
           </div>
 
           {/* Apresentação do Jogo e Identidade Visual (Hero Centerpiece) */}
-          <div className="text-center my-4 flex flex-col items-center">
-            <div className="relative group inline-block mb-1">
+          <div className="text-center my-2 sm:my-3.5 flex flex-col items-center">
+            <div className="relative group inline-block">
               <img
                 src="/logo-icon.svg"
                 alt="Tá na Cara!"
-                className="h-16 w-16 sm:h-20 sm:w-20 object-contain drop-shadow-sm transition-transform duration-300 group-hover:scale-105 group-hover:rotate-3 cursor-pointer"
+                className="h-13 w-13 sm:h-16 sm:w-16 object-contain drop-shadow-sm transition-transform duration-300 group-hover:scale-105 group-hover:rotate-3 cursor-pointer"
               />
             </div>
 
-            <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
-              Tá na Cara!
-            </h1>
-            <p className="text-xs sm:text-sm text-slate-500 mt-1 whitespace-nowrap">
+            <p className="text-[11px] sm:text-xs text-slate-500 mt-1 max-w-[280px] sm:max-w-sm text-center leading-relaxed">
               O clássico jogo de adivinhação, feito para jogar a dois em tempo real
             </p>
           </div>
 
           {/* Alerta de Erro */}
           {errorMessage && (
-            <div className="mb-5 p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-xs text-rose-800 flex items-center gap-2.5 shadow-sm animate-shake">
-              <AlertCircle size={18} className="shrink-0 text-rose-500" />
+            <div className="mb-3.5 p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-800 flex items-center gap-2 shadow-sm animate-shake">
+              <AlertCircle size={16} className="shrink-0 text-rose-500" />
               <span>{errorMessage}</span>
             </div>
           )}
 
           {/* Abas Alternadoras: Criar Sala vs Entrar com Código */}
-          <div className="grid grid-cols-2 p-1 bg-slate-100 rounded-2xl mb-5 border border-slate-200/80">
+          <div className="grid grid-cols-2 p-1 bg-slate-100 rounded-xl sm:rounded-2xl mb-3 sm:mb-4 border border-slate-200/80">
             <button
               type="button"
               onClick={() => {
                 sounds.playClick();
                 setActiveTab('create');
               }}
-              className={`py-2 px-3 rounded-xl text-xs font-extrabold transition-all flex items-center justify-center gap-2 ${
+              className={`py-1.5 sm:py-2 px-2.5 sm:px-3 rounded-lg sm:rounded-xl text-[11px] sm:text-xs font-extrabold transition-all flex items-center justify-center gap-1.5 ${
                 activeTab === 'create'
                   ? 'bg-white text-slate-900 shadow-sm border border-slate-200/60'
                   : 'text-slate-500 hover:text-slate-800'
               }`}
             >
-              <Play size={14} className={activeTab === 'create' ? 'text-emerald-600' : ''} />
+              <Play size={13} className={activeTab === 'create' ? 'text-emerald-600' : ''} />
               <span>Criar Nova Sala</span>
             </button>
 
@@ -336,20 +333,20 @@ export const Lobby: FC<LobbyProps> = ({
                 sounds.playClick();
                 setActiveTab('join');
               }}
-              className={`py-2 px-3 rounded-xl text-xs font-extrabold transition-all flex items-center justify-center gap-2 ${
+              className={`py-1.5 sm:py-2 px-2.5 sm:px-3 rounded-lg sm:rounded-xl text-[11px] sm:text-xs font-extrabold transition-all flex items-center justify-center gap-1.5 ${
                 activeTab === 'join'
                   ? 'bg-white text-slate-900 shadow-sm border border-slate-200/60'
                   : 'text-slate-500 hover:text-slate-800'
               }`}
             >
-              <KeyRound size={14} className={activeTab === 'join' ? 'text-sky-600' : ''} />
+              <KeyRound size={13} className={activeTab === 'join' ? 'text-sky-600' : ''} />
               <span>Entrar com Código</span>
             </button>
           </div>
 
           {/* Campo Nome do Jogador */}
-          <div className="mb-4">
-            <label className="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-1.5">
+          <div className="mb-3">
+            <label className="block text-[10px] sm:text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-1">
               Seu Nome ou Apelido:
             </label>
             <input
@@ -358,31 +355,31 @@ export const Lobby: FC<LobbyProps> = ({
               value={name}
               maxLength={20}
               onChange={(e) => setName(e.target.value)}
-              className="w-full bg-slate-50 border-2 border-slate-200 text-slate-900 placeholder-slate-400 text-sm font-semibold rounded-2xl px-4 py-3 focus:outline-none focus:bg-white focus:border-sky-400 focus:ring-4 focus:ring-sky-100 transition-all"
+              className="w-full bg-slate-50 border-2 border-slate-200 text-slate-900 placeholder-slate-400 text-xs sm:text-sm font-semibold rounded-xl sm:rounded-2xl px-3.5 py-2.5 sm:py-3 focus:outline-none focus:bg-white focus:border-sky-400 focus:ring-4 focus:ring-sky-100 transition-all"
             />
           </div>
 
           {/* Conteúdo da Aba 1: CRIAR LOBBY */}
           {activeTab === 'create' && (
-            <div className="space-y-4 animate-in fade-in duration-150">
-              <div className="p-3.5 rounded-2xl bg-slate-50/80 border border-slate-200/80 text-xs text-slate-600 flex items-center gap-3">
-                <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0 shadow-xs">
-                  <Sparkles size={16} />
+            <div className="space-y-3 animate-in fade-in duration-150">
+              <div className="p-2.5 sm:p-3 rounded-xl sm:rounded-2xl bg-slate-50/80 border border-slate-200/80 text-[11px] sm:text-xs text-slate-600 flex items-center gap-2.5">
+                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0 shadow-xs">
+                  <Sparkles size={15} />
                 </div>
-                <span className="leading-relaxed">
+                <span className="leading-snug">
                   Configure as regras na próxima etapa, convide quem você quiser e descubra quem tem o melhor palpite!
                 </span>
               </div>
 
               {/* PONTO 3: Dois botões - Criar Lobby e Buscar Lobbies */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-0.5">
                 <button
                   type="button"
                   onClick={handleProceedToCreateLobby}
                   disabled={!name.trim()}
-                  className="w-full flex items-center justify-center gap-2 py-4 px-4 rounded-2xl bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white font-black text-sm uppercase tracking-wider shadow-[0_4px_0_#059669] active:translate-y-1 active:shadow-none transition-all cursor-pointer"
+                  className="w-full flex items-center justify-center gap-2 py-3 sm:py-3.5 px-3 rounded-xl sm:rounded-2xl bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white font-black text-xs sm:text-sm uppercase tracking-wider shadow-[0_3px_0_#059669] sm:shadow-[0_4px_0_#059669] active:translate-y-1 active:shadow-none transition-all cursor-pointer"
                 >
-                  <PlusCircle size={18} />
+                  <PlusCircle size={16} />
                   <span>Criar Lobby</span>
                 </button>
 
@@ -392,9 +389,9 @@ export const Lobby: FC<LobbyProps> = ({
                     sounds.playClick();
                     onOpenPublicLobbies();
                   }}
-                  className="w-full flex items-center justify-center gap-2 py-4 px-4 rounded-2xl bg-sky-500 hover:bg-sky-600 text-white font-black text-sm uppercase tracking-wider shadow-[0_4px_0_#0284c7] active:translate-y-1 active:shadow-none transition-all cursor-pointer"
+                  className="w-full flex items-center justify-center gap-2 py-3 sm:py-3.5 px-3 rounded-xl sm:rounded-2xl bg-sky-500 hover:bg-sky-600 text-white font-black text-xs sm:text-sm uppercase tracking-wider shadow-[0_3px_0_#0284c7] sm:shadow-[0_4px_0_#0284c7] active:translate-y-1 active:shadow-none transition-all cursor-pointer"
                 >
-                  <Gamepad2 size={18} />
+                  <Gamepad2 size={16} />
                   <span>Buscar Lobbies</span>
                 </button>
               </div>
@@ -403,9 +400,9 @@ export const Lobby: FC<LobbyProps> = ({
 
           {/* Conteúdo da Aba 2: ENTRAR COM CÓDIGO */}
           {activeTab === 'join' && (
-            <div className="space-y-4 animate-in fade-in duration-150">
+            <div className="space-y-3 animate-in fade-in duration-150">
               <div>
-                <label className="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-1.5">
+                <label className="block text-[10px] sm:text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-1">
                   Código da Sala (6 números):
                 </label>
                 <input
@@ -417,16 +414,16 @@ export const Lobby: FC<LobbyProps> = ({
                   value={inputCode}
                   onChange={(e) => setInputCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
                   onKeyDown={(e) => e.key === 'Enter' && handleJoinWithCode()}
-                  className="w-full bg-slate-50 border-2 border-slate-200 text-slate-900 font-mono font-black placeholder-slate-400 text-lg tracking-[0.25em] text-center rounded-2xl px-4 py-3 focus:outline-none focus:bg-white focus:border-sky-400 focus:ring-4 focus:ring-sky-100 transition-all"
+                  className="w-full bg-slate-50 border-2 border-slate-200 text-slate-900 font-mono font-black placeholder-slate-400 text-base sm:text-lg tracking-[0.25em] text-center rounded-xl sm:rounded-2xl px-4 py-2.5 sm:py-3 focus:outline-none focus:bg-white focus:border-sky-400 focus:ring-4 focus:ring-sky-100 transition-all"
                 />
               </div>
 
               <button
                 onClick={handleJoinWithCode}
                 disabled={!name.trim() || !inputCode.trim() || isConnecting}
-                className="w-full flex items-center justify-center gap-2 py-3.5 px-4 rounded-2xl bg-sky-500 hover:bg-sky-600 disabled:opacity-50 text-white font-extrabold text-sm shadow-[0_4px_0_#0284c7] active:translate-y-1 active:shadow-none transition-all cursor-pointer"
+                className="w-full flex items-center justify-center gap-2 py-3 sm:py-3.5 px-4 rounded-xl sm:rounded-2xl bg-sky-500 hover:bg-sky-600 disabled:opacity-50 text-white font-extrabold text-xs sm:text-sm shadow-[0_3px_0_#0284c7] sm:shadow-[0_4px_0_#0284c7] active:translate-y-1 active:shadow-none transition-all cursor-pointer"
               >
-                {isConnecting ? <Loader2 size={18} className="animate-spin" /> : <Users size={18} />}
+                {isConnecting ? <Loader2 size={16} className="animate-spin" /> : <Users size={16} />}
                 <span>{isConnecting ? 'Conectando...' : 'Entrar na Sala'}</span>
               </button>
             </div>
@@ -435,42 +432,42 @@ export const Lobby: FC<LobbyProps> = ({
       </div>
 
       {/* Mini-guia: Como Jogar em 3 Passos (Estilo Contexto / Notion) */}
-      <div className="max-w-xl w-full mt-8">
-        <div className="text-center mb-3">
-          <span className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider flex items-center justify-center gap-1.5">
-            <HelpCircle size={14} />
+      <div className="max-w-xl w-full mt-5 sm:mt-8">
+        <div className="text-center mb-2.5 sm:mb-3">
+          <span className="text-[10px] sm:text-[11px] font-extrabold text-slate-400 uppercase tracking-wider flex items-center justify-center gap-1.5">
+            <HelpCircle size={13} />
             Como Jogar em 3 Passos
           </span>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <div className="bg-white border-2 border-slate-200 rounded-2xl p-3.5 text-center shadow-sm">
-            <span className="w-7 h-7 rounded-full bg-amber-100 text-amber-800 font-black text-xs inline-flex items-center justify-center mb-2">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3">
+          <div className="bg-white border-2 border-slate-200 rounded-xl sm:rounded-2xl p-2.5 sm:p-3.5 text-center shadow-sm">
+            <span className="w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-amber-100 text-amber-800 font-black text-[11px] sm:text-xs inline-flex items-center justify-center mb-1.5 sm:mb-2">
               1
             </span>
             <h4 className="text-xs font-extrabold text-slate-900 mb-0.5">Escolha o Segredo</h4>
-            <p className="text-[11px] text-slate-500 leading-snug">
+            <p className="text-[10px] sm:text-[11px] text-slate-500 leading-snug">
               Cada jogador escolhe seu personagem secreto que o outro terá que adivinhar.
             </p>
           </div>
 
-          <div className="bg-white border-2 border-slate-200 rounded-2xl p-3.5 text-center shadow-sm">
-            <span className="w-7 h-7 rounded-full bg-sky-100 text-sky-800 font-black text-xs inline-flex items-center justify-center mb-2">
+          <div className="bg-white border-2 border-slate-200 rounded-xl sm:rounded-2xl p-2.5 sm:p-3.5 text-center shadow-sm">
+            <span className="w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-sky-100 text-sky-800 font-black text-[11px] sm:text-xs inline-flex items-center justify-center mb-1.5 sm:mb-2">
               2
             </span>
             <h4 className="text-xs font-extrabold text-slate-900 mb-0.5">Pergunte Sim ou Não</h4>
-            <p className="text-[11px] text-slate-500 leading-snug">
+            <p className="text-[10px] sm:text-[11px] text-slate-500 leading-snug">
               "Usa óculos?", "Tem barba?". Abaixe as cartas que não batem com a resposta.
             </p>
           </div>
 
-          <div className="bg-white border-2 border-slate-200 rounded-2xl p-3.5 text-center shadow-sm">
-            <span className="w-7 h-7 rounded-full bg-emerald-100 text-emerald-800 font-black text-xs inline-flex items-center justify-center mb-2">
+          <div className="bg-white border-2 border-slate-200 rounded-xl sm:rounded-2xl p-2.5 sm:p-3.5 text-center shadow-sm">
+            <span className="w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-emerald-100 text-emerald-800 font-black text-[11px] sm:text-xs inline-flex items-center justify-center mb-1.5 sm:mb-2">
               3
             </span>
             <h4 className="text-xs font-extrabold text-slate-900 mb-0.5">Dê o Palpite</h4>
-            <p className="text-[11px] text-slate-500 leading-snug">
-              Quando souber quem é, dê o palpite final de vitória antes do seu adversário!
+            <p className="text-[10px] sm:text-[11px] text-slate-500 leading-snug">
+              Quando tiver certeza, arrisque o palpite final. Quem acertar primeiro vence!
             </p>
           </div>
         </div>

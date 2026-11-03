@@ -154,57 +154,57 @@ export const ProfilePage: FC<ProfilePageProps> = ({
   };
 
   return (
-    <div className="max-w-6xl mx-auto w-full py-6 px-4 animate-in fade-in duration-200">
+    <div className="max-w-6xl mx-auto w-full py-4 sm:py-6 px-3 sm:px-4 animate-in fade-in duration-200">
       {/* Botão de Retorno */}
-      <div className="mb-4">
+      <div className="mb-3 sm:mb-4">
         <button
           onClick={onBackToLobby}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl bg-white hover:bg-slate-50 border-2 border-slate-200 text-slate-700 font-extrabold text-xs shadow-sm hover:border-slate-300 transition-all cursor-pointer"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl sm:rounded-2xl bg-white hover:bg-slate-50 border-2 border-slate-200 text-slate-700 font-extrabold text-[11px] sm:text-xs shadow-sm hover:border-slate-300 transition-all cursor-pointer"
         >
-          <ArrowLeft size={16} />
+          <ArrowLeft size={14} />
           <span>Voltar ao Menu Principal</span>
         </button>
       </div>
 
       {/* Banner de Identificação do Usuário */}
-      <div className="bg-white border-2 border-slate-200 rounded-3xl p-6 sm:p-8 shadow-md mb-6 relative overflow-hidden">
-        <div className="flex flex-col sm:flex-row items-center sm:items-start justify-between gap-6 relative z-10">
-          <div className="flex flex-col sm:flex-row items-center gap-4 text-center sm:text-left">
+      <div className="bg-white border-2 border-slate-200 rounded-2xl sm:rounded-3xl p-4 sm:p-7 shadow-md mb-4 sm:mb-6 relative overflow-hidden">
+        <div className="flex flex-col sm:flex-row items-center sm:items-start justify-between gap-4 sm:gap-6 relative z-10">
+          <div className="flex flex-col sm:flex-row items-center gap-3.5 sm:gap-4 text-center sm:text-left">
             {currentUser.avatarUrl ? (
               <img
                 src={currentUser.avatarUrl}
                 alt={currentUser.username}
-                className="w-20 h-20 rounded-3xl object-cover ring-4 ring-indigo-500/20 shadow-md"
+                className="w-14 h-14 sm:w-20 sm:h-20 rounded-2xl sm:rounded-3xl object-cover ring-3 ring-indigo-500/20 shadow-md shrink-0"
               />
             ) : (
-              <div className="w-20 h-20 rounded-3xl bg-indigo-600 flex items-center justify-center text-white font-black text-3xl shadow-md">
+              <div className="w-14 h-14 sm:w-20 sm:h-20 rounded-2xl sm:rounded-3xl bg-indigo-600 flex items-center justify-center text-white font-black text-2xl sm:text-3xl shadow-md shrink-0">
                 {currentUser.username.charAt(0).toUpperCase()}
               </div>
             )}
 
             <div>
-              <div className="flex items-center justify-center sm:justify-start gap-2 mb-1">
-                <h1 className="text-2xl font-black text-slate-900 tracking-tight">
+              <div className="flex items-center justify-center sm:justify-start gap-2 mb-0.5">
+                <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
                   {currentUser.username}
                 </h1>
                 {currentUser.provider && currentUser.provider !== 'email' && (
-                  <span className="text-[10px] font-black px-2.5 py-0.5 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-700 uppercase">
+                  <span className="text-[9px] sm:text-[10px] font-black px-2 py-0.5 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-700 uppercase">
                     via {currentUser.provider}
                   </span>
                 )}
               </div>
-              <p className="text-xs text-slate-500 font-medium">
+              <p className="text-[11px] sm:text-xs text-slate-500 font-medium">
                 Gerencie seu perfil, baralhos e caras
               </p>
 
               {/* Opções Sutis de Gerência de Perfil (Ponto 3.a) */}
-              <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 mt-2 pt-1">
+              <div className="flex flex-wrap items-center justify-center sm:justify-start gap-1.5 sm:gap-2 mt-2 pt-0.5">
                 <button
                   type="button"
                   onClick={() => setPasswordModalOpen(true)}
-                  className="flex items-center gap-1.5 text-[11px] font-extrabold text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 px-2.5 py-1 rounded-xl border border-slate-200 shadow-sm transition-all cursor-pointer"
+                  className="flex items-center gap-1 text-[10px] sm:text-[11px] font-extrabold text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 px-2 py-1 sm:px-2.5 sm:py-1 rounded-lg sm:rounded-xl border border-slate-200 shadow-sm transition-all cursor-pointer"
                 >
-                  <KeyRound size={12} className="text-slate-500" />
+                  <KeyRound size={11} className="text-slate-500" />
                   <span>Trocar Senha</span>
                 </button>
 
@@ -215,60 +215,60 @@ export const ProfilePage: FC<ProfilePageProps> = ({
                     auth.logout();
                     onBackToLobby();
                   }}
-                  className="flex items-center gap-1.5 text-[11px] font-extrabold text-slate-600 hover:text-rose-700 bg-slate-100 hover:bg-rose-50 px-2.5 py-1 rounded-xl border border-slate-200 hover:border-rose-200 shadow-sm transition-all cursor-pointer"
+                  className="flex items-center gap-1 text-[10px] sm:text-[11px] font-extrabold text-slate-600 hover:text-rose-700 bg-slate-100 hover:bg-rose-50 px-2 py-1 sm:px-2.5 sm:py-1 rounded-lg sm:rounded-xl border border-slate-200 hover:border-rose-200 shadow-sm transition-all cursor-pointer"
                 >
-                  <LogOut size={12} className="text-slate-500" />
+                  <LogOut size={11} className="text-slate-500" />
                   <span>Sair</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => setDeleteConfirmOpen(true)}
-                  className="flex items-center gap-1 text-[11px] font-bold text-slate-400 hover:text-rose-600 px-2 py-1 transition-colors cursor-pointer"
+                  className="flex items-center gap-1 text-[10px] sm:text-[11px] font-bold text-slate-400 hover:text-rose-600 px-1.5 py-1 transition-colors cursor-pointer"
                   title="Apagar minha conta"
                 >
-                  <Trash2 size={12} />
-                  <span>Apagar Conta</span>
+                  <Trash2 size={11} />
+                  <span>Apagar</span>
                 </button>
               </div>
             </div>
           </div>
 
           {/* Resumo Rápido das Estatísticas */}
-          <div className="grid grid-cols-4 gap-2 w-full sm:w-auto">
-            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3 text-center min-w-[72px]">
-              <span className="text-[10px] text-slate-400 font-bold block">Partidas</span>
-              <span className="text-lg font-black text-slate-900">{stats?.totalMatches || 0}</span>
+          <div className="grid grid-cols-4 gap-1.5 sm:gap-2 w-full sm:w-auto mt-2 sm:mt-0">
+            <div className="bg-slate-50 border border-slate-200 rounded-xl sm:rounded-2xl p-2 sm:p-3 text-center min-w-0 sm:min-w-[72px]">
+              <span className="text-[9px] sm:text-[10px] text-slate-400 font-bold block">Partidas</span>
+              <span className="text-base sm:text-lg font-black text-slate-900">{stats?.totalMatches || 0}</span>
             </div>
-            <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-3 text-center min-w-[72px]">
-              <span className="text-[10px] text-emerald-600 font-bold block">Vitórias</span>
-              <span className="text-lg font-black text-emerald-700">{stats?.wins || 0}</span>
+            <div className="bg-emerald-50 border border-emerald-200 rounded-xl sm:rounded-2xl p-2 sm:p-3 text-center min-w-0 sm:min-w-[72px]">
+              <span className="text-[9px] sm:text-[10px] text-emerald-600 font-bold block">Vitórias</span>
+              <span className="text-base sm:text-lg font-black text-emerald-700">{stats?.wins || 0}</span>
             </div>
-            <div className="bg-rose-50 border border-rose-200 rounded-2xl p-3 text-center min-w-[72px]">
-              <span className="text-[10px] text-rose-600 font-bold block">Derrotas</span>
-              <span className="text-lg font-black text-rose-700">{stats?.losses || 0}</span>
+            <div className="bg-rose-50 border border-rose-200 rounded-xl sm:rounded-2xl p-2 sm:p-3 text-center min-w-0 sm:min-w-[72px]">
+              <span className="text-[9px] sm:text-[10px] text-rose-600 font-bold block">Derrotas</span>
+              <span className="text-base sm:text-lg font-black text-rose-700">{stats?.losses || 0}</span>
             </div>
-            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3 text-center min-w-[72px]">
-              <span className="text-[10px] text-amber-700 font-bold block">Winrate</span>
-              <span className="text-lg font-black text-amber-800">{stats?.winRate || 0}%</span>
+            <div className="bg-amber-50 border border-amber-200 rounded-xl sm:rounded-2xl p-2 sm:p-3 text-center min-w-0 sm:min-w-[72px]">
+              <span className="text-[9px] sm:text-[10px] text-amber-700 font-bold block">Winrate</span>
+              <span className="text-base sm:text-lg font-black text-amber-800">{stats?.winRate || 0}%</span>
             </div>
           </div>
         </div>
       </div>
 
       {/* Navegação por Abas Exclusivas */}
-      <div className="inline-flex flex-wrap sm:flex-nowrap bg-slate-200/70 p-1.5 rounded-2xl mb-6 border border-slate-200 text-xs font-bold gap-1.5">
+      <div className="grid grid-cols-3 sm:inline-flex w-full sm:w-auto bg-slate-200/70 p-1 sm:p-1.5 rounded-xl sm:rounded-2xl mb-4 sm:mb-6 border border-slate-200 text-xs font-bold gap-1 sm:gap-1.5">
         <button
           onClick={() => setActiveTab('decks')}
-          className={`px-4 py-2.5 rounded-xl transition-all flex items-center justify-center gap-2 whitespace-nowrap cursor-pointer ${
+          className={`px-2 sm:px-4 py-2 sm:py-2.5 rounded-lg sm:rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
             activeTab === 'decks'
               ? 'bg-white text-slate-900 shadow-sm border border-slate-200/80 font-black'
               : 'text-slate-600 hover:text-slate-900'
           }`}
         >
-          <Layers size={16} className="text-indigo-600 shrink-0" />
-          <span className="whitespace-nowrap">Meus Baralhos</span>
-          <span className={`text-[11px] px-1.5 py-0.5 rounded-md font-extrabold ${
+          <Layers size={14} className="text-indigo-600 shrink-0" />
+          <span className="text-[11px] sm:text-xs truncate">Baralhos</span>
+          <span className={`text-[10px] px-1.5 py-0.2 rounded-md font-extrabold ${
             activeTab === 'decks'
               ? 'bg-indigo-50 text-indigo-700 border border-indigo-100'
               : 'bg-slate-300/60 text-slate-700'
@@ -279,15 +279,15 @@ export const ProfilePage: FC<ProfilePageProps> = ({
 
         <button
           onClick={() => setActiveTab('faces')}
-          className={`px-4 py-2.5 rounded-xl transition-all flex items-center justify-center gap-2 whitespace-nowrap cursor-pointer ${
+          className={`px-2 sm:px-4 py-2 sm:py-2.5 rounded-lg sm:rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
             activeTab === 'faces'
               ? 'bg-white text-slate-900 shadow-sm border border-slate-200/80 font-black'
               : 'text-slate-600 hover:text-slate-900'
           }`}
         >
-          <Smile size={16} className="text-amber-600 shrink-0" />
-          <span className="whitespace-nowrap">Minhas Caras</span>
-          <span className={`text-[11px] px-1.5 py-0.5 rounded-md font-extrabold ${
+          <Smile size={14} className="text-amber-600 shrink-0" />
+          <span className="text-[11px] sm:text-xs truncate">Caras</span>
+          <span className={`text-[10px] px-1.5 py-0.2 rounded-md font-extrabold ${
             activeTab === 'faces'
               ? 'bg-amber-50 text-amber-800 border border-amber-200'
               : 'bg-slate-300/60 text-slate-700'
@@ -298,32 +298,32 @@ export const ProfilePage: FC<ProfilePageProps> = ({
 
         <button
           onClick={() => setActiveTab('stats')}
-          className={`px-4 py-2.5 rounded-xl transition-all flex items-center justify-center gap-2 whitespace-nowrap cursor-pointer ${
+          className={`px-2 sm:px-4 py-2 sm:py-2.5 rounded-lg sm:rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
             activeTab === 'stats'
               ? 'bg-white text-slate-900 shadow-sm border border-slate-200/80 font-black'
               : 'text-slate-600 hover:text-slate-900'
           }`}
         >
-          <Trophy size={16} className="text-sky-600 shrink-0" />
-          <span className="whitespace-nowrap">Histórico</span>
+          <Trophy size={14} className="text-sky-600 shrink-0" />
+          <span className="text-[11px] sm:text-xs truncate">Histórico</span>
         </button>
       </div>
 
       {/* Conteúdo da Aba 1: MEUS BARALHOS */}
       {activeTab === 'decks' && (
-        <div className="space-y-4 animate-in fade-in duration-150">
-          <div className="flex items-center justify-between">
+        <div className="space-y-3 sm:space-y-4 animate-in fade-in duration-150">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2">
             <div>
-              <h2 className="text-lg font-black text-slate-900">Baralhos Salvos</h2>
-              <p className="text-xs text-slate-500">
+              <h2 className="text-base sm:text-lg font-black text-slate-900">Baralhos Salvos</h2>
+              <p className="text-[11px] sm:text-xs text-slate-500">
                 Seus baralhos personalizados salvos para jogar, editar ou compartilhar
               </p>
             </div>
             <button
               onClick={onCreateNewDeck}
-              className="flex items-center gap-1.5 px-4 py-2.5 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs shadow-tactile-sm transition-all active:translate-y-0.5 cursor-pointer"
+              className="flex items-center justify-center gap-1.5 px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-xl sm:rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-[11px] sm:text-xs shadow-tactile-sm transition-all active:translate-y-0.5 cursor-pointer"
             >
-              <Plus size={16} />
+              <Plus size={15} />
               <span>Criar Novo Baralho</span>
             </button>
           </div>
