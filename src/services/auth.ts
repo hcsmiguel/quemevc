@@ -126,7 +126,7 @@ export class AuthService {
     if (error) throw error;
   }
 
-  // Login tradicional por Usuário e Senha
+  // Login tradicional por Usuário e Senha (via RPC Seguro com SECURITY DEFINER)
   public async register(username: string, password: string): Promise<AppUser> {
     const cleanUser = username.trim();
     if (cleanUser.length < 3) {
@@ -138,34 +138,22 @@ export class AuthService {
 
     const passwordHash = await hashPassword(password);
 
-    const { data: existing } = await supabase
-      .from('app_users')
-      .select('id')
-      .ilike('username', cleanUser)
-      .maybeSingle();
+    const { data, error } = await supabase.rpc('register_app_user', {
+      p_username: cleanUser,
+      p_password_hash: passwordHash,
+    });
 
-    if (existing) {
-      throw new Error('Este nome de usuário já está em uso.');
-    }
-
-    const { data, error } = await supabase
-      .from('app_users')
-      .insert({
-        username: cleanUser,
-        password_hash: passwordHash,
-      })
-      .select('id, username, created_at')
-      .single();
-
-    if (error || !data) {
+    if (error || !data || (Array.isArray(data) && data.length === 0)) {
       throw new Error(error?.message || 'Erro ao criar conta.');
     }
 
+    const userRecord = Array.isArray(data) ? data[0] : data;
+
     const user: AppUser = {
-      id: data.id,
-      username: data.username,
+      id: userRecord.id,
+      username: userRecord.username,
       provider: 'email',
-      created_at: data.created_at,
+      created_at: userRecord.created_at,
     };
 
     this.setCurrentUser(user);
@@ -174,27 +162,31 @@ export class AuthService {
 
   public async login(username: string, password: string): Promise<AppUser> {
     const cleanUser = username.trim();
+    if (!cleanUser) {
+      throw new Error('Digite o nome de usuário.');
+    }
     const passwordHash = await hashPassword(password);
 
-    const { data, error } = await supabase
-      .from('app_users')
-      .select('id, username, password_hash, created_at')
-      .ilike('username', cleanUser)
-      .maybeSingle();
+    const { data, error } = await supabase.rpc('authenticate_app_user', {
+      p_username: cleanUser,
+      p_password_hash: passwordHash,
+    });
 
-    if (error || !data) {
-      throw new Error('Usuário não encontrado.');
+    if (error) {
+      throw new Error('Erro ao processar autenticação.');
     }
 
-    if (data.password_hash !== passwordHash) {
-      throw new Error('Senha incorreta.');
+    if (!data || !Array.isArray(data) || data.length === 0) {
+      throw new Error('Usuário não encontrado ou senha incorreta.');
     }
+
+    const userRecord = data[0];
 
     const user: AppUser = {
-      id: data.id,
-      username: data.username,
+      id: userRecord.id,
+      username: userRecord.username,
       provider: 'email',
-      created_at: data.created_at,
+      created_at: userRecord.created_at,
     };
 
     this.setCurrentUser(user);
@@ -374,7 +366,7 @@ export class AuthService {
 
   public async deleteSavedDeck(deckId: string, userId: string): Promise<void> {
     try {
-      await supabase.from('saved_decks').delete().eq('id', deckId);
+      await supabase.from('saved_decks').delete().eq('id', deckId).eq('user_id', userId);
     } catch {
       // ignore
     }
@@ -430,6 +422,7 @@ export class AuthService {
           cards,
         })
         .eq('id', deckId)
+        .eq('user_id', userId)
         .select('*')
         .single();
 
@@ -516,7 +509,7 @@ export class AuthService {
 
   public async deleteSavedFace(faceId: string, userId: string): Promise<void> {
     try {
-      await supabase.from('saved_faces').delete().eq('id', faceId);
+      await supabase.from('saved_faces').delete().eq('id', faceId).eq('user_id', userId);
     } catch {
       // ignore
     }
