@@ -16,12 +16,11 @@ import {
   Gamepad2,
   PlusCircle,
   Clock,
+  Sparkles,
 } from 'lucide-react';
 import { sounds } from '../utils/sound';
 import type { DifficultyCount, RoomConfig } from '../types/game';
 import type { AppUser, SavedDeck } from '../services/auth';
-import { STANDARD_60_CHARACTERS } from '../utils/characters';
-import { Avatar } from './Avatar';
 
 interface LobbyProps {
   onJoinRoom: (roomCode: string, playerName: string, isHost: boolean, config: RoomConfig) => void;
@@ -91,9 +90,6 @@ export const Lobby: FC<LobbyProps> = ({
     const secs = totalSeconds % 60;
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
-
-  // Caracteres para o peeker decorativo
-  const peekingCharacters = STANDARD_60_CHARACTERS.slice(0, 5);
 
   useEffect(() => {
     if (currentUser?.username) {
@@ -226,58 +222,141 @@ export const Lobby: FC<LobbyProps> = ({
     <div className="min-h-[80vh] flex flex-col items-center justify-center py-6 px-4">
       {/* Container Principal */}
       <div className="relative max-w-lg w-full">
-        {/* Avatares Espiando Decorativos (Vibe Gartic) */}
-        <div className="flex items-end justify-center gap-2 -mb-2 px-6 pointer-events-none select-none z-0">
-          {peekingCharacters.map((char, index) => (
-            <div
-              key={char.id}
-              className={`transition-transform duration-300 transform ${
-                index % 2 === 0 ? 'translate-y-1 hover:-translate-y-1' : 'translate-y-2'
-              }`}
-            >
-              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full overflow-hidden border-2 border-white shadow-md bg-white">
-                <Avatar character={char} size={48} />
+        {/* Leque Tátil de Mini-Cartas de Jogo (Opção 1: Board Game Físico Teaser) */}
+        <div className="relative flex items-end justify-center -mb-5 px-6 pointer-events-auto select-none z-0 group">
+          {/* Mini-Carta 1 (Esquerda): O Personagem Secreto */}
+          <div
+            className="relative w-20 h-28 sm:w-24 sm:h-32 rounded-2xl bg-gradient-to-b from-indigo-50 via-white to-indigo-100/90 border-2 border-indigo-200/90 shadow-md transform origin-bottom-right -rotate-8 -translate-x-3 translate-y-1 transition-all duration-300 ease-out group-hover:-rotate-14 group-hover:-translate-x-6 group-hover:-translate-y-2 group-hover:shadow-xl hover:!z-30 hover:!scale-110 hover:!-translate-y-4 cursor-pointer p-2 flex flex-col justify-between overflow-hidden"
+            title="O clássico personagem misterioso"
+          >
+            {/* Índice superior */}
+            <div className="flex items-center justify-between text-indigo-400 font-mono font-black text-[10px] leading-none select-none">
+              <span>?</span>
+              <span className="text-[8px] opacity-60">1v1</span>
+            </div>
+
+            {/* Ilustração Central: Silhueta Minimalista do Personagem Secreto */}
+            <div className="flex flex-col items-center justify-center my-auto">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-indigo-100 border border-indigo-200/80 flex items-center justify-center relative shadow-inner">
+                <svg viewBox="0 0 40 40" className="w-7 h-7 text-indigo-500 fill-current opacity-85">
+                  <path d="M20 7 C14 7 12 11 12 14 C12 17 14 19 16 20 C11 22 8 26 8 32 L32 32 C32 26 29 22 24 20 C26 19 28 17 28 14 C28 11 26 7 20 7 Z" />
+                </svg>
+                <span className="absolute text-[11px] font-black text-indigo-700 -top-1 -right-1 bg-white rounded-full w-4 h-4 flex items-center justify-center shadow-xs border border-indigo-200">
+                  ?
+                </span>
               </div>
             </div>
-          ))}
+
+            {/* Rodapé da carta */}
+            <div className="text-center">
+              <span className="block text-[8px] sm:text-[9px] font-black text-indigo-600 tracking-wider uppercase">
+                Segredo
+              </span>
+            </div>
+          </div>
+
+          {/* Mini-Carta 2 (Centro - Dourada): A Lupa Oficial do Jogo */}
+          <div
+            className="relative z-10 w-22 h-30 sm:w-26 sm:h-34 rounded-2xl bg-gradient-to-b from-amber-50 via-white to-amber-100/90 border-2 border-amber-300 shadow-lg transform origin-bottom scale-105 translate-y-0 transition-all duration-300 ease-out group-hover:-translate-y-4 group-hover:scale-110 group-hover:shadow-2xl hover:!z-30 hover:!scale-115 hover:!-translate-y-6 cursor-pointer p-2 flex flex-col justify-between overflow-hidden"
+            title="A Lupa Oficial do Tá na Cara!"
+          >
+            {/* Brilho sutil dourado no topo */}
+            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-200 via-yellow-400 to-amber-200" />
+
+            {/* Índice superior */}
+            <div className="flex items-center justify-between text-amber-500 font-black text-[10px] leading-none select-none">
+              <span>★</span>
+              <span className="text-[8px] tracking-widest text-amber-600 font-extrabold">OFICIAL</span>
+            </div>
+
+            {/* Ilustração Central: Ícone da Lupa Oficial */}
+            <div className="flex flex-col items-center justify-center my-auto">
+              <img
+                src="/logo-icon.svg"
+                alt="Tá na Cara!"
+                className="w-11 h-11 sm:w-13 sm:h-13 object-contain drop-shadow-sm transition-transform group-hover:scale-110 pointer-events-none"
+              />
+            </div>
+
+            {/* Rodapé da carta */}
+            <div className="text-center">
+              <span className="block text-[8px] sm:text-[9px] font-black text-amber-900 tracking-wider uppercase">
+                Tá na Cara!
+              </span>
+            </div>
+          </div>
+
+          {/* Mini-Carta 3 (Direita): O Verso Oficial do Baralho */}
+          <div
+            className="relative w-20 h-28 sm:w-24 sm:h-32 rounded-2xl bg-gradient-to-b from-emerald-50 via-white to-teal-100/80 border-2 border-emerald-200/90 shadow-md transform origin-bottom-left rotate-8 translate-x-3 translate-y-1 transition-all duration-300 ease-out group-hover:rotate-14 group-hover:translate-x-6 group-hover:-translate-y-2 group-hover:shadow-xl hover:!z-30 hover:!scale-110 hover:!-translate-y-4 cursor-pointer p-2 flex flex-col justify-between overflow-hidden"
+            title="O verso tátil das cartas do baralho"
+          >
+            {/* Índice superior */}
+            <div className="flex items-center justify-between text-emerald-500 font-mono font-black text-[10px] leading-none select-none">
+              <span className="text-[8px] opacity-60">15</span>
+              <span>✦</span>
+            </div>
+
+            {/* Padronagem Geométrica do Verso (Estilo Carta de Tabuleiro) */}
+            <div className="flex items-center justify-center my-auto">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-emerald-100/70 border border-emerald-200 flex items-center justify-center relative p-1 shadow-inner">
+                <svg viewBox="0 0 32 32" className="w-full h-full text-emerald-600/70 stroke-current" fill="none">
+                  <rect x="2" y="2" width="28" height="28" rx="4" strokeWidth="1" strokeDasharray="2 2" />
+                  <path d="M16 4 L28 16 L16 28 L4 16 Z" strokeWidth="1.2" />
+                  <circle cx="16" cy="16" r="3" fill="currentColor" />
+                </svg>
+              </div>
+            </div>
+
+            {/* Rodapé da carta */}
+            <div className="text-center">
+              <span className="block text-[8px] sm:text-[9px] font-black text-emerald-700 tracking-wider uppercase">
+                Baralho
+              </span>
+            </div>
+          </div>
         </div>
 
         {/* Card Principal */}
         <div className="bg-white border-2 border-slate-200 rounded-3xl p-6 sm:p-8 shadow-xl relative z-10 animate-in fade-in duration-200">
-          {/* Barra Superior do Card (Status do Usuário) */}
-          <div className="flex items-center justify-between pb-4 mb-5 border-b border-slate-100">
+          {/* Barra Superior do Card (Status do Usuário Integrado) */}
+          <div className="flex items-center justify-between pb-4 mb-4 border-b border-slate-100">
             <div className="flex items-center gap-2.5 text-xs font-semibold">
               {currentUser ? (
                 <div className="flex items-center gap-2.5">
-                  {currentUser.avatarUrl ? (
-                    <img
-                      src={currentUser.avatarUrl}
-                      alt={currentUser.username}
-                      className="w-8 h-8 rounded-xl object-cover ring-2 ring-indigo-500/50 shadow-sm"
-                    />
-                  ) : (
-                    <span className="w-8 h-8 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center font-bold">
-                      <UserIcon size={15} />
-                    </span>
-                  )}
-                  <div>
-                    <span className="text-slate-600 block leading-tight text-xs">
-                      Olá, <strong className="text-slate-900">{currentUser.username}</strong>
-                    </span>
-                    {currentUser.provider && currentUser.provider !== 'email' ? (
-                      <span className="text-[10px] font-bold text-indigo-600 uppercase">
-                        via {currentUser.provider}
-                      </span>
+                  <div className="relative">
+                    {currentUser.avatarUrl ? (
+                      <img
+                        src={currentUser.avatarUrl}
+                        alt={currentUser.username}
+                        className="w-8 h-8 rounded-xl object-cover ring-2 ring-indigo-500/40 shadow-sm"
+                      />
                     ) : (
-                      <span className="text-[10px] text-slate-400">Conta Ativa</span>
+                      <span className="w-8 h-8 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center font-bold">
+                        <UserIcon size={15} />
+                      </span>
                     )}
+                    <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-white" title="Online" />
+                  </div>
+                  <div>
+                    <span className="text-slate-700 block leading-tight text-xs font-semibold">
+                      Olá, <strong className="text-slate-900 font-extrabold">{currentUser.username}</strong>
+                    </span>
+                    <span className="text-[10px] text-slate-400 font-medium flex items-center gap-1">
+                      {currentUser.provider && currentUser.provider !== 'email' ? (
+                        <span className="text-indigo-600 font-bold uppercase">via {currentUser.provider}</span>
+                      ) : (
+                        <span>Conta Ativa</span>
+                      )}
+                      <span>• Pronto para jogar</span>
+                    </span>
                   </div>
                 </div>
               ) : (
-                <span className="text-slate-500 font-medium flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-slate-300" />
-                  Jogando como visitante
-                </span>
+                <div className="flex items-center gap-2 text-xs text-slate-500 font-semibold">
+                  <span className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse" />
+                  <span>Jogando como visitante</span>
+                </div>
               )}
             </div>
 
@@ -287,7 +366,7 @@ export const Lobby: FC<LobbyProps> = ({
                   <button
                     type="button"
                     onClick={onOpenProfile}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold transition-all border border-indigo-200 shadow-sm cursor-pointer"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold transition-all border border-indigo-200 shadow-sm cursor-pointer active:scale-95"
                     title="Ver perfil exclusivo, baralhos salvos e histórico"
                   >
                     <Trophy size={13} className="text-indigo-600" />
@@ -295,7 +374,7 @@ export const Lobby: FC<LobbyProps> = ({
                   </button>
                   <button
                     onClick={onLogout}
-                    className="text-xs text-slate-400 hover:text-rose-600 font-semibold transition-colors px-2 py-1.5 rounded-lg hover:bg-rose-50"
+                    className="text-xs text-slate-400 hover:text-rose-600 font-semibold transition-colors px-2 py-1.5 rounded-lg hover:bg-rose-50 cursor-pointer"
                   >
                     Sair
                   </button>
@@ -303,7 +382,7 @@ export const Lobby: FC<LobbyProps> = ({
               ) : (
                 <button
                   onClick={onOpenLogin}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-all border border-slate-200"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-all border border-slate-200 cursor-pointer active:scale-95"
                 >
                   <LogIn size={13} />
                   <span>Entrar / Cadastrar</span>
@@ -312,16 +391,38 @@ export const Lobby: FC<LobbyProps> = ({
             </div>
           </div>
 
-          {/* Ícone de Lupa Solitário e Apresentação do Jogo (Ponto 1) */}
-          <div className="text-center mb-6 flex flex-col items-center">
-            <img
-              src="/logo-icon.svg"
-              alt="Tá na Cara!"
-              className="h-16 w-16 sm:h-20 sm:w-20 object-contain my-1 drop-shadow-sm hover:scale-105 transition-transform"
-            />
-            <p className="text-xs text-slate-500 mt-2">
+          {/* Apresentação do Jogo e Identidade Visual (Hero Centerpiece) */}
+          <div className="text-center my-4 flex flex-col items-center">
+            <div className="relative group inline-block mb-1">
+              <img
+                src="/logo-icon.svg"
+                alt="Tá na Cara!"
+                className="h-16 w-16 sm:h-20 sm:w-20 object-contain drop-shadow-sm transition-transform duration-300 group-hover:scale-105 group-hover:rotate-3 cursor-pointer"
+              />
+            </div>
+
+            <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+              Tá na Cara!
+            </h1>
+            <p className="text-xs sm:text-sm text-slate-500 mt-1 max-w-xs sm:max-w-sm mx-auto leading-relaxed">
               O clássico jogo de adivinhação, feito para jogar a dois em tempo real
             </p>
+
+            {/* Badges Orgânicos Pastéis de Benefícios */}
+            <div className="flex flex-wrap items-center justify-center gap-2 mt-3.5">
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200/70 text-[11px] font-bold text-emerald-800 shadow-xs">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                1v1 em Tempo Real
+              </span>
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-50 border border-amber-200/70 text-[11px] font-bold text-amber-800 shadow-xs">
+                <Sparkles size={12} className="text-amber-500" />
+                100% Grátis
+              </span>
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-sky-50 border border-sky-200/70 text-[11px] font-bold text-sky-800 shadow-xs">
+                <Clock size={12} className="text-sky-500" />
+                Partidas Rápidas
+              </span>
+            </div>
           </div>
 
           {/* Alerta de Erro */}
