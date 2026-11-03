@@ -357,7 +357,7 @@ export const CreateLobbyPage: FC<CreateLobbyPageProps> = ({
                                   {deck.name}
                                 </span>
                                 <span className="text-[10px] text-purple-600 font-bold">
-                                  {deck.card_count} Caras {deck.author_name ? `• por ${deck.author_name}` : ''}
+                                  {deck.card_count} Caras • por {deck.author_name?.trim() ? deck.author_name : (deckSourceTab === 'my' ? (currentUser?.username || 'Você') : 'Jogador da Comunidade')}
                                 </span>
                               </div>
                             </div>

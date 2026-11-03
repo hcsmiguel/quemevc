@@ -12,9 +12,11 @@ import {
   ArrowLeft,
   Loader2,
   User,
+  Flag,
 } from 'lucide-react';
 import { sounds } from '../utils/sound';
 import { AccountLimitModal } from './AccountLimitModal';
+import { ReportModal, type ReportItemTarget } from './ReportModal';
 
 interface CommunityExplorerPageProps {
   currentUser: AppUser | null;
@@ -44,6 +46,9 @@ export const CommunityExplorerPage: FC<CommunityExplorerPageProps> = ({
 
   // Modal de limites
   const [limitModalType, setLimitModalType] = useState<'deck' | 'face' | null>(null);
+
+  // Modal de denúncia
+  const [reportTarget, setReportTarget] = useState<ReportItemTarget | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -287,26 +292,42 @@ export const CommunityExplorerPage: FC<CommunityExplorerPageProps> = ({
                           <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 border border-purple-200">
                             {deck.card_count} Caras
                           </span>
-                          {deck.author_name && (
-                            <span className="text-[10px] font-bold text-slate-400 truncate">
-                              por <strong>{deck.author_name}</strong>
-                            </span>
-                          )}
+                          <span className="text-[10px] font-bold text-slate-500 truncate">
+                            por <strong className="text-slate-700">{deck.author_name?.trim() ? deck.author_name : 'Jogador da Comunidade'}</strong>
+                          </span>
                         </div>
                       </div>
 
-                      <button
-                        type="button"
-                        onClick={() => handleShareDeck(deck)}
-                        title="Copiar link deste baralho"
-                        className={`p-2 rounded-xl transition-colors cursor-pointer shrink-0 ${
-                          copiedDeckId === deck.id
-                            ? 'bg-emerald-100 text-emerald-800'
-                            : 'bg-slate-100 hover:bg-purple-50 text-slate-500 hover:text-purple-700'
-                        }`}
-                      >
-                        {copiedDeckId === deck.id ? <Check size={14} /> : <Share2 size={14} />}
-                      </button>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => handleShareDeck(deck)}
+                          title="Copiar link deste baralho"
+                          className={`p-2 rounded-xl transition-colors cursor-pointer ${
+                            copiedDeckId === deck.id
+                              ? 'bg-emerald-100 text-emerald-800'
+                              : 'bg-slate-100 hover:bg-purple-50 text-slate-500 hover:text-purple-700'
+                          }`}
+                        >
+                          {copiedDeckId === deck.id ? <Check size={14} /> : <Share2 size={14} />}
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setReportTarget({
+                              type: 'deck',
+                              id: deck.id,
+                              name: deck.name,
+                              authorName: deck.author_name,
+                            })
+                          }
+                          title="Denunciar baralho"
+                          className="p-2 rounded-xl bg-slate-100 hover:bg-rose-50 text-slate-400 hover:text-rose-600 transition-colors cursor-pointer"
+                        >
+                          <Flag size={14} />
+                        </button>
+                      </div>
                     </div>
 
                     {/* Preview das Caras */}
@@ -337,7 +358,15 @@ export const CommunityExplorerPage: FC<CommunityExplorerPageProps> = ({
                   <div className="space-y-2 pt-2 border-t border-slate-100">
                     <button
                       type="button"
-                      onClick={() => onPlayDeck(deck)}
+                      onClick={() => {
+                        if (!currentUser) {
+                          sounds.playWrong();
+                          onOpenLogin();
+                          return;
+                        }
+                        sounds.playClick();
+                        onPlayDeck(deck);
+                      }}
                       className="w-full flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-extrabold text-xs shadow-tactile-sm transition-all active:translate-y-0.5 cursor-pointer"
                     >
                       <Play size={14} />
@@ -401,25 +430,41 @@ export const CommunityExplorerPage: FC<CommunityExplorerPageProps> = ({
               {publicFaces.map((face) => (
                 <div
                   key={face.id}
-                  className="bg-white border-2 border-slate-200 rounded-3xl p-3 shadow-sm hover:border-amber-400 hover:shadow-md transition-all flex flex-col items-center text-center group"
+                  className="bg-white border-2 border-slate-200 rounded-3xl p-3 shadow-sm hover:border-amber-400 hover:shadow-md transition-all flex flex-col items-center text-center group relative"
                 >
-                  <div className="w-24 h-24 sm:w-28 sm:h-28 md:w-32 md:h-32 rounded-2xl overflow-hidden mb-2 bg-slate-100 border border-slate-200 shadow-inner">
+                  <div className="w-24 h-24 sm:w-28 sm:h-28 md:w-32 md:h-32 rounded-2xl overflow-hidden mb-2 bg-slate-100 border border-slate-200 shadow-inner relative">
                     <img
                       src={face.image_url}
                       alt={face.name}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform"
                     />
+
+                    {/* Botão Sutil de Denunciar Cara */}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setReportTarget({
+                          type: 'face',
+                          id: face.id,
+                          name: face.name,
+                          authorName: face.author_name,
+                        });
+                      }}
+                      title="Denunciar este personagem"
+                      className="absolute top-1.5 right-1.5 p-1 rounded-lg bg-white/80 hover:bg-white text-slate-400 hover:text-rose-600 shadow-xs opacity-70 hover:opacity-100 transition-all cursor-pointer backdrop-blur-xs"
+                    >
+                      <Flag size={11} />
+                    </button>
                   </div>
 
-                  <span className="font-black text-xs sm:text-sm text-slate-900 truncate w-full px-1 mb-1">
+                  <span className="font-black text-xs sm:text-sm text-slate-900 truncate w-full px-1 mb-0.5">
                     {face.name}
                   </span>
 
-                  {face.author_name && (
-                    <span className="text-[10px] text-slate-400 font-bold mb-2 truncate w-full">
-                      por {face.author_name}
-                    </span>
-                  )}
+                  <span className="text-[10px] text-slate-400 font-bold mb-2 truncate w-full">
+                    por <strong className="text-slate-600">{face.author_name?.trim() ? face.author_name : 'Comunidade'}</strong>
+                  </span>
 
                   <button
                     type="button"
@@ -456,6 +501,14 @@ export const CommunityExplorerPage: FC<CommunityExplorerPageProps> = ({
         type={limitModalType || 'deck'}
         onClose={() => setLimitModalType(null)}
         onGoToProfile={onGoToProfile}
+      />
+
+      {/* Modal de Denúncia de Conteúdo */}
+      <ReportModal
+        isOpen={reportTarget !== null}
+        item={reportTarget}
+        currentUser={currentUser}
+        onClose={() => setReportTarget(null)}
       />
     </div>
   );

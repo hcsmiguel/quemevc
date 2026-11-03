@@ -1143,6 +1143,11 @@ export function App() {
 
   // PONTO 2.b: Iniciar partida diretamente com um baralho personalizado salvo (Código de 6 números)
   const handlePlaySavedDeck = async (savedDeck: SavedDeck) => {
+    if (!currentUser) {
+      sounds.playWrong();
+      setLoginModalOpen(true);
+      return;
+    }
     setPhase('LOBBY');
     setIsBuildingDeck(false);
     const newCode = await network.generateUniqueRoomCode();

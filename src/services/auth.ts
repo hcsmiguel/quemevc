@@ -685,6 +685,42 @@ export class AuthService {
     const localSaved: SavedFace[] = JSON.parse(localStorage.getItem(localKey) || '[]');
     localStorage.setItem(localKey, JSON.stringify(localSaved.filter((f) => f.id !== faceId)));
   }
+
+  // Registrar denúncia de conteúdo da comunidade
+  public async submitReport(report: {
+    contentType: 'deck' | 'face';
+    contentId: string;
+    contentName: string;
+    authorName?: string;
+    reportedBy?: string;
+    reason: string;
+    details?: string;
+  }): Promise<{ success: boolean; error?: string }> {
+    try {
+      const { error } = await supabase.from('content_reports').insert({
+        content_type: report.contentType,
+        content_id: report.contentId,
+        content_name: report.contentName,
+        author_name: report.authorName || '',
+        reported_by: report.reportedBy || 'Anônimo',
+        reason: report.reason,
+        details: report.details || '',
+      });
+      if (error) throw error;
+      return { success: true };
+    } catch (err: any) {
+      console.warn('Erro ao registrar denúncia no Supabase:', err);
+      // Fallback local se estiver offline
+      try {
+        const localReports = JSON.parse(localStorage.getItem('cara_content_reports') || '[]');
+        localReports.push({ ...report, created_at: new Date().toISOString() });
+        localStorage.setItem('cara_content_reports', JSON.stringify(localReports));
+      } catch {
+        // ignore
+      }
+      return { success: true };
+    }
+  }
 }
 
 export const auth = new AuthService();
