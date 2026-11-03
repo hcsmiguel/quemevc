@@ -15,6 +15,7 @@ import {
   LogOut,
   Gamepad2,
   PlusCircle,
+  Clock,
 } from 'lucide-react';
 import { sounds } from '../utils/sound';
 import type { DifficultyCount, RoomConfig } from '../types/game';
@@ -57,6 +58,39 @@ export const Lobby: FC<LobbyProps> = ({
   const [name, setName] = useState(currentUser?.username || '');
   const [inputCode, setInputCode] = useState('');
   const [copied, setCopied] = useState(false);
+
+  // Timer de expiração de 10 minutos (600s) para salas criadas sem começar
+  const [waitingSecondsLeft, setWaitingSecondsLeft] = useState(600);
+
+  useEffect(() => {
+    if (!waitingForPlayer) {
+      setWaitingSecondsLeft(600);
+      return;
+    }
+
+    setWaitingSecondsLeft(600);
+
+    const timer = setInterval(() => {
+      setWaitingSecondsLeft((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          if (onAbandonWaiting) {
+            onAbandonWaiting();
+          }
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [waitingForPlayer, onAbandonWaiting]);
+
+  const formatWaitingTimer = (totalSeconds: number) => {
+    const mins = Math.floor(totalSeconds / 60);
+    const secs = totalSeconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
 
   // Caracteres para o peeker decorativo
   const peekingCharacters = STANDARD_60_CHARACTERS.slice(0, 5);
@@ -158,10 +192,16 @@ export const Lobby: FC<LobbyProps> = ({
             )}
           </button>
 
-          {/* Indicador de Espera */}
-          <div className="flex items-center justify-center gap-2.5 text-xs text-slate-500 bg-slate-50 py-2.5 px-4 rounded-xl border border-slate-200 mb-3">
-            <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-ping" />
-            <span className="font-medium">Aguardando oponente entrar na sala...</span>
+          {/* Indicador de Espera com Contador de 10 minutos */}
+          <div className="flex flex-col gap-2 bg-amber-50/80 border border-amber-200/80 py-3 px-4 rounded-2xl mb-4">
+            <div className="flex items-center justify-center gap-2 text-xs text-amber-950 font-semibold">
+              <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-ping" />
+              <span>Aguardando oponente entrar na sala...</span>
+            </div>
+            <div className="flex items-center justify-center gap-1.5 text-[11px] font-bold text-amber-800">
+              <Clock size={13} className="text-amber-600" />
+              <span>A sala fechará por inatividade em: <span className="font-mono text-amber-900 font-extrabold">{formatWaitingTimer(waitingSecondsLeft)}</span></span>
+            </div>
           </div>
 
           {/* Botão Cancelar e Fechar Sala */}

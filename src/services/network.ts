@@ -203,13 +203,23 @@ export class NetworkService {
     return updatedRoom as RoomRecord;
   }
 
-  // Buscar Lobbies Públicos Abertos
+  // Buscar Lobbies Públicos Abertos (com limpeza de salas antigas)
   public async getPublicLobbies(): Promise<RoomRecord[]> {
+    try {
+      // Dispara a limpeza de salas com mais de 10 minutos sem começar
+      await supabase.rpc('cleanup_stale_rooms');
+    } catch {
+      // ignore
+    }
+
+    const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+
     const { data, error } = await supabase
       .from('game_rooms')
       .select('*')
       .eq('status', 'waiting')
       .eq('is_secret', false)
+      .gte('created_at', tenMinutesAgo)
       .order('created_at', { ascending: false })
       .limit(30);
 
@@ -383,9 +393,40 @@ export class NetworkService {
         await supabase.storage.from('custom_faces').remove(filePaths);
       }
 
+      // 1. Tentar deletar via RPC com SECURITY DEFINER
+      await supabase.rpc('delete_game_room', {
+        p_room_code: roomCode,
+        p_player_id: this.playerId || null,
+      });
+
+      // 2. Fallback direto
       await supabase.from('game_rooms').delete().eq('room_code', roomCode);
     } catch (err) {
       console.warn('Erro ao limpar storage ou sala:', err);
+    }
+  }
+
+  // Limpeza em segundo plano enviada quando o usuário fecha ou recarrega a página
+  public cleanupStorageAndRoomBeacon(roomCode: string) {
+    if (!roomCode) return;
+    try {
+      const url = 'https://ddfefbwauuhqxqufhwwr.supabase.co/rest/v1/rpc/delete_game_room';
+      const key = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRkZmVmYndhdXVocXhxdWZod3dyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM1ODMxNjgsImV4cCI6MjEwOTE1OTE2OH0.l1eh6jmMsi1fTiqy7h28fjkgl0SJLegELUoNmk0dRPE';
+      fetch(url, {
+        method: 'POST',
+        headers: {
+          'apikey': key,
+          'Authorization': `Bearer ${key}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          p_room_code: roomCode,
+          p_player_id: this.playerId || null,
+        }),
+        keepalive: true,
+      });
+    } catch {
+      // ignore
     }
   }
 
