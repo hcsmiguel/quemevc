@@ -37,7 +37,7 @@ const drawRoundedRect = (
 export const ImageCropperModal: FC<ImageCropperModalProps> = ({
   onSaveCharacter,
   onClose,
-  initialIndex = 1,
+  initialIndex: _initialIndex = 1,
   roomCode = 'temp',
   initialImageSrc = null,
 }) => {
@@ -273,7 +273,13 @@ export const ImageCropperModal: FC<ImageCropperModalProps> = ({
         publicUrl = finalCanvas.toDataURL('image/jpeg', 0.85);
       }
 
-      const finalName = characterName.trim() || `Personagem #${initialIndex}`;
+      const finalName = characterName.trim();
+      if (!finalName) {
+        setErrorMsg('O nome da cara é obrigatório. Digite um nome antes de salvar.');
+        setIsUploading(false);
+        return;
+      }
+
       const newChar: Character = {
         id: 'custom_' + Date.now() + '_' + Math.random().toString(36).slice(2, 5),
         name: finalName,
@@ -391,13 +397,18 @@ export const ImageCropperModal: FC<ImageCropperModalProps> = ({
             {/* Nome do Personagem */}
             <div className="w-full">
               <label className="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-1">
-                Nome ou Apelido:
+                Nome ou Apelido <span className="text-rose-600">* (Obrigatório)</span>:
               </label>
               <input
                 type="text"
-                placeholder={`Ex: Tio Zé, Amor, Personagem #${initialIndex}`}
+                required
+                maxLength={30}
+                placeholder="Ex: Tio Zé, Pelé, Neymar..."
                 value={characterName}
-                onChange={(e) => setCharacterName(e.target.value)}
+                onChange={(e) => {
+                  setCharacterName(e.target.value);
+                  if (errorMsg) setErrorMsg(null);
+                }}
                 className="w-full bg-slate-50 border-2 border-slate-200 text-slate-900 placeholder-slate-400 text-xs font-semibold rounded-xl px-3.5 py-2.5 focus:outline-none focus:bg-white focus:border-sky-400 focus:ring-2 focus:ring-sky-100 transition-all"
               />
             </div>
@@ -414,7 +425,7 @@ export const ImageCropperModal: FC<ImageCropperModalProps> = ({
               <button
                 type="button"
                 onClick={handleSave}
-                disabled={isUploading}
+                disabled={isUploading || !characterName.trim()}
                 className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white font-extrabold text-xs uppercase tracking-wider shadow-[0_3px_0_#059669] transition-all active:translate-y-0.5 cursor-pointer"
               >
                 <Check size={16} />

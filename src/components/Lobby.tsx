@@ -16,6 +16,7 @@ import {
   PlusCircle,
   Clock,
   Sparkles,
+  Globe2,
 } from 'lucide-react';
 import { sounds } from '../utils/sound';
 import type { DifficultyCount, RoomConfig } from '../types/game';
@@ -28,6 +29,7 @@ interface LobbyProps {
   onOpenLogin: () => void;
   onOpenProfile: () => void;
   onOpenPublicLobbies: () => void;
+  onOpenCommunity: () => void;
   onSelectSavedDeck?: (deck: SavedDeck) => void;
   onAbandonWaiting?: () => void;
   currentUser: AppUser | null;
@@ -44,6 +46,7 @@ export const Lobby: FC<LobbyProps> = ({
   onOpenLogin,
   onOpenProfile: _onOpenProfile,
   onOpenPublicLobbies,
+  onOpenCommunity,
   onAbandonWaiting,
   currentUser,
   onLogout,
@@ -371,7 +374,7 @@ export const Lobby: FC<LobbyProps> = ({
                 </span>
               </div>
 
-              {/* PONTO 3: Dois botões - Criar Lobby e Buscar Lobbies */}
+              {/* PONTO 3: Botões - Criar Lobby, Buscar Lobbies e Explorar Comunidade */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-0.5">
                 <button
                   type="button"
@@ -395,6 +398,19 @@ export const Lobby: FC<LobbyProps> = ({
                   <span>Buscar Lobbies</span>
                 </button>
               </div>
+
+              {/* Botão Explorar Comunidade */}
+              <button
+                type="button"
+                onClick={() => {
+                  sounds.playClick();
+                  onOpenCommunity();
+                }}
+                className="w-full flex items-center justify-center gap-2 py-3 px-3 rounded-xl sm:rounded-2xl bg-purple-50 hover:bg-purple-100 text-purple-800 hover:text-purple-900 border-2 border-purple-200 hover:border-purple-300 font-black text-xs sm:text-sm uppercase tracking-wider transition-all cursor-pointer shadow-xs active:translate-y-0.5"
+              >
+                <Globe2 size={16} className="text-purple-600" />
+                <span>Explorar Comunidade</span>
+              </button>
             </div>
           )}
 

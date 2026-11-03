@@ -34,6 +34,8 @@ export interface SavedDeck {
   card_count: number;
   cards: Character[];
   created_at: string;
+  is_public?: boolean;
+  author_name?: string;
 }
 
 export interface SavedFace {
@@ -42,6 +44,8 @@ export interface SavedFace {
   name: string;
   image_url: string;
   created_at: string;
+  is_public?: boolean;
+  author_name?: string;
 }
 
 export class AuthService {
@@ -310,7 +314,14 @@ export class AuthService {
   }
 
   // PONTO 2.b: Salvar Baralho Personalizado no Perfil
-  public async saveDeck(userId: string, name: string, cardCount: number, cards: Character[]): Promise<SavedDeck> {
+  public async saveDeck(
+    userId: string,
+    name: string,
+    cardCount: number,
+    cards: Character[],
+    isPublic: boolean = false,
+    authorName: string = ''
+  ): Promise<SavedDeck> {
     const cleanName = name.trim() || `Baralho ${cardCount} Caras`;
 
     // Salvar no Supabase
@@ -321,6 +332,8 @@ export class AuthService {
         name: cleanName,
         card_count: cardCount,
         cards,
+        is_public: isPublic,
+        author_name: authorName,
       })
       .select('*')
       .single();
@@ -336,6 +349,8 @@ export class AuthService {
         card_count: cardCount,
         cards,
         created_at: new Date().toISOString(),
+        is_public: isPublic,
+        author_name: authorName,
       };
       localStorage.setItem(localKey, JSON.stringify([newDeck, ...localSaved]));
       return newDeck;
@@ -409,18 +424,24 @@ export class AuthService {
     userId: string,
     name: string,
     cardCount: number,
-    cards: Character[]
+    cards: Character[],
+    isPublic?: boolean
   ): Promise<SavedDeck> {
     const cleanName = name.trim() || `Baralho ${cardCount} Caras`;
 
     try {
+      const updatePayload: any = {
+        name: cleanName,
+        card_count: cardCount,
+        cards,
+      };
+      if (isPublic !== undefined) {
+        updatePayload.is_public = isPublic;
+      }
+
       const { data, error } = await supabase
         .from('saved_decks')
-        .update({
-          name: cleanName,
-          card_count: cardCount,
-          cards,
-        })
+        .update(updatePayload)
         .eq('id', deckId)
         .eq('user_id', userId)
         .select('*')
@@ -438,7 +459,13 @@ export class AuthService {
     const localSaved: SavedDeck[] = JSON.parse(localStorage.getItem(localKey) || '[]');
     const updated = localSaved.map((d) =>
       d.id === deckId
-        ? { ...d, name: cleanName, card_count: cardCount, cards }
+        ? {
+            ...d,
+            name: cleanName,
+            card_count: cardCount,
+            cards,
+            ...(isPublic !== undefined ? { is_public: isPublic } : {}),
+          }
         : d
     );
     localStorage.setItem(localKey, JSON.stringify(updated));
@@ -449,12 +476,80 @@ export class AuthService {
       card_count: cardCount,
       cards,
       created_at: new Date().toISOString(),
+      ...(isPublic !== undefined ? { is_public: isPublic } : {}),
     };
   }
 
+  // Alternar Visibilidade Pública do Baralho
+  public async toggleDeckPublic(deckId: string, userId: string, isPublic: boolean): Promise<boolean> {
+    try {
+      const { error } = await supabase
+        .from('saved_decks')
+        .update({ is_public: isPublic })
+        .eq('id', deckId)
+        .eq('user_id', userId);
+      if (!error) return true;
+    } catch {
+      // ignore
+    }
+
+    const localKey = `cara_saved_decks_${userId}`;
+    const localSaved: SavedDeck[] = JSON.parse(localStorage.getItem(localKey) || '[]');
+    const updated = localSaved.map((d) => (d.id === deckId ? { ...d, is_public: isPublic } : d));
+    localStorage.setItem(localKey, JSON.stringify(updated));
+    return true;
+  }
+
+  // Buscar Baralhos da Comunidade
+  public async getPublicDecks(searchQuery?: string): Promise<SavedDeck[]> {
+    try {
+      let query = supabase
+        .from('saved_decks')
+        .select('*')
+        .eq('is_public', true)
+        .order('created_at', { ascending: false })
+        .limit(60);
+
+      if (searchQuery && searchQuery.trim()) {
+        query = query.ilike('name', `%${searchQuery.trim()}%`);
+      }
+
+      const { data, error } = await query;
+      if (!error && data) {
+        return data as SavedDeck[];
+      }
+    } catch {
+      // ignore
+    }
+
+    // Fallback de busca local
+    const publicDecks: SavedDeck[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith('cara_saved_decks_')) {
+        const decks: SavedDeck[] = JSON.parse(localStorage.getItem(key) || '[]');
+        decks.filter((d) => d.is_public).forEach((d) => publicDecks.push(d));
+      }
+    }
+    if (searchQuery && searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      return publicDecks.filter((d) => d.name.toLowerCase().includes(q));
+    }
+    return publicDecks;
+  }
+
   // PONTO 3.c: Salvar Caras Personalizadas Avulsas no Perfil do Jogador
-  public async saveFace(userId: string, name: string, imageUrl: string): Promise<SavedFace> {
-    const cleanName = name.trim() || 'Personagem';
+  public async saveFace(
+    userId: string,
+    name: string,
+    imageUrl: string,
+    isPublic: boolean = false,
+    authorName: string = ''
+  ): Promise<SavedFace> {
+    const cleanName = name.trim();
+    if (!cleanName) {
+      throw new Error('O nome da cara é obrigatório.');
+    }
 
     try {
       const { data, error } = await supabase
@@ -463,6 +558,8 @@ export class AuthService {
           user_id: userId,
           name: cleanName,
           image_url: imageUrl,
+          is_public: isPublic,
+          author_name: authorName,
         })
         .select('*')
         .single();
@@ -483,9 +580,69 @@ export class AuthService {
       name: cleanName,
       image_url: imageUrl,
       created_at: new Date().toISOString(),
+      is_public: isPublic,
+      author_name: authorName,
     };
     localStorage.setItem(localKey, JSON.stringify([newFace, ...localSaved]));
     return newFace;
+  }
+
+  // Alternar Visibilidade Pública de uma Cara
+  public async toggleFacePublic(faceId: string, userId: string, isPublic: boolean): Promise<boolean> {
+    try {
+      const { error } = await supabase
+        .from('saved_faces')
+        .update({ is_public: isPublic })
+        .eq('id', faceId)
+        .eq('user_id', userId);
+      if (!error) return true;
+    } catch {
+      // ignore
+    }
+
+    const localKey = `cara_saved_faces_${userId}`;
+    const localSaved: SavedFace[] = JSON.parse(localStorage.getItem(localKey) || '[]');
+    const updated = localSaved.map((f) => (f.id === faceId ? { ...f, is_public: isPublic } : f));
+    localStorage.setItem(localKey, JSON.stringify(updated));
+    return true;
+  }
+
+  // Buscar Caras da Comunidade
+  public async getPublicFaces(searchQuery?: string): Promise<SavedFace[]> {
+    try {
+      let query = supabase
+        .from('saved_faces')
+        .select('*')
+        .eq('is_public', true)
+        .order('created_at', { ascending: false })
+        .limit(100);
+
+      if (searchQuery && searchQuery.trim()) {
+        query = query.ilike('name', `%${searchQuery.trim()}%`);
+      }
+
+      const { data, error } = await query;
+      if (!error && data) {
+        return data as SavedFace[];
+      }
+    } catch {
+      // ignore
+    }
+
+    // Fallback local
+    const publicFaces: SavedFace[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith('cara_saved_faces_')) {
+        const faces: SavedFace[] = JSON.parse(localStorage.getItem(key) || '[]');
+        faces.filter((f) => f.is_public).forEach((f) => publicFaces.push(f));
+      }
+    }
+    if (searchQuery && searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      return publicFaces.filter((f) => f.name.toLowerCase().includes(q));
+    }
+    return publicFaces;
   }
 
   public async getUserSavedFaces(userId: string): Promise<SavedFace[]> {

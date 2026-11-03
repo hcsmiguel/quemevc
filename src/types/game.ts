@@ -47,7 +47,8 @@ export type GamePhase =
   | 'PLAYING' 
   | 'GAME_OVER'
   | 'PROFILE'
-  | 'PUBLIC_LOBBIES';
+  | 'PUBLIC_LOBBIES'
+  | 'COMMUNITY';
 
 export interface Question {
   id: string;

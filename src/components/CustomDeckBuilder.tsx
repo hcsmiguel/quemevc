@@ -16,8 +16,11 @@ import {
   Edit2,
   Camera,
   Layers,
+  Globe,
+  Search,
 } from 'lucide-react';
 import { sounds } from '../utils/sound';
+import { AccountLimitModal } from './AccountLimitModal';
 
 interface CustomDeckBuilderProps {
   targetCount: DifficultyCount;
@@ -72,11 +75,18 @@ export const CustomDeckBuilder: FC<CustomDeckBuilderProps> = ({
   });
 
   const [saveToProfile, setSaveToProfile] = useState(false);
+  const [isPublicDeck, setIsPublicDeck] = useState(initialDeck?.is_public ?? false);
+  const [limitModalType, setLimitModalType] = useState<'deck' | 'face' | null>(null);
+
   const [isCropperOpen, setIsCropperOpen] = useState(false);
   const [isSavingDeck, setIsSavingDeck] = useState(false);
 
-  // Caras salvas no perfil do usuário
+  // Caras salvas no perfil do usuário e da comunidade
   const [savedFaces, setSavedFaces] = useState<SavedFace[]>([]);
+  const [communityFaces, setCommunityFaces] = useState<SavedFace[]>([]);
+  const [facePickerTab, setFacePickerTab] = useState<'my' | 'community'>('my');
+  const [faceSearchQuery, setFaceSearchQuery] = useState('');
+  const [loadingFaces, setLoadingFaces] = useState(false);
   const [isFacePickerOpen, setIsFacePickerOpen] = useState(false);
 
   // Edição de nome de carta existente
@@ -135,6 +145,19 @@ export const CustomDeckBuilder: FC<CustomDeckBuilderProps> = ({
       auth.getUserSavedFaces(currentUser.id).then(setSavedFaces);
     }
   }, [currentUser]);
+
+  useEffect(() => {
+    if (isFacePickerOpen && facePickerTab === 'community') {
+      setLoadingFaces(true);
+      const timer = setTimeout(() => {
+        auth.getPublicFaces(faceSearchQuery).then((faces) => {
+          setCommunityFaces(faces);
+          setLoadingFaces(false);
+        });
+      }, 200);
+      return () => clearTimeout(timer);
+    }
+  }, [isFacePickerOpen, facePickerTab, faceSearchQuery]);
 
   const handleSaveCroppedCharacter = (newChar: Character) => {
     if (replacingCardId) {
@@ -264,8 +287,10 @@ export const CustomDeckBuilder: FC<CustomDeckBuilderProps> = ({
 
   const handleSaveRenameCard = () => {
     if (!editingCardId) return;
+    const clean = editingCardName.trim();
+    if (!clean) return; // Nome é obrigatório
     setCards((prev) =>
-      prev.map((c) => (c.id === editingCardId ? { ...c, name: editingCardName.trim() || c.name } : c))
+      prev.map((c) => (c.id === editingCardId ? { ...c, name: clean } : c))
     );
     setEditingCardId(null);
   };
@@ -292,7 +317,8 @@ export const CustomDeckBuilder: FC<CustomDeckBuilderProps> = ({
           currentUser.id,
           finalDeckName,
           targetCount,
-          cards.slice(0, targetCount)
+          cards.slice(0, targetCount),
+          isPublicDeck
         );
       } catch (err) {
         console.warn('Erro ao atualizar baralho existente:', err);
@@ -301,7 +327,22 @@ export const CustomDeckBuilder: FC<CustomDeckBuilderProps> = ({
     // 2. Se veio do perfil criando novo, OU se no lobby marcou para salvar no perfil
     else if ((isFromProfile || saveToProfile) && currentUser) {
       try {
-        await auth.saveDeck(currentUser.id, finalDeckName, targetCount, cards.slice(0, targetCount));
+        const userDecks = await auth.getUserSavedDecks(currentUser.id);
+        if (userDecks.length >= 10) {
+          sounds.playWrong();
+          setLimitModalType('deck');
+          setIsSavingDeck(false);
+          return;
+        }
+
+        await auth.saveDeck(
+          currentUser.id,
+          finalDeckName,
+          targetCount,
+          cards.slice(0, targetCount),
+          isPublicDeck,
+          currentUser.username
+        );
       } catch (err) {
         console.warn('Erro ao salvar baralho no perfil:', err);
       }
@@ -393,27 +434,61 @@ export const CustomDeckBuilder: FC<CustomDeckBuilderProps> = ({
             </p>
           </div>
 
-          {/* Checkbox: Visível apenas ao criar a partir do Lobby e se o usuário estiver logado */}
-          {!isFromProfile && currentUser && (
-            <label className={`flex items-center gap-2.5 px-3.5 py-2 rounded-2xl border-2 transition-all cursor-pointer select-none shrink-0 ${
-              saveToProfile
-                ? 'bg-purple-50 border-purple-400 text-purple-900 shadow-sm font-black'
-                : 'bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300 font-bold'
-            }`}>
-              <input
-                type="checkbox"
-                checked={saveToProfile}
-                onChange={(e) => {
-                  sounds.playClick();
-                  setSaveToProfile(e.target.checked);
-                }}
-                className="w-4 h-4 text-purple-600 rounded focus:ring-purple-500 cursor-pointer accent-purple-600"
-              />
-              <span className="text-xs">
-                Salvar este baralho no meu perfil
-              </span>
-            </label>
-          )}
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* Checkbox: Visível apenas ao criar a partir do Lobby e se o usuário estiver logado */}
+            {!isFromProfile && currentUser && (
+              <label className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border-2 transition-all cursor-pointer select-none shrink-0 ${
+                saveToProfile
+                  ? 'bg-purple-50 border-purple-400 text-purple-900 shadow-sm font-black'
+                  : 'bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300 font-bold'
+              }`}>
+                <input
+                  type="checkbox"
+                  checked={saveToProfile}
+                  onChange={async (e) => {
+                    sounds.playClick();
+                    if (e.target.checked && currentUser) {
+                      const userDecks = await auth.getUserSavedDecks(currentUser.id);
+                      if (userDecks.length >= 10) {
+                        sounds.playWrong();
+                        setLimitModalType('deck');
+                        setSaveToProfile(false);
+                        return;
+                      }
+                    }
+                    setSaveToProfile(e.target.checked);
+                  }}
+                  className="w-4 h-4 text-purple-600 rounded focus:ring-purple-500 cursor-pointer accent-purple-600"
+                />
+                <span className="text-xs">
+                  Salvar no meu perfil
+                </span>
+              </label>
+            )}
+
+            {/* Checkbox: Disponibilizar na Comunidade */}
+            {(isFromProfile || saveToProfile) && currentUser && (
+              <label className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border-2 transition-all cursor-pointer select-none shrink-0 ${
+                isPublicDeck
+                  ? 'bg-indigo-50 border-indigo-400 text-indigo-900 shadow-sm font-black'
+                  : 'bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300 font-bold'
+              }`}>
+                <input
+                  type="checkbox"
+                  checked={isPublicDeck}
+                  onChange={(e) => {
+                    sounds.playClick();
+                    setIsPublicDeck(e.target.checked);
+                  }}
+                  className="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500 cursor-pointer accent-indigo-600"
+                />
+                <span className="text-xs flex items-center gap-1">
+                  <Globe size={13} className="text-indigo-600" />
+                  <span>Público na Comunidade</span>
+                </span>
+              </label>
+            )}
+          </div>
         </div>
 
         <input
@@ -550,14 +625,14 @@ export const CustomDeckBuilder: FC<CustomDeckBuilderProps> = ({
         </div>
       </div>
 
-      {/* Modal / Gaveta de Seleção de Caras Salvas no Perfil (Ponto 3.c) */}
+      {/* Modal / Gaveta de Seleção de Caras Salvas no Perfil e Comunidade */}
       {isFacePickerOpen && (
         <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white border-2 border-slate-200 rounded-3xl max-w-lg w-full p-6 shadow-2xl flex flex-col max-h-[85vh] animate-in zoom-in-95">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+          <div className="bg-white border-2 border-slate-200 rounded-3xl max-w-lg w-full p-5 sm:p-6 shadow-2xl flex flex-col max-h-[85vh] animate-in zoom-in-95">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-3">
               <div className="flex items-center gap-2">
                 <Smile size={20} className="text-amber-600" />
-                <h3 className="text-base font-extrabold text-slate-900">Caras Salvas no Seu Perfil</h3>
+                <h3 className="text-base font-extrabold text-slate-900">Adicionar Caras ao Baralho</h3>
               </div>
               <button
                 onClick={() => setIsFacePickerOpen(false)}
@@ -567,49 +642,148 @@ export const CustomDeckBuilder: FC<CustomDeckBuilderProps> = ({
               </button>
             </div>
 
-            <p className="text-xs text-slate-500 mb-3">
-              Clique em qualquer cara para adicioná-la a este baralho:
-            </p>
-
-            <div className="flex-1 overflow-y-auto grid grid-cols-3 sm:grid-cols-4 gap-2.5 p-1">
-              {savedFaces.map((face) => {
-                const alreadyAdded = cards.some((c) => c.name === face.name);
-                return (
-                  <button
-                    key={face.id}
-                    onClick={() => handleAddSavedFace(face)}
-                    disabled={alreadyAdded || isComplete}
-                    className={`p-2 rounded-2xl border-2 flex flex-col items-center justify-center text-center transition-all ${
-                      alreadyAdded
-                        ? 'opacity-40 border-slate-200 bg-slate-50 cursor-not-allowed'
-                        : 'border-slate-200 hover:border-amber-400 bg-white hover:bg-amber-50/40 shadow-sm cursor-pointer'
-                    }`}
-                  >
-                    <div className="w-14 h-14 rounded-xl overflow-hidden mb-1 bg-slate-100 border border-slate-200">
-                      <img src={face.image_url} alt={face.name} className="w-full h-full object-cover" />
-                    </div>
-                    <span className="text-[11px] font-bold text-slate-800 truncate w-full px-1">
-                      {face.name}
-                    </span>
-                    {alreadyAdded && (
-                      <span className="text-[9px] text-emerald-600 font-bold">Adicionada</span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-
-            <div className="pt-4 border-t border-slate-100 flex items-center justify-between gap-3 mt-3">
+            {/* Abas: Minhas Caras vs Comunidade */}
+            <div className="grid grid-cols-2 p-1 bg-slate-100 rounded-xl mb-3 text-xs font-bold gap-1">
               <button
-                onClick={handleAddAllSavedFaces}
-                disabled={isComplete}
-                className="py-2.5 px-4 rounded-xl bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white font-extrabold text-xs shadow-tactile-sm transition-all active:translate-y-0.5 cursor-pointer"
+                type="button"
+                onClick={() => {
+                  sounds.playClick();
+                  setFacePickerTab('my');
+                }}
+                className={`py-1.5 px-3 rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                  facePickerTab === 'my'
+                    ? 'bg-white text-slate-900 shadow-sm font-black'
+                    : 'text-slate-500 hover:text-slate-800'
+                }`}
               >
-                Adicionar Todas ao Baralho
+                <span>Minhas Caras ({savedFaces.length})</span>
               </button>
               <button
+                type="button"
+                onClick={() => {
+                  sounds.playClick();
+                  setFacePickerTab('community');
+                }}
+                className={`py-1.5 px-3 rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                  facePickerTab === 'community'
+                    ? 'bg-white text-purple-900 shadow-sm font-black'
+                    : 'text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                <Globe size={13} className="text-purple-600" />
+                <span>Comunidade</span>
+              </button>
+            </div>
+
+            {/* Campo de Busca na Comunidade */}
+            {facePickerTab === 'community' && (
+              <div className="relative mb-3">
+                <input
+                  type="text"
+                  placeholder="Pesquisar personagem da comunidade (ex: Neymar, Goku)..."
+                  value={faceSearchQuery}
+                  onChange={(e) => setFaceSearchQuery(e.target.value)}
+                  className="w-full bg-slate-50 border-2 border-slate-200 text-slate-900 placeholder-slate-400 text-xs font-semibold rounded-xl pl-8 pr-7 py-2 focus:outline-none focus:bg-white focus:border-purple-400 transition-all"
+                />
+                <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                {faceSearchQuery && (
+                  <button
+                    onClick={() => setFaceSearchQuery('')}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs cursor-pointer"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+            )}
+
+            <div className="flex-1 overflow-y-auto grid grid-cols-3 sm:grid-cols-4 gap-2.5 p-1 min-h-[220px]">
+              {facePickerTab === 'my' ? (
+                savedFaces.length === 0 ? (
+                  <div className="col-span-full py-10 text-center text-xs text-slate-400 font-semibold">
+                    Você ainda não tem caras salvas no seu perfil. Cadastre na aba "Minhas Caras" ou explore as caras da Comunidade!
+                  </div>
+                ) : (
+                  savedFaces.map((face) => {
+                    const alreadyAdded = cards.some((c) => c.name === face.name);
+                    return (
+                      <button
+                        key={face.id}
+                        onClick={() => handleAddSavedFace(face)}
+                        disabled={alreadyAdded || isComplete}
+                        className={`p-2 rounded-2xl border-2 flex flex-col items-center justify-center text-center transition-all ${
+                          alreadyAdded
+                            ? 'opacity-40 border-slate-200 bg-slate-50 cursor-not-allowed'
+                            : 'border-slate-200 hover:border-amber-400 bg-white hover:bg-amber-50/40 shadow-sm cursor-pointer'
+                        }`}
+                      >
+                        <div className="w-14 h-14 rounded-xl overflow-hidden mb-1 bg-slate-100 border border-slate-200">
+                          <img src={face.image_url} alt={face.name} className="w-full h-full object-cover" />
+                        </div>
+                        <span className="text-[11px] font-bold text-slate-800 truncate w-full px-1">
+                          {face.name}
+                        </span>
+                        {alreadyAdded && (
+                          <span className="text-[9px] text-emerald-600 font-bold">Adicionada</span>
+                        )}
+                      </button>
+                    );
+                  })
+                )
+              ) : loadingFaces ? (
+                <div className="col-span-full py-10 text-center text-xs text-purple-600 font-extrabold animate-pulse">
+                  Buscando personagens da comunidade...
+                </div>
+              ) : communityFaces.length === 0 ? (
+                <div className="col-span-full py-10 text-center text-xs text-slate-400 font-semibold">
+                  Nenhum personagem público encontrado para "{faceSearchQuery}".
+                </div>
+              ) : (
+                communityFaces.map((face) => {
+                  const alreadyAdded = cards.some((c) => c.name === face.name);
+                  return (
+                    <button
+                      key={face.id}
+                      onClick={() => handleAddSavedFace(face)}
+                      disabled={alreadyAdded || isComplete}
+                      className={`p-2 rounded-2xl border-2 flex flex-col items-center justify-center text-center transition-all ${
+                        alreadyAdded
+                          ? 'opacity-40 border-slate-200 bg-slate-50 cursor-not-allowed'
+                          : 'border-slate-200 hover:border-purple-400 bg-white hover:bg-purple-50/40 shadow-sm cursor-pointer'
+                      }`}
+                    >
+                      <div className="w-14 h-14 rounded-xl overflow-hidden mb-1 bg-slate-100 border border-slate-200">
+                        <img src={face.image_url} alt={face.name} className="w-full h-full object-cover" />
+                      </div>
+                      <span className="text-[11px] font-bold text-slate-800 truncate w-full px-1">
+                        {face.name}
+                      </span>
+                      {alreadyAdded ? (
+                        <span className="text-[9px] text-emerald-600 font-bold">Adicionada</span>
+                      ) : (
+                        <span className="text-[9px] text-purple-600 font-semibold truncate max-w-full">
+                          + Adicionar
+                        </span>
+                      )}
+                    </button>
+                  );
+                })
+              )}
+            </div>
+
+            <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-3 mt-2">
+              {facePickerTab === 'my' && savedFaces.length > 0 && (
+                <button
+                  onClick={handleAddAllSavedFaces}
+                  disabled={isComplete}
+                  className="py-2.5 px-4 rounded-xl bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white font-extrabold text-xs shadow-tactile-sm transition-all active:translate-y-0.5 cursor-pointer"
+                >
+                  Adicionar Todas ao Baralho
+                </button>
+              )}
+              <button
                 onClick={() => setIsFacePickerOpen(false)}
-                className="py-2.5 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-xs transition-colors cursor-pointer"
+                className="ml-auto py-2.5 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-xs transition-colors cursor-pointer"
               >
                 Concluir
               </button>
@@ -617,6 +791,13 @@ export const CustomDeckBuilder: FC<CustomDeckBuilderProps> = ({
           </div>
         </div>
       )}
+
+      {/* Modal de Limite da Conta */}
+      <AccountLimitModal
+        isOpen={limitModalType !== null}
+        type={limitModalType || 'deck'}
+        onClose={() => setLimitModalType(null)}
+      />
 
       {/* Modal de Recorte e Upload */}
       {isCropperOpen && (

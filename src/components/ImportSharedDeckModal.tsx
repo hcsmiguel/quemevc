@@ -56,16 +56,34 @@ export const ImportSharedDeckModal: FC<ImportSharedDeckModalProps> = ({
 
     sounds.playClick();
     setSaving(true);
+    setError(null);
     try {
-      // 1. Salvar o baralho
-      await auth.saveDeck(currentUser.id, deck.name, deck.card_count, deck.cards);
+      // 0. Checar limite de baralhos (máximo 10)
+      const userDecks = await auth.getUserSavedDecks(currentUser.id);
+      if (userDecks.length >= 10) {
+        sounds.playWrong();
+        setError('Você já possui 10 baralhos salvos no seu perfil (limite máximo atingido). Exclua um baralho existente para salvar este, ou clique no botão abaixo para Jogar sem salvar.');
+        return;
+      }
 
-      // 2. Se solicitou importar as caras também para o perfil
+      // 1. Salvar o baralho
+      await auth.saveDeck(currentUser.id, deck.name, deck.card_count, deck.cards, false, currentUser.username);
+
+      // 2. Se solicitou importar as caras também para o perfil, checar limite de 200
+      let facesSkippedDueToLimit = false;
       if (importFaces) {
+        const userFaces = await auth.getUserSavedFaces(currentUser.id);
+        let currentFaceCount = userFaces.length;
+
         for (const card of deck.cards) {
-          if (card.imageUrl) {
+          if (currentFaceCount >= 200) {
+            facesSkippedDueToLimit = true;
+            break;
+          }
+          if (card.imageUrl && card.name) {
             try {
-              await auth.saveFace(currentUser.id, card.name, card.imageUrl);
+              await auth.saveFace(currentUser.id, card.name, card.imageUrl, false, currentUser.username);
+              currentFaceCount++;
             } catch (err) {
               console.warn('Erro ao salvar cara avulsa:', err);
             }
@@ -74,14 +92,19 @@ export const ImportSharedDeckModal: FC<ImportSharedDeckModalProps> = ({
       }
 
       sounds.playWin();
-      setSavedSuccess(
-        importFaces
-          ? 'Baralho e caras salvos com sucesso no seu perfil!'
-          : 'Baralho salvo com sucesso no seu perfil!'
-      );
-      setTimeout(() => setSavedSuccess(null), 3500);
+      if (facesSkippedDueToLimit) {
+        setSavedSuccess('Baralho salvo! Algumas caras não foram importadas pois você atingiu o limite de 200 caras.');
+      } else {
+        setSavedSuccess(
+          importFaces
+            ? 'Baralho e caras salvos com sucesso no seu perfil!'
+            : 'Baralho salvo com sucesso no seu perfil!'
+        );
+      }
+      setTimeout(() => setSavedSuccess(null), 4000);
     } catch {
       sounds.playWrong();
+      setError('Erro ao salvar baralho no perfil. Tente novamente.');
     } finally {
       setSaving(false);
     }

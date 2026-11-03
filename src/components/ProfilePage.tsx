@@ -23,10 +23,12 @@ import {
   LogOut,
   AlertTriangle,
   RotateCcw,
+  Globe,
 } from 'lucide-react';
 import { sounds } from '../utils/sound';
 import { network } from '../services/network';
 import { ImageCropperModal } from './ImageCropperModal';
+import { AccountLimitModal } from './AccountLimitModal';
 
 interface ProfilePageProps {
   currentUser: AppUser;
@@ -113,6 +115,47 @@ export const ProfilePage: FC<ProfilePageProps> = ({
 
   // Modal para adicionar nova cara avulsa no perfil
   const [isAddingFace, setIsAddingFace] = useState(false);
+
+  // Modal de aviso de limites da conta (10 baralhos / 200 caras)
+  const [limitModalType, setLimitModalType] = useState<'deck' | 'face' | null>(null);
+
+  const handleCreateDeckClick = () => {
+    sounds.playClick();
+    if (savedDecks.length >= 10) {
+      sounds.playWrong();
+      setLimitModalType('deck');
+      return;
+    }
+    onCreateNewDeck();
+  };
+
+  const handleAddFaceClick = () => {
+    sounds.playClick();
+    if (savedFaces.length >= 200) {
+      sounds.playWrong();
+      setLimitModalType('face');
+      return;
+    }
+    setIsAddingFace(true);
+  };
+
+  const handleToggleDeckPublic = async (deck: SavedDeck) => {
+    sounds.playClick();
+    const nextVal = !deck.is_public;
+    setSavedDecks((prev) =>
+      prev.map((d) => (d.id === deck.id ? { ...d, is_public: nextVal } : d))
+    );
+    await auth.toggleDeckPublic(deck.id, currentUser.id, nextVal);
+  };
+
+  const handleToggleFacePublic = async (face: SavedFace) => {
+    sounds.playClick();
+    const nextVal = !face.is_public;
+    setSavedFaces((prev) =>
+      prev.map((f) => (f.id === face.id ? { ...f, is_public: nextVal } : f))
+    );
+    await auth.toggleFacePublic(face.id, currentUser.id, nextVal);
+  };
 
   // Feedback de link copiado por ID do baralho
   const [copiedDeckId, setCopiedDeckId] = useState<string | null>(null);
@@ -425,7 +468,7 @@ export const ProfilePage: FC<ProfilePageProps> = ({
               </p>
             </div>
             <button
-              onClick={onCreateNewDeck}
+              onClick={handleCreateDeckClick}
               className="flex items-center justify-center gap-1.5 px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-xl sm:rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-[11px] sm:text-xs shadow-tactile-sm transition-all active:translate-y-0.5 cursor-pointer"
             >
               <Plus size={15} />
@@ -447,7 +490,7 @@ export const ProfilePage: FC<ProfilePageProps> = ({
                 Crie baralhos personalizados com 30, 60 ou 90 cartas usando fotos de seus amigos, familiares ou personagens favoritos!
               </p>
               <button
-                onClick={onCreateNewDeck}
+                onClick={handleCreateDeckClick}
                 className="px-4 py-2 sm:px-5 sm:py-2.5 rounded-xl sm:rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs shadow-tactile-sm transition-all cursor-pointer"
               >
                 Começar Meu Primeiro Baralho
@@ -466,9 +509,24 @@ export const ProfilePage: FC<ProfilePageProps> = ({
                         <h3 className="font-black text-base text-slate-900 leading-tight">
                           {deck.name}
                         </h3>
-                        <span className="inline-block mt-1 text-[11px] font-extrabold px-2.5 py-0.5 rounded-full bg-purple-100 text-purple-800 border border-purple-200">
-                          {deck.card_count} Caras
-                        </span>
+                        <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                          <span className="inline-block text-[11px] font-extrabold px-2.5 py-0.5 rounded-full bg-purple-100 text-purple-800 border border-purple-200">
+                            {deck.card_count} Caras
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => handleToggleDeckPublic(deck)}
+                            title={deck.is_public ? 'Clique para tornar privado' : 'Clique para publicar na Comunidade'}
+                            className={`inline-flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-full border transition-all cursor-pointer ${
+                              deck.is_public
+                                ? 'bg-indigo-100 text-indigo-800 border-indigo-300 shadow-xs'
+                                : 'bg-slate-100 text-slate-500 border-slate-200 hover:border-slate-300'
+                            }`}
+                          >
+                            <Globe size={10} />
+                            <span>{deck.is_public ? 'Público na Comunidade' : 'Privado'}</span>
+                          </button>
+                        </div>
                       </div>
 
                       <button
@@ -563,7 +621,7 @@ export const ProfilePage: FC<ProfilePageProps> = ({
               </p>
             </div>
             <button
-              onClick={() => setIsAddingFace(true)}
+              onClick={handleAddFaceClick}
               className="flex items-center justify-center gap-1.5 px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-xl sm:rounded-2xl bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-[11px] sm:text-xs shadow-tactile-sm transition-all active:translate-y-0.5 cursor-pointer shrink-0"
             >
               <Plus size={14} />
@@ -585,7 +643,7 @@ export const ProfilePage: FC<ProfilePageProps> = ({
                 Cadastre e recorte fotos de amigos ou personagens aqui. Elas ficarão prontas no seu perfil para você usar em qualquer baralho!
               </p>
               <button
-                onClick={() => setIsAddingFace(true)}
+                onClick={handleAddFaceClick}
                 className="px-4 py-2 sm:px-5 sm:py-2.5 rounded-xl sm:rounded-2xl bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-xs shadow-tactile-sm transition-all cursor-pointer"
               >
                 Cadastrar Minha Primeira Cara
@@ -605,16 +663,33 @@ export const ProfilePage: FC<ProfilePageProps> = ({
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform"
                     />
                   </div>
-                  <span className="font-black text-xs sm:text-sm text-slate-900 truncate w-full px-1 mb-1.5">
+                  <span className="font-black text-xs sm:text-sm text-slate-900 truncate w-full px-1 mb-1">
                     {face.name}
                   </span>
-                  <button
-                    onClick={() => handleDeleteFace(face.id)}
-                    title="Excluir cara"
-                    className="p-1.5 rounded-xl bg-slate-100 hover:bg-rose-50 text-slate-400 hover:text-rose-600 transition-colors cursor-pointer"
-                  >
-                    <Trash2 size={13} />
-                  </button>
+
+                  <div className="flex items-center gap-1.5 mt-auto pt-1 w-full justify-between">
+                    <button
+                      type="button"
+                      onClick={() => handleToggleFacePublic(face)}
+                      title={face.is_public ? 'Visível na comunidade' : 'Privado no seu perfil'}
+                      className={`inline-flex items-center gap-0.5 text-[9px] font-black px-1.5 py-0.5 rounded-full border transition-all cursor-pointer ${
+                        face.is_public
+                          ? 'bg-amber-100 text-amber-900 border-amber-300'
+                          : 'bg-slate-100 text-slate-500 border-slate-200 hover:border-slate-300'
+                      }`}
+                    >
+                      <Globe size={9} />
+                      <span>{face.is_public ? 'Público' : 'Privado'}</span>
+                    </button>
+
+                    <button
+                      onClick={() => handleDeleteFace(face.id)}
+                      title="Excluir cara"
+                      className="p-1 rounded-lg bg-slate-100 hover:bg-rose-50 text-slate-400 hover:text-rose-600 transition-colors cursor-pointer"
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -800,6 +875,12 @@ export const ProfilePage: FC<ProfilePageProps> = ({
           </div>
         </div>
       )}
+      {/* Modal de Limites da Conta */}
+      <AccountLimitModal
+        isOpen={limitModalType !== null}
+        type={limitModalType || 'deck'}
+        onClose={() => setLimitModalType(null)}
+      />
     </div>
   );
 };

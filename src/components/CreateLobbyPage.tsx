@@ -45,6 +45,8 @@ export const CreateLobbyPage: FC<CreateLobbyPageProps> = ({
   const [isSecretRoom, setIsSecretRoom] = useState<boolean>(false);
   const [secretPassword, setSecretPassword] = useState<string>('');
   const [savedDecks, setSavedDecks] = useState<SavedDeck[]>([]);
+  const [communityDecks, setCommunityDecks] = useState<SavedDeck[]>([]);
+  const [deckSourceTab, setDeckSourceTab] = useState<'my' | 'community'>('my');
 
   useEffect(() => {
     if (currentUser?.id) {
@@ -52,6 +54,7 @@ export const CreateLobbyPage: FC<CreateLobbyPageProps> = ({
     } else {
       setSavedDecks([]);
     }
+    auth.getPublicDecks().then(setCommunityDecks);
   }, [currentUser]);
 
   // Se o usuário deslogar, reverte para modo padrão
@@ -61,7 +64,8 @@ export const CreateLobbyPage: FC<CreateLobbyPageProps> = ({
     }
   }, [currentUser, mode]);
 
-  const selectedSavedDeck = savedDecks.find((d) => d.id === selectedSavedDeckId);
+  const allAvailableDecks = [...savedDecks, ...communityDecks];
+  const selectedSavedDeck = allAvailableDecks.find((d) => d.id === selectedSavedDeckId);
 
   const handleSubmit = () => {
     if (isSecretRoom && !secretPassword.trim()) {
@@ -269,68 +273,108 @@ export const CreateLobbyPage: FC<CreateLobbyPageProps> = ({
           {/* Seletor de Baralhos Salvos vs Novo Baralho (Quando Personalizado) */}
           {mode === 'custom' && (
             <div className="space-y-4 pt-1 animate-in fade-in">
-              {savedDecks.length > 0 && (
+              {(savedDecks.length > 0 || communityDecks.length > 0) && (
                 <div className="bg-purple-50/70 border border-purple-200 rounded-2xl p-3.5 shadow-sm">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-[11px] font-black text-purple-900 uppercase tracking-wider flex items-center gap-1.5">
-                      <Layers size={13} className="text-purple-600" />
-                      Seus Baralhos Salvos ({savedDecks.length})
-                    </span>
-                    <button
-                      type="button"
-                      onClick={onOpenProfile}
-                      className="text-[10px] font-extrabold text-purple-700 hover:text-purple-900 underline cursor-pointer"
-                    >
-                      Gerenciar
-                    </button>
+                  <div className="flex items-center justify-between mb-2.5">
+                    {/* Abas: Seus Baralhos vs Comunidade */}
+                    <div className="flex items-center gap-1 bg-purple-100/70 p-0.5 rounded-xl text-[11px] font-black">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          sounds.playClick();
+                          setDeckSourceTab('my');
+                        }}
+                        className={`px-2.5 py-1 rounded-lg transition-all flex items-center gap-1 cursor-pointer ${
+                          deckSourceTab === 'my'
+                            ? 'bg-white text-purple-900 shadow-xs'
+                            : 'text-purple-700 hover:text-purple-900'
+                        }`}
+                      >
+                        <Layers size={12} />
+                        <span>Seus Baralhos ({savedDecks.length})</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          sounds.playClick();
+                          setDeckSourceTab('community');
+                        }}
+                        className={`px-2.5 py-1 rounded-lg transition-all flex items-center gap-1 cursor-pointer ${
+                          deckSourceTab === 'community'
+                            ? 'bg-white text-purple-900 shadow-xs'
+                            : 'text-purple-700 hover:text-purple-900'
+                        }`}
+                      >
+                        <Globe size={12} />
+                        <span>Comunidade ({communityDecks.length})</span>
+                      </button>
+                    </div>
+
+                    {deckSourceTab === 'my' && (
+                      <button
+                        type="button"
+                        onClick={onOpenProfile}
+                        className="text-[10px] font-extrabold text-purple-700 hover:text-purple-900 underline cursor-pointer"
+                      >
+                        Gerenciar
+                      </button>
+                    )}
                   </div>
 
-                  <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
-                    {savedDecks.map((deck) => {
-                      const isSelected = selectedSavedDeckId === deck.id;
-                      return (
-                        <div
-                          key={deck.id}
-                          onClick={() => {
-                            sounds.playClick();
-                            setSelectedSavedDeckId((prev) => (prev === deck.id ? null : deck.id));
-                          }}
-                          className={`flex items-center justify-between p-2.5 rounded-xl border transition-all cursor-pointer ${
-                            isSelected
-                              ? 'bg-purple-100/90 border-purple-500 shadow-sm ring-2 ring-purple-300'
-                              : 'bg-white border-purple-100 hover:border-purple-300 hover:bg-purple-50/40'
-                          }`}
-                        >
-                          <div className="flex items-center gap-2.5 truncate mr-2">
-                            <div
-                              className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 transition-all ${
-                                isSelected ? 'bg-purple-600 text-white' : 'border-2 border-slate-300 bg-white'
-                              }`}
-                            >
-                              {isSelected && <Check size={12} strokeWidth={3} />}
+                  <div className="space-y-1.5 max-h-44 overflow-y-auto pr-1">
+                    {(deckSourceTab === 'my' ? savedDecks : communityDecks).length === 0 ? (
+                      <div className="py-6 text-center text-xs text-purple-700 font-medium">
+                        {deckSourceTab === 'my'
+                          ? 'Você ainda não salvou baralhos no seu perfil.'
+                          : 'Nenhum baralho público disponível no momento.'}
+                      </div>
+                    ) : (
+                      (deckSourceTab === 'my' ? savedDecks : communityDecks).map((deck) => {
+                        const isSelected = selectedSavedDeckId === deck.id;
+                        return (
+                          <div
+                            key={deck.id}
+                            onClick={() => {
+                              sounds.playClick();
+                              setSelectedSavedDeckId((prev) => (prev === deck.id ? null : deck.id));
+                            }}
+                            className={`flex items-center justify-between p-2.5 rounded-xl border transition-all cursor-pointer ${
+                              isSelected
+                                ? 'bg-purple-100/90 border-purple-500 shadow-sm ring-2 ring-purple-300'
+                                : 'bg-white border-purple-100 hover:border-purple-300 hover:bg-purple-50/40'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2.5 truncate mr-2">
+                              <div
+                                className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 transition-all ${
+                                  isSelected ? 'bg-purple-600 text-white' : 'border-2 border-slate-300 bg-white'
+                                }`}
+                              >
+                                {isSelected && <Check size={12} strokeWidth={3} />}
+                              </div>
+                              <div className="truncate">
+                                <span className="font-extrabold text-xs text-slate-800 block truncate">
+                                  {deck.name}
+                                </span>
+                                <span className="text-[10px] text-purple-600 font-bold">
+                                  {deck.card_count} Caras {deck.author_name ? `• por ${deck.author_name}` : ''}
+                                </span>
+                              </div>
                             </div>
-                            <div className="truncate">
-                              <span className="font-extrabold text-xs text-slate-800 block truncate">
-                                {deck.name}
-                              </span>
-                              <span className="text-[10px] text-purple-600 font-bold">
-                                {deck.card_count} Caras Personalizadas
-                              </span>
-                            </div>
-                          </div>
 
-                          {isSelected ? (
-                            <span className="shrink-0 px-2 py-0.5 rounded-lg bg-purple-600 text-white text-[10px] font-black uppercase tracking-wider">
-                              Selecionado
-                            </span>
-                          ) : (
-                            <span className="shrink-0 px-2 py-0.5 rounded-lg bg-slate-100 text-slate-500 text-[10px] font-bold">
-                              Selecionar
-                            </span>
-                          )}
-                        </div>
-                      );
-                    })}
+                            {isSelected ? (
+                              <span className="shrink-0 px-2 py-0.5 rounded-lg bg-purple-600 text-white text-[10px] font-black uppercase tracking-wider">
+                                Selecionado
+                              </span>
+                            ) : (
+                              <span className="shrink-0 px-2 py-0.5 rounded-lg bg-slate-100 text-slate-500 text-[10px] font-bold">
+                                Selecionar
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })
+                    )}
                   </div>
                 </div>
               )}
@@ -338,7 +382,7 @@ export const CreateLobbyPage: FC<CreateLobbyPageProps> = ({
               {/* Opções de 30, 60 e 90 Caras para montar um novo */}
               <div>
                 <label className="block text-xs font-extrabold text-purple-900 uppercase tracking-wider mb-1.5">
-                  {savedDecks.length > 0 ? 'Ou crie um novo baralho com:' : 'Quantidade de Caras Personalizadas:'}
+                  {(savedDecks.length > 0 || communityDecks.length > 0) ? 'Ou monte um baralho novo com:' : 'Quantidade de Caras Personalizadas:'}
                 </label>
                 <div className="grid grid-cols-3 gap-2">
                   {([30, 60, 90] as const).map((count) => (

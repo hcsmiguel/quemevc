@@ -30,6 +30,7 @@ import { ImportSharedDeckModal } from './components/ImportSharedDeckModal';
 import { CustomDeckBuilder } from './components/CustomDeckBuilder';
 import { PublicLobbiesPage } from './components/PublicLobbiesPage';
 import { CreateLobbyPage } from './components/CreateLobbyPage';
+import { CommunityExplorerPage } from './components/CommunityExplorerPage';
 import { OpponentLeftModal } from './components/OpponentLeftModal';
 import { PasswordPromptModal } from './components/PasswordPromptModal';
 import { Footer } from './components/Footer';
@@ -82,6 +83,7 @@ export function App() {
     if (path === '/perfil') return 'PROFILE';
     if (path === '/criar-lobby') return 'CREATE_LOBBY';
     if (path === '/lobbies') return 'PUBLIC_LOBBIES';
+    if (path === '/comunidade') return 'COMMUNITY';
     return 'LOBBY';
   });
   const [roomCode, setRoomCode] = useState<string>('');
@@ -265,6 +267,8 @@ export function App() {
         return '/criar-lobby';
       case 'PUBLIC_LOBBIES':
         return '/lobbies';
+      case 'COMMUNITY':
+        return '/comunidade';
       default:
         return '/';
     }
@@ -332,6 +336,8 @@ export function App() {
         setPhase('CREATE_LOBBY');
       } else if (path === '/lobbies') {
         setPhase('PUBLIC_LOBBIES');
+      } else if (path === '/comunidade') {
+        setPhase('COMMUNITY');
       } else {
         setPhase('LOBBY');
         setWaitingForPlayer(false);
@@ -1090,7 +1096,7 @@ export function App() {
       return;
     }
 
-    if (phase === 'PROFILE' || phase === 'PUBLIC_LOBBIES' || phase === 'CREATE_LOBBY') {
+    if (phase === 'PROFILE' || phase === 'PUBLIC_LOBBIES' || phase === 'CREATE_LOBBY' || phase === 'COMMUNITY') {
       setPhase('LOBBY');
       return;
     }
@@ -1337,6 +1343,7 @@ export function App() {
             onOpenLogin={() => setLoginModalOpen(true)}
             onOpenProfile={() => setPhase('PROFILE')}
             onOpenPublicLobbies={() => setPhase('PUBLIC_LOBBIES')}
+            onOpenCommunity={() => setPhase('COMMUNITY')}
             onAbandonWaiting={handleExitToLobby}
             currentUser={currentUser}
             onLogout={() => {
@@ -1464,6 +1471,19 @@ export function App() {
               });
             }}
             onCreateRoomDirectly={() => setPhase('LOBBY')}
+          />
+        )}
+
+        {/* 1.4 EXPLORAR COMUNIDADE */}
+        {phase === 'COMMUNITY' && !isBuildingDeck && (
+          <CommunityExplorerPage
+            currentUser={currentUser}
+            onBackToHome={() => setPhase('LOBBY')}
+            onOpenLogin={() => setLoginModalOpen(true)}
+            onPlayDeck={(deck) => {
+              handlePlaySavedDeck(deck);
+            }}
+            onGoToProfile={() => setPhase('PROFILE')}
           />
         )}
 
