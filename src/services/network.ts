@@ -1,4 +1,4 @@
-import { supabase } from './supabase';
+import { supabase, SUPABASE_URL, SUPABASE_ANON_KEY } from './supabase';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import type { NetworkMessage, RoomConfig, Question } from '../types/game';
 
@@ -18,11 +18,15 @@ export interface RoomRecord {
   is_secret?: boolean;
   password?: string | null;
   created_at?: string;
+  disconnected_player_id?: string | null;
+  disconnect_expires_at?: string | null;
 }
 
 export class NetworkService {
   private channel: RealtimeChannel | null = null;
   private pollInterval: number | null = null;
+  private reconnectTimer: number | null = null;
+  private reconnectAttempts: number = 0;
   private messageListeners: Set<MessageHandler> = new Set();
   private statusListeners: Set<StatusHandler> = new Set();
   private hasHandledGuestJoin: boolean = false;
@@ -35,10 +39,15 @@ export class NetworkService {
   public isHost: boolean = false;
 
   constructor() {
-    let savedId = sessionStorage.getItem('cara_player_tab_id');
+    let savedId = localStorage.getItem('cara_player_tab_id') || sessionStorage.getItem('cara_player_tab_id');
     if (!savedId) {
       savedId = 'usr_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 9);
-      sessionStorage.setItem('cara_player_tab_id', savedId);
+      try {
+        localStorage.setItem('cara_player_tab_id', savedId);
+        sessionStorage.setItem('cara_player_tab_id', savedId);
+      } catch {
+        // ignore
+      }
     }
     this.playerId = savedId;
   }
@@ -233,6 +242,9 @@ export class NetworkService {
     this.playerName = playerName.trim();
     this.isHost = isHost;
 
+    // Limpa imediatamente qualquer flag de desconexão anterior
+    await this.clearPlayerDisconnected(this.roomCode);
+
     const { data: room } = await supabase
       .from('game_rooms')
       .select('*')
@@ -264,9 +276,13 @@ export class NetworkService {
     }
   }
 
-  private async subscribeToRoom(roomCode: string): Promise<void> {
+  public async subscribeToRoom(roomCode: string): Promise<void> {
     if (this.channel) {
-      await supabase.removeChannel(this.channel);
+      try {
+        await supabase.removeChannel(this.channel);
+      } catch {
+        // ignore
+      }
       this.channel = null;
     }
 
@@ -284,14 +300,41 @@ export class NetworkService {
       this.channel.subscribe((status) => {
         if (status === 'SUBSCRIBED') {
           this.isConnected = true;
+          this.reconnectAttempts = 0;
+          if (this.reconnectTimer) {
+            clearTimeout(this.reconnectTimer);
+            this.reconnectTimer = null;
+          }
           this.notifyStatus(true);
           resolve();
-        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
           this.isConnected = false;
-          this.notifyStatus(false, 'Erro de conexão no canal');
+          this.notifyStatus(false, 'Canal desconectado. Tentando reconectar...');
+          this.scheduleReconnect(roomCode);
         }
       });
     });
+  }
+
+  private scheduleReconnect(roomCode: string) {
+    if (this.reconnectTimer) return;
+    this.reconnectAttempts++;
+    const delay = Math.min(1000 * Math.pow(1.5, this.reconnectAttempts), 8000);
+    this.reconnectTimer = window.setTimeout(async () => {
+      this.reconnectTimer = null;
+      if (this.roomCode === roomCode && !this.isConnected) {
+        console.log('[Network] Reconectando canal Realtime...');
+        await this.subscribeToRoom(roomCode);
+      }
+    }, delay);
+  }
+
+  public async ensureConnected(roomCode?: string) {
+    const code = roomCode || this.roomCode;
+    if (!code) return;
+    if (!this.channel || !this.isConnected) {
+      await this.subscribeToRoom(code);
+    }
   }
 
   private startPollingRoom() {
@@ -300,15 +343,46 @@ export class NetworkService {
     this.pollInterval = window.setInterval(async () => {
       if (!this.roomCode) return;
 
-      const { data: room } = await supabase
+      const { data: room, error } = await supabase
         .from('game_rooms')
         .select('*')
         .eq('room_code', this.roomCode)
         .maybeSingle();
 
-      if (room) {
-        // Encerramento da partida detectado
-        if (room.status === 'finished') {
+      if (error || !room) {
+        // Instabilidade temporária de rede do cliente, apenas aguarda o próximo ciclo sem derrubar a partida
+        return;
+      }
+
+      // CORREÇÃO CRUCIAL 1: Se o banco diz que EU estou desconectado, mas meu cliente está aqui
+      // comunicando ativamente com o servidor via polling, limpa imediatamente a flag de desconexão!
+      if (room.disconnected_player_id === this.playerId) {
+        this.clearPlayerDisconnected(this.roomCode);
+      }
+
+      // Encerramento oficial da partida detectado
+      if (room.status === 'finished') {
+        this.messageListeners.forEach((fn) =>
+          fn({
+            type: 'ABANDON_GAME',
+            senderId: 'system',
+            senderName: (this.isHost ? room.guest_name : room.host_name) || 'Oponente',
+            payload: { reason: 'finished' },
+            timestamp: Date.now(),
+          })
+        );
+        return;
+      }
+
+      // CORREÇÃO CRUCIAL 2: Tolerância ampliada de 3 minutos para reconexão (apenas se o oponente realmente sumiu)
+      if (
+        room.disconnect_expires_at &&
+        room.disconnected_player_id &&
+        room.disconnected_player_id !== this.playerId
+      ) {
+        const expiresTime = new Date(room.disconnect_expires_at).getTime();
+        if (Date.now() > expiresTime) {
+          this.finishRoom(this.roomCode);
           this.messageListeners.forEach((fn) =>
             fn({
               type: 'ABANDON_GAME',
@@ -320,62 +394,40 @@ export class NetworkService {
           );
           return;
         }
+      }
 
-        // Tolerância de 1 minuto para reconexão: encerrar se o prazo expirar
-        if (
-          room.disconnect_expires_at &&
-          room.disconnected_player_id &&
-          room.disconnected_player_id !== this.playerId
-        ) {
-          const expiresTime = new Date(room.disconnect_expires_at).getTime();
-          if (Date.now() > expiresTime) {
-            this.finishRoom(this.roomCode);
-            this.messageListeners.forEach((fn) =>
-              fn({
-                type: 'ABANDON_GAME',
-                senderId: 'system',
-                senderName: (this.isHost ? room.guest_name : room.host_name) || 'Oponente',
-                payload: { reason: 'timeout' },
-                timestamp: Date.now(),
-              })
-            );
-            return;
-          }
-        }
-
-        // Dispara JOIN para o Host se o convidado acabou de entrar
-        if (this.isHost && room.guest_id) {
-          this.opponentId = room.guest_id;
-          if (!this.hasHandledGuestJoin && room.status === 'choosing') {
-            this.hasHandledGuestJoin = true;
-            this.messageListeners.forEach((fn) =>
-              fn({
-                type: 'JOIN',
-                senderId: room.guest_id!,
-                senderName: room.guest_name || 'Oponente',
-                payload: { config: room.config },
-                timestamp: Date.now(),
-              })
-            );
-          }
-        }
-
-        // Sincronização redundante de turno e status caso o broadcast falhe
-        if (room.status === 'playing' && room.current_turn) {
+      // Dispara JOIN para o Host se o convidado acabou de entrar
+      if (this.isHost && room.guest_id) {
+        this.opponentId = room.guest_id;
+        if (!this.hasHandledGuestJoin && room.status === 'choosing') {
+          this.hasHandledGuestJoin = true;
           this.messageListeners.forEach((fn) =>
             fn({
-              type: 'SYNC_GAME_STATE',
-              senderId: 'system',
-              senderName: 'Sistema',
-              payload: {
-                status: 'playing',
-                currentTurnPlayerId: room.current_turn,
-                currentQuestion: room.current_question || null,
-              },
+              type: 'JOIN',
+              senderId: room.guest_id!,
+              senderName: room.guest_name || 'Oponente',
+              payload: { config: room.config },
               timestamp: Date.now(),
             })
           );
         }
+      }
+
+      // Sincronização redundante de turno e status caso o broadcast tenha oscilado
+      if (room.status === 'playing' && room.current_turn) {
+        this.messageListeners.forEach((fn) =>
+          fn({
+            type: 'SYNC_GAME_STATE',
+            senderId: 'system',
+            senderName: 'Sistema',
+            payload: {
+              status: 'playing',
+              currentTurnPlayerId: room.current_turn,
+              currentQuestion: room.current_question || null,
+            },
+            timestamp: Date.now(),
+          })
+        );
       }
     }, 2000);
   }
@@ -446,8 +498,8 @@ export class NetworkService {
   public cleanupStorageAndRoomBeacon(roomCode: string) {
     if (!roomCode) return;
     try {
-      const url = 'https://ddfefbwauuhqxqufhwwr.supabase.co/rest/v1/rpc/delete_game_room';
-      const key = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRkZmVmYndhdXVocXhxdWZod3dyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM1ODMxNjgsImV4cCI6MjEwOTE1OTE2OH0.l1eh6jmMsi1fTiqy7h28fjkgl0SJLegELUoNmk0dRPE';
+      const url = `${SUPABASE_URL}/rest/v1/rpc/delete_game_room`;
+      const key = SUPABASE_ANON_KEY;
       fetch(url, {
         method: 'POST',
         headers: {
@@ -466,13 +518,13 @@ export class NetworkService {
     }
   }
 
-  // Sinaliza desconexão temporária com tolerância de 1 minuto
+  // Sinaliza desconexão temporária com tolerância de 3 minutos (180 segundos)
   public markPlayerDisconnected(roomCode: string, playerId: string) {
     if (!roomCode || !playerId) return;
     try {
-      const url = `https://ddfefbwauuhqxqufhwwr.supabase.co/rest/v1/game_rooms?room_code=eq.${roomCode}`;
-      const key = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRkZmVmYndhdXVocXhxdWZod3dyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM1ODMxNjgsImV4cCI6MjEwOTE1OTE2OH0.l1eh6jmMsi1fTiqy7h28fjkgl0SJLegELUoNmk0dRPE';
-      const expiresAt = new Date(Date.now() + 60000).toISOString();
+      const url = `${SUPABASE_URL}/rest/v1/game_rooms?room_code=eq.${roomCode}`;
+      const key = SUPABASE_ANON_KEY;
+      const expiresAt = new Date(Date.now() + 180000).toISOString();
       fetch(url, {
         method: 'PATCH',
         headers: {

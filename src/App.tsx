@@ -364,6 +364,9 @@ export function App() {
         );
 
         if (room && room.status !== 'finished') {
+          // Limpa imediatamente qualquer flag de desconexão anterior
+          await network.clearPlayerDisconnected(session.roomCode);
+
           setRoomCode(session.roomCode);
           setPlayerName(session.playerName);
           setOpponentName(session.opponentName || 'Oponente');
@@ -380,6 +383,15 @@ export function App() {
           const activeQuestion = room.current_question || session.currentQuestion || null;
           setCurrentQuestion(activeQuestion);
           if (session.questionHistory) setQuestionHistory(session.questionHistory);
+
+          if (
+            activeQuestion &&
+            (activeQuestion.answer === null || activeQuestion.answer === undefined) &&
+            activeTurn !== network.playerId &&
+            !session.config?.isCallMode
+          ) {
+            setQuestionToAnswer(activeQuestion);
+          }
 
           setPhase(session.phase || 'PLAYING');
         } else {
@@ -432,7 +444,7 @@ export function App() {
     waitingForPlayer,
   ]);
 
-  // PONTO 1.c: Tolerância de 1 minuto ao fechar janela/sair da tela com reconexão no perfil
+  // Tolerância de reconexão de 3 minutos ao fechar a janela, com religação instantânea em focus/pageshow/online
   useEffect(() => {
     const handleBeforeUnload = () => {
       if ((phase === 'PLAYING' || phase === 'CHOOSING_SECRET') && roomCode) {
@@ -451,18 +463,38 @@ export function App() {
           currentQuestion,
           questionHistory,
           disconnectedAt: Date.now(),
-          expiresAt: Date.now() + 60000,
+          expiresAt: Date.now() + 180000,
         };
         localStorage.setItem('cara_reconnect_session', JSON.stringify(sessionData));
         network.markPlayerDisconnected(roomCode, network.playerId);
       }
     };
 
+    const handleReactivate = () => {
+      if (roomCode && (phase === 'PLAYING' || phase === 'CHOOSING_SECRET')) {
+        network.clearPlayerDisconnected(roomCode);
+        network.ensureConnected(roomCode);
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        handleReactivate();
+      }
+    };
+
     window.addEventListener('beforeunload', handleBeforeUnload);
-    window.addEventListener('pagehide', handleBeforeUnload);
+    window.addEventListener('pageshow', handleReactivate);
+    window.addEventListener('focus', handleReactivate);
+    window.addEventListener('online', handleReactivate);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
-      window.removeEventListener('pagehide', handleBeforeUnload);
+      window.removeEventListener('pageshow', handleReactivate);
+      window.removeEventListener('focus', handleReactivate);
+      window.removeEventListener('online', handleReactivate);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [
     phase,
@@ -649,9 +681,20 @@ export function App() {
             hasStartedGameRef.current = true;
             setCurrentTurnPlayerId(msg.payload.currentTurnPlayerId);
             if (msg.payload?.currentQuestion !== undefined) {
-              setCurrentQuestion(msg.payload.currentQuestion);
+              const q = msg.payload.currentQuestion;
+              setCurrentQuestion(q);
+              if (
+                q &&
+                (q.answer === null || q.answer === undefined) &&
+                msg.payload.currentTurnPlayerId !== network.playerId &&
+                !roomConfigRef.current?.isCallMode
+              ) {
+                setQuestionToAnswer((prev) => (prev?.id === q.id ? prev : q));
+              } else if (q && q.answer !== null && q.answer !== undefined) {
+                setQuestionToAnswer(null);
+              }
             }
-            setPhase((curr) => (curr === 'CHOOSING_SECRET' ? 'PLAYING' : curr));
+            setPhase((curr) => (curr === 'CHOOSING_SECRET' && mySecretRef.current ? 'PLAYING' : curr));
           }
           break;
         }
