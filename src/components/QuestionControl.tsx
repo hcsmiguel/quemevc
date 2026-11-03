@@ -75,13 +75,13 @@ export const QuestionControl: FC<QuestionControlProps> = ({
             </div>
             <div className="min-w-0">
               <div className="text-[10px] uppercase font-black text-purple-600 tracking-wider">
-                Vez de {opponentName} • Modo Call
+                Vez de {opponentName} • Modo Call (Voz)
               </div>
               <div className="text-xs sm:text-sm font-extrabold text-slate-900 truncate">
-                Aguardando pergunta de <strong className="text-purple-700">{opponentName}</strong>...
+                É a vez de <strong className="text-purple-700">{opponentName}</strong> fazer uma pergunta a você!
               </div>
               <div className="text-[10px] sm:text-[11px] text-slate-500 font-medium">
-                Responda SIM ou NÃO falando em voz alta!
+                Responda SIM ou NÃO.
               </div>
             </div>
           </div>
@@ -100,14 +100,14 @@ export const QuestionControl: FC<QuestionControlProps> = ({
             <div className="flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
               <span className="text-[10px] font-black text-purple-900 uppercase tracking-wider">
-                Seu Turno • Modo Call
+                Seu Turno • Modo Call (Voz)
               </span>
             </div>
             <div className="text-xs sm:text-sm font-extrabold text-slate-900 truncate">
-              Faça sua pergunta para <strong className="text-purple-700">{opponentName}</strong>!
+              É a sua vez de fazer uma pergunta para <strong className="text-purple-700">{opponentName}</strong>!
             </div>
             <div className="text-[10px] sm:text-[11px] text-purple-700 font-semibold">
-              Pergunta de SIM ou NÃO (descarte cartas e passe a vez).
+              Lembre-se que deve ser uma pergunta de SIM ou NÃO.
             </div>
           </div>
         </div>
@@ -159,10 +159,10 @@ export const QuestionControl: FC<QuestionControlProps> = ({
               Vez do Oponente
             </div>
             <div className="text-xs sm:text-sm font-bold text-slate-900 truncate">
-              Aguardando pergunta de <strong className="text-rose-600">{opponentName}</strong>...
+              É a vez de <strong className="text-rose-600">{opponentName}</strong> fazer uma pergunta a você!
             </div>
             <div className="text-[10px] sm:text-[11px] text-slate-500 font-medium">
-              Responda SIM ou NÃO no modal quando ela perguntar.
+              Responda SIM ou NÃO.
             </div>
           </div>
         </div>
@@ -271,10 +271,10 @@ export const QuestionControl: FC<QuestionControlProps> = ({
         <div className="min-w-0">
           <div className="flex items-center gap-1.5 text-xs sm:text-sm font-extrabold text-slate-900 truncate">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping shrink-0" />
-            <span className="truncate">Sua vez de perguntar para <strong className="text-sky-700">{opponentName}</strong>!</span>
+            <span className="truncate">É a sua vez de fazer uma pergunta para <strong className="text-sky-700">{opponentName}</strong>!</span>
           </div>
           <div className="text-[10px] sm:text-[11px] text-slate-500 font-medium">
-            Deve ser uma pergunta de SIM ou NÃO.
+            Lembre-se que deve ser uma pergunta de SIM ou NÃO.
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">

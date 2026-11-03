@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { getDeckByDifficulty, STANDARD_60_CHARACTERS } from './utils/characters';
 import type {
   Character,
@@ -32,10 +32,9 @@ import { PublicLobbiesPage } from './components/PublicLobbiesPage';
 import { CreateLobbyPage } from './components/CreateLobbyPage';
 import { OpponentLeftModal } from './components/OpponentLeftModal';
 import { PasswordPromptModal } from './components/PasswordPromptModal';
-import { RightSidebar } from './components/RightSidebar';
 import { Footer } from './components/Footer';
 import { LegalModal, type LegalTab } from './components/LegalModal';
-import { Volume2, VolumeX, User as UserIcon, LogOut, AlertTriangle, Trophy } from 'lucide-react';
+import { Volume2, VolumeX, User as UserIcon, LogOut, AlertTriangle, Trophy, RotateCcw, History } from 'lucide-react';
 import type { SavedDeck } from './services/auth';
 
 export function App() {
@@ -137,6 +136,22 @@ export function App() {
   const [cardStatuses, setCardStatuses] = useState<Record<string, CardStatus>>({});
   const [undoStack, setUndoStack] = useState<UndoAction[]>([]);
   const [targetCharacter, setTargetCharacter] = useState<Character | null>(null);
+
+  // Contagem em tempo real das cartas ativas, suspeitas e descartadas
+  const cardCounts = useMemo(() => {
+    const counts = Object.values(cardStatuses).reduce(
+      (acc, curr) => {
+        acc[curr] = (acc[curr] || 0) + 1;
+        return acc;
+      },
+      { normal: 0, suspect: 0, discard: 0, target: 0 } as Record<CardStatus, number>
+    );
+    return {
+      active: Math.max(0, activeDeck.length - counts.discard),
+      suspect: counts.suspect,
+      discard: counts.discard,
+    };
+  }, [cardStatuses, activeDeck.length]);
 
   // Personagens Secretos
   const [mySecretCharacter, setMySecretCharacter] = useState<Character | null>(null);
@@ -762,10 +777,6 @@ export function App() {
     });
   }, []);
 
-  const handleCancelTarget = () => {
-    handleUndo();
-  };
-
   const handleUndo = () => {
     if (undoStack.length === 0) return;
 
@@ -1310,78 +1321,153 @@ export function App() {
 
         {/* 3. TABULEIRO EM JOGO */}
         {phase === 'PLAYING' && (
-          <div className="flex-1 flex flex-col lg:flex-row gap-3 sm:gap-4 items-start">
-            <div className="flex-1 w-full flex flex-col gap-2.5 sm:gap-4">
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2">
-                <div className="flex-1">
-                  {mySecretCharacter && (
-                    <SecretCardBadge character={mySecretCharacter} />
-                  )}
-                </div>
-
-                <div className="hidden sm:flex items-center gap-2 bg-white border border-slate-200 rounded-2xl px-4 py-2.5 text-xs font-bold text-slate-700 shadow-sm shrink-0">
-                  <span className="w-2 h-2 rounded-full bg-sky-500" />
-                  <span className="text-slate-500 font-medium">
-                    Toque em uma carta para marcar como <strong>'Suspeito'</strong> ou <strong>'Descarte'</strong>.
-                  </span>
-                </div>
+          <div className="flex-1 w-full max-w-[1240px] mx-auto flex flex-col gap-3 sm:gap-4 pb-6 animate-in fade-in duration-200">
+            {/* Barra de Controle Superior: Você é: + Status das Cartas + Desfazer */}
+            <div className="w-full flex items-center justify-between gap-2 bg-white border-2 border-slate-200 rounded-2xl sm:rounded-3xl p-2 sm:px-4 sm:py-2.5 shadow-sm">
+              {/* Esquerda: Seu Personagem Secreto Compacto */}
+              <div className="shrink-0">
+                {mySecretCharacter && (
+                  <SecretCardBadge character={mySecretCharacter} />
+                )}
               </div>
 
-              {/* Painel de Perguntas / Turno Otimizado para Mobile */}
-              <QuestionControl
-                isMyTurn={isMyTurn}
-                opponentName={opponentName}
-                currentQuestion={currentQuestion}
-                timeLeft={turnTimeLeft}
-                totalTime={TURN_DURATION_SECONDS}
-                isCallMode={roomConfig.isCallMode}
-                onAskQuestion={handleAskQuestion}
-                onPassTurn={handlePassTurn}
-                onOpenGuessModal={() => {
-                  if (isMyTurn) {
-                    setGuessModalOpen(true);
-                  } else {
-                    sounds.playWrong();
-                  }
-                }}
-              />
-
-              <div className="bg-slate-100/70 border-2 border-slate-200 rounded-2xl sm:rounded-3xl p-2 sm:p-5 shadow-sm">
-                <div
-                  className={`grid gap-2 sm:gap-3 md:gap-4 cards-board-grid ${
-                    activeDeck.length <= 15
-                      ? 'grid-cols-3 sm:grid-cols-5'
-                      : activeDeck.length <= 30
-                      ? 'grid-cols-3 sm:grid-cols-5 md:grid-cols-6'
-                      : activeDeck.length <= 60
-                      ? 'grid-cols-4 sm:grid-cols-6 md:grid-cols-10'
-                      : 'grid-cols-4 sm:grid-cols-6 md:grid-cols-9 lg:grid-cols-10'
-                  }`}
-                >
-                  {activeDeck.map((char) => (
-                    <Card
-                      key={char.id}
-                      character={char}
-                      status={cardStatuses[char.id] || 'normal'}
-                      onCardClick={handleCardClick}
-                    />
-                  ))}
+              {/* Direita: Status das Cartas e Botão Desfazer */}
+              <div className="flex items-center gap-1.5 sm:gap-3">
+                {/* Status das Cartas */}
+                <div className="flex items-center gap-1 sm:gap-1.5 bg-slate-50 border border-slate-200 rounded-xl sm:rounded-2xl p-1 sm:px-2.5 sm:py-1">
+                  <div
+                    className="flex items-center gap-1 px-1.5 py-0.5 rounded-lg bg-emerald-50 text-emerald-800 text-[11px] sm:text-xs font-black"
+                    title="Cartas ativas ainda no jogo"
+                  >
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+                    <span>{cardCounts.active}</span>
+                    <span className="hidden md:inline font-semibold text-[10px] text-emerald-700">Ativas</span>
+                  </div>
+                  <div
+                    className="flex items-center gap-1 px-1.5 py-0.5 rounded-lg bg-amber-50 text-amber-900 text-[11px] sm:text-xs font-black"
+                    title="Cartas marcadas como suspeitas"
+                  >
+                    <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
+                    <span>{cardCounts.suspect}</span>
+                    <span className="hidden md:inline font-semibold text-[10px] text-amber-700">Suspeitas</span>
+                  </div>
+                  <div
+                    className="flex items-center gap-1 px-1.5 py-0.5 rounded-lg bg-rose-50 text-rose-800 text-[11px] sm:text-xs font-black"
+                    title="Cartas descartadas"
+                  >
+                    <span className="w-2 h-2 rounded-full bg-rose-500 shrink-0" />
+                    <span>{cardCounts.discard}</span>
+                    <span className="hidden md:inline font-semibold text-[10px] text-rose-700">Descartes</span>
+                  </div>
                 </div>
+
+                {/* Botão Desfazer */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (undoStack.length === 0) return;
+                    sounds.playClick();
+                    handleUndo();
+                  }}
+                  disabled={undoStack.length === 0}
+                  title={undoStack.length === 0 ? 'Nenhuma ação recente para desfazer' : 'Desfazer última alteração'}
+                  className="flex items-center gap-1.5 py-1.5 px-2.5 sm:py-2 sm:px-3.5 rounded-xl sm:rounded-2xl font-black text-xs uppercase tracking-wider transition-all border shadow-sm cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed bg-slate-900 hover:bg-slate-800 text-white border-slate-900 active:translate-y-0.5 shrink-0"
+                >
+                  <RotateCcw size={14} className="text-sky-400" />
+                  <span className="hidden sm:inline">Desfazer</span>
+                </button>
               </div>
             </div>
 
-            {/* Barra Lateral Direita */}
-            <RightSidebar
-              onUndo={handleUndo}
-              canUndo={undoStack.length > 0}
-              targetCharacter={targetCharacter}
-              onConfirmTargetGuess={handleConfirmGuess}
-              onCancelTarget={handleCancelTarget}
-              cardStatuses={cardStatuses}
-              totalCards={activeDeck.length}
-              questionHistory={questionHistory}
+            {/* Painel de Perguntas / Turno Otimizado para Mobile */}
+            <QuestionControl
+              isMyTurn={isMyTurn}
               opponentName={opponentName}
+              currentQuestion={currentQuestion}
+              timeLeft={turnTimeLeft}
+              totalTime={TURN_DURATION_SECONDS}
+              isCallMode={roomConfig.isCallMode}
+              onAskQuestion={handleAskQuestion}
+              onPassTurn={handlePassTurn}
+              onOpenGuessModal={() => {
+                if (isMyTurn) {
+                  setGuessModalOpen(true);
+                } else {
+                  sounds.playWrong();
+                }
+              }}
             />
+
+            {/* Tabuleiro Expandido Horizontalmente (Mais Cartas por Linha) */}
+            <div className="bg-slate-100/70 border-2 border-slate-200 rounded-2xl sm:rounded-3xl p-2 sm:p-5 shadow-sm">
+              <div
+                className={`grid gap-2 sm:gap-3 md:gap-3.5 cards-board-grid ${
+                  activeDeck.length <= 15
+                    ? 'grid-cols-3 sm:grid-cols-5'
+                    : activeDeck.length <= 30
+                    ? 'grid-cols-3 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-7'
+                    : activeDeck.length <= 60
+                    ? 'grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10'
+                    : 'grid-cols-4 sm:grid-cols-6 md:grid-cols-9 lg:grid-cols-12'
+                }`}
+              >
+                {activeDeck.map((char) => (
+                  <Card
+                    key={char.id}
+                    character={char}
+                    status={cardStatuses[char.id] || 'normal'}
+                    onCardClick={handleCardClick}
+                  />
+                ))}
+              </div>
+            </div>
+
+            {/* Histórico da Partida (Abaixo do Baralho ao Rolar a Página) */}
+            <div className="w-full bg-white border-2 border-slate-200 rounded-2xl sm:rounded-3xl p-4 sm:p-5 shadow-sm">
+              <div className="flex items-center justify-between pb-3 mb-3 border-b border-slate-100">
+                <div className="flex items-center gap-2">
+                  <History size={16} className="text-sky-600" />
+                  <h3 className="text-xs sm:text-sm font-black text-slate-800 uppercase tracking-wider">
+                    Histórico da Partida
+                  </h3>
+                </div>
+                <span className="text-[11px] font-bold text-slate-400">
+                  {questionHistory.length} {questionHistory.length === 1 ? 'pergunta' : 'perguntas'}
+                </span>
+              </div>
+
+              {questionHistory.length === 0 ? (
+                <div className="py-6 text-center text-xs text-slate-400 italic">
+                  Nenhuma pergunta feita ainda nesta partida.
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 max-h-72 overflow-y-auto pr-1">
+                  {questionHistory.map((q, idx) => (
+                    <div key={q.id || idx} className="bg-slate-50 border border-slate-200/80 rounded-xl p-3 flex flex-col justify-between gap-1.5 shadow-2xs">
+                      <div className="flex items-center justify-between text-[11px] text-slate-500 font-bold">
+                        <span className="text-slate-900 font-extrabold">{q.senderName}:</span>
+                        {q.answer !== null && q.answer !== undefined ? (
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                              q.answer
+                                ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                                : 'bg-rose-100 text-rose-800 border border-rose-200'
+                            }`}
+                          >
+                            {q.answer ? 'SIM' : 'NÃO'}
+                          </span>
+                        ) : (
+                          <span className="text-amber-600 font-semibold text-[10px]">Aguardando resposta...</span>
+                        )}
+                      </div>
+                      <p className="text-xs font-semibold text-slate-800 leading-snug">
+                        "{q.text}"
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         )}
 

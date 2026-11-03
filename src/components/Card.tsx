@@ -38,30 +38,35 @@ const CardComponent: FC<CardProps> = ({
       } ${disabled ? 'cursor-not-allowed opacity-80' : ''}`}
       style={{ touchAction: 'manipulation' }}
     >
-      {/* Cabeçalho da Cartela */}
-      <div className="w-full flex items-center justify-between px-0.5 mb-1">
-        <span
-          className={`text-[11px] sm:text-xs md:text-sm lg:text-base font-black tracking-tight truncate max-w-[80px] sm:max-w-[110px] md:max-w-[130px] ${
-            isSuspect ? 'text-amber-900' : 'text-slate-800'
-          }`}
-        >
-          {character.name}
-        </span>
+      {/* Cabeçalho da Cartela com Quebra de Linha para Nomes Longos */}
+      <div className="w-full flex items-start justify-between px-0.5 mb-1 gap-1">
+        <div className="flex-1 min-w-0 min-h-[2.3em] flex items-center">
+          <span
+            title={character.name}
+            className={`w-full text-[10px] sm:text-xs md:text-sm font-black tracking-tight leading-[1.15] break-words line-clamp-2 ${
+              isSuspect ? 'text-amber-900' : 'text-slate-800'
+            }`}
+          >
+            {character.name}
+          </span>
+        </div>
 
         {/* Indicador de Status */}
-        {isDiscarded && (
-          <span className="bg-rose-100 text-rose-700 p-0.5 sm:p-1 rounded-full border border-rose-300">
-            <EyeOff size={12} />
-          </span>
-        )}
-        {isSuspect && (
-          <span className="bg-amber-200 text-amber-900 px-1.5 py-0.2 rounded-full border border-amber-400 font-black text-[9px] sm:text-xs">
-            ?
-          </span>
-        )}
-        {!isDiscarded && !isSuspect && (
-          <span className="w-2 h-2 rounded-full bg-emerald-500" />
-        )}
+        <div className="shrink-0 mt-0.5">
+          {isDiscarded && (
+            <span className="bg-rose-100 text-rose-700 p-0.5 sm:p-1 rounded-full border border-rose-300 block">
+              <EyeOff size={11} />
+            </span>
+          )}
+          {isSuspect && (
+            <span className="bg-amber-200 text-amber-900 px-1.5 py-0.2 rounded-full border border-amber-400 font-black text-[9px] sm:text-xs block">
+              ?
+            </span>
+          )}
+          {!isDiscarded && !isSuspect && (
+            <span className="w-2 h-2 rounded-full bg-emerald-500 block" />
+          )}
+        </div>
       </div>
 
       {/* Avatar Central com Efeitos */}
