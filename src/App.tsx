@@ -1019,9 +1019,10 @@ export function App() {
     });
   };
 
-  // PONTO 3: Temporizador para cada turno (60s)
+  // PONTO 3: Temporizador para cada turno (60s) - Apenas para jogos tradicionais com pergunta (não no Modo Call)
   useEffect(() => {
     if (phase !== 'PLAYING') return;
+    if (roomConfig.isCallMode) return;
 
     const timer = setInterval(() => {
       const elapsed = Math.floor((Date.now() - turnStartTimeRef.current) / 1000);
@@ -1044,7 +1045,7 @@ export function App() {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [phase, currentTurnPlayerId]);
+  }, [phase, currentTurnPlayerId, roomConfig.isCallMode]);
 
   // Recuperação de integridade: Garante que nunca fique com o turno vazio
   useEffect(() => {
@@ -1240,8 +1241,8 @@ export function App() {
                   </div>
                 </div>
 
-                {/* PONTO 1.b: Timer Fluido que aparece no cabeçalho quando o painel de turno sai da visão */}
-                {(() => {
+                {/* PONTO 1.b: Timer Fluido que aparece no cabeçalho quando o painel de turno sai da visão (apenas fora do Modo Call) */}
+                {!roomConfig.isCallMode && (() => {
                   const isUrgent = turnTimeLeft <= 10;
                   const minutes = Math.floor(turnTimeLeft / 60);
                   const seconds = turnTimeLeft % 60;

@@ -85,7 +85,6 @@ export const QuestionControl: FC<QuestionControlProps> = ({
               </div>
             </div>
           </div>
-          <TurnTimerBadge timeLeft={timeLeft} totalTime={totalTime} isOpponent={true} />
         </div>
       );
     }
@@ -116,8 +115,6 @@ export const QuestionControl: FC<QuestionControlProps> = ({
         </div>
 
         <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
-          <TurnTimerBadge timeLeft={timeLeft} totalTime={totalTime} isOpponent={false} />
-
           <button
             type="button"
             onClick={onOpenGuessModal}
