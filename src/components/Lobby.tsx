@@ -296,7 +296,7 @@ export const Lobby: FC<LobbyProps> = ({
               />
             </div>
 
-            <p className="text-[11px] sm:text-xs text-slate-500 mt-1 max-w-[280px] sm:max-w-sm text-center leading-relaxed">
+            <p className="text-[11px] sm:text-xs text-slate-500 mt-1 max-w-[285px] sm:max-w-none sm:whitespace-nowrap text-center leading-snug">
               O clássico jogo de adivinhação, feito para jogar a dois em tempo real
             </p>
           </div>

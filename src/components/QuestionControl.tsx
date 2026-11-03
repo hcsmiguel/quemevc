@@ -277,7 +277,7 @@ export const QuestionControl: FC<QuestionControlProps> = ({
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
               <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
             </span>
-            <span className="truncate">É a sua vez de fazer uma pergunta para <strong className="text-sky-700">{opponentName}</strong>!</span>
+            <span className="truncate">Sua vez de perguntar para <strong className="text-sky-700">{opponentName}</strong>!</span>
           </div>
           <div className="text-[10px] sm:text-[11px] text-slate-500 font-medium">
             Lembre-se que deve ser uma pergunta de SIM ou NÃO.

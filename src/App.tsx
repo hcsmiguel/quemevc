@@ -1170,17 +1170,22 @@ export function App() {
 
       {/* Barra Superior */}
       <header className="border-b border-slate-200/90 bg-white/85 backdrop-blur-md sticky top-0 z-30 transition-colors">
-        <div className="max-w-7xl mx-auto px-3 sm:px-4 h-14 sm:h-16 flex items-center justify-between gap-2">
+        <div className="max-w-7xl mx-auto px-2.5 sm:px-4 h-13 sm:h-16 flex items-center justify-between gap-1.5 sm:gap-2">
           <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             <span
               onClick={handleNavigateToMainMenu}
-              className="flex items-center cursor-pointer select-none"
+              className="flex items-center cursor-pointer select-none shrink-0"
               title="Clique para voltar ao menu principal"
             >
               <img
+                src="/logo-icon.svg"
+                alt="Tá na Cara!"
+                className="h-7 w-7 object-contain sm:hidden"
+              />
+              <img
                 src="/logo-horizontal.svg"
                 alt="Tá na Cara!"
-                className="h-7 sm:h-9 w-auto object-contain hover:opacity-90 transition-opacity"
+                className="hidden sm:block h-7 sm:h-9 w-auto object-contain hover:opacity-90 transition-opacity"
               />
             </span>
             {roomCode && (
@@ -1192,11 +1197,11 @@ export function App() {
             )}
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 sm:gap-2 shrink-0">
             {/* Header da partida com ícones ao lado dos nomes e timer dinâmico no scroll */}
             {phase === 'PLAYING' && (
-              <div className="flex items-center gap-1.5 sm:gap-2">
-                <div className="flex items-center gap-1.5 sm:gap-2 bg-slate-100/90 px-2 sm:px-3 py-1 sm:py-1.5 rounded-xl border border-slate-200 text-xs font-bold shadow-sm max-w-[200px] sm:max-w-none">
+              <div className="flex items-center gap-1 sm:gap-2 min-w-0">
+                <div className="flex items-center gap-1 sm:gap-1.5 bg-slate-100/90 px-1.5 sm:px-3 py-1 sm:py-1.5 rounded-xl border border-slate-200 text-xs font-bold shadow-sm max-w-[125px] sm:max-w-none shrink min-w-0">
                   {/* Jogador Atual */}
                   <div className="flex items-center gap-1 min-w-0">
                     {currentUser?.avatarUrl ? (
@@ -1210,7 +1215,7 @@ export function App() {
                         <UserIcon size={10} />
                       </div>
                     )}
-                    <span className="text-slate-800 font-extrabold truncate max-w-[50px] sm:max-w-[90px]">{playerName}</span>
+                    <span className="text-slate-800 font-extrabold truncate max-w-[36px] sm:max-w-[90px]">{playerName}</span>
                   </div>
 
                   <span className="text-slate-400 text-[9px] sm:text-[10px] font-black uppercase tracking-wider shrink-0">vs</span>
@@ -1220,36 +1225,39 @@ export function App() {
                     <div className="w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-rose-100 text-rose-700 flex items-center justify-center text-[9px] font-black border border-rose-300 shrink-0">
                       <UserIcon size={10} />
                     </div>
-                    <span className="text-rose-600 font-black truncate max-w-[50px] sm:max-w-[90px]">{opponentName}</span>
+                    <span className="text-rose-600 font-black truncate max-w-[36px] sm:max-w-[90px]">{opponentName}</span>
                   </div>
                 </div>
 
                 {/* PONTO 1.b: Timer Fluido que aparece no cabeçalho quando o painel de turno sai da visão */}
-                <div
-                  onClick={() => {
-                    questionControlAnchorRef.current?.scrollIntoView({ behavior: 'smooth' });
-                  }}
-                  title="Clique para rolar até o controle da sua jogada"
-                  className={`flex items-center gap-1.5 px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-xl text-xs font-black transition-all duration-300 ease-out cursor-pointer select-none ${
-                    !isQuestionControlVisible
-                      ? 'opacity-100 translate-y-0 scale-100 shadow-sm'
-                      : 'opacity-0 -translate-y-2 scale-90 pointer-events-none max-w-0 px-0 overflow-hidden border-0'
-                  } ${
-                    turnTimeLeft <= 10
-                      ? 'bg-rose-50 text-rose-600 border border-rose-300 animate-pulse'
-                      : isMyTurn
-                      ? 'bg-emerald-50 text-emerald-800 border border-emerald-300'
-                      : 'bg-purple-50 text-purple-800 border border-purple-300'
-                  }`}
-                >
-                  <Clock size={12} className={`shrink-0 ${turnTimeLeft <= 10 ? 'animate-spin' : ''}`} />
-                  <span className="font-mono tabular-nums text-xs">
-                    0:{turnTimeLeft.toString().padStart(2, '0')}
-                  </span>
-                  <span className="hidden sm:inline text-[10px] uppercase tracking-wider opacity-80">
-                    {isMyTurn ? 'Seu Turno' : 'Adversário'}
-                  </span>
-                </div>
+                {(() => {
+                  const isUrgent = turnTimeLeft <= 10;
+                  const minutes = Math.floor(turnTimeLeft / 60);
+                  const seconds = turnTimeLeft % 60;
+                  const formattedHeaderTime = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+                  return (
+                    <div
+                      onClick={() => {
+                        questionControlAnchorRef.current?.scrollIntoView({ behavior: 'smooth' });
+                      }}
+                      title="Tempo restante deste turno (clique para rolar até o controle)"
+                      className={`flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-xl border text-xs font-sans font-black tabular-nums tracking-tight transition-all duration-300 ease-out cursor-pointer select-none shrink-0 shadow-sm ${
+                        !isQuestionControlVisible
+                          ? 'opacity-100 translate-y-0 scale-100 pointer-events-auto'
+                          : 'opacity-0 -translate-y-2 scale-90 pointer-events-none max-w-0 px-0 overflow-hidden border-0 m-0'
+                      } ${
+                        isUrgent
+                          ? 'bg-rose-100 text-rose-700 border-rose-300 animate-pulse ring-2 ring-rose-200'
+                          : !isMyTurn
+                          ? 'bg-slate-100 text-slate-700 border-slate-200'
+                          : 'bg-sky-50 text-sky-800 border-sky-200'
+                      }`}
+                    >
+                      <Clock size={13} className={isUrgent ? 'text-rose-600 animate-spin' : !isMyTurn ? 'text-slate-500' : 'text-sky-600'} />
+                      <span className="font-black tracking-tight">{formattedHeaderTime}</span>
+                    </div>
+                  );
+                })()}
               </div>
             )}
 
@@ -1300,10 +1308,10 @@ export function App() {
               <button
                 onClick={handleNavigateToMainMenu}
                 title="Voltar ao Menu Principal"
-                className="flex items-center gap-1 p-1.5 sm:px-3 sm:py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 text-xs font-extrabold uppercase tracking-wider transition-all active:scale-95 shadow-sm cursor-pointer shrink-0"
+                className="flex items-center justify-center gap-1 p-1.5 sm:px-2.5 sm:py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 text-xs font-extrabold uppercase tracking-wider transition-all active:scale-95 shadow-sm cursor-pointer shrink-0"
               >
-                <LogOut size={15} />
-                <span className="hidden sm:inline">Menu Principal</span>
+                <LogOut size={14} />
+                <span className="hidden sm:inline">Menu</span>
               </button>
             )}
           </div>

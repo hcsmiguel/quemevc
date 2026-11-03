@@ -277,24 +277,24 @@ export const ProfilePage: FC<ProfilePageProps> = ({
       )}
 
       {/* Banner de Identificação do Usuário */}
-      <div className="bg-white border-2 border-slate-200 rounded-2xl sm:rounded-3xl p-4 sm:p-7 shadow-md mb-4 sm:mb-6 relative overflow-hidden">
-        <div className="flex flex-col sm:flex-row items-center sm:items-start justify-between gap-4 sm:gap-6 relative z-10">
-          <div className="flex flex-col sm:flex-row items-center gap-3.5 sm:gap-4 text-center sm:text-left">
+      <div className="bg-white border-2 border-slate-200 rounded-2xl sm:rounded-3xl p-3.5 sm:p-7 shadow-md mb-3.5 sm:mb-6 relative overflow-hidden">
+        <div className="flex flex-col sm:flex-row items-center sm:items-start justify-between gap-3 sm:gap-6 relative z-10">
+          <div className="flex flex-col sm:flex-row items-center gap-3 sm:gap-4 text-center sm:text-left">
             {currentUser.avatarUrl ? (
               <img
                 src={currentUser.avatarUrl}
                 alt={currentUser.username}
-                className="w-14 h-14 sm:w-20 sm:h-20 rounded-2xl sm:rounded-3xl object-cover ring-3 ring-indigo-500/20 shadow-md shrink-0"
+                className="w-12 h-12 sm:w-20 sm:h-20 rounded-xl sm:rounded-3xl object-cover ring-2 sm:ring-3 ring-indigo-500/20 shadow-md shrink-0"
               />
             ) : (
-              <div className="w-14 h-14 sm:w-20 sm:h-20 rounded-2xl sm:rounded-3xl bg-indigo-600 flex items-center justify-center text-white font-black text-2xl sm:text-3xl shadow-md shrink-0">
+              <div className="w-12 h-12 sm:w-20 sm:h-20 rounded-xl sm:rounded-3xl bg-indigo-600 flex items-center justify-center text-white font-black text-xl sm:text-3xl shadow-md shrink-0">
                 {currentUser.username.charAt(0).toUpperCase()}
               </div>
             )}
 
             <div>
-              <div className="flex items-center justify-center sm:justify-start gap-2 mb-0.5">
-                <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+              <div className="flex items-center justify-center sm:justify-start gap-1.5 sm:gap-2 mb-0.5">
+                <h1 className="text-lg sm:text-2xl font-black text-slate-900 tracking-tight">
                   {currentUser.username}
                 </h1>
                 {currentUser.provider && currentUser.provider !== 'email' && (
@@ -307,12 +307,12 @@ export const ProfilePage: FC<ProfilePageProps> = ({
                 Gerencie seu perfil, baralhos e caras
               </p>
 
-              {/* Opções Sutis de Gerência de Perfil (Ponto 3.a) */}
-              <div className="flex flex-wrap items-center justify-center sm:justify-start gap-1.5 sm:gap-2 mt-2 pt-0.5">
+              {/* Opções Sutis de Gerência de Perfil */}
+              <div className="flex flex-wrap items-center justify-center sm:justify-start gap-1.5 mt-1.5 sm:mt-2 pt-0.5">
                 <button
                   type="button"
                   onClick={() => setPasswordModalOpen(true)}
-                  className="flex items-center gap-1 text-[10px] sm:text-[11px] font-extrabold text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 px-2 py-1 sm:px-2.5 sm:py-1 rounded-lg sm:rounded-xl border border-slate-200 shadow-sm transition-all cursor-pointer"
+                  className="flex items-center gap-1 text-[10px] sm:text-[11px] font-extrabold text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-lg sm:rounded-xl border border-slate-200 shadow-sm transition-all cursor-pointer"
                 >
                   <KeyRound size={11} className="text-slate-500" />
                   <span>Trocar Senha</span>
@@ -325,7 +325,7 @@ export const ProfilePage: FC<ProfilePageProps> = ({
                     auth.logout();
                     onBackToLobby();
                   }}
-                  className="flex items-center gap-1 text-[10px] sm:text-[11px] font-extrabold text-slate-600 hover:text-rose-700 bg-slate-100 hover:bg-rose-50 px-2 py-1 sm:px-2.5 sm:py-1 rounded-lg sm:rounded-xl border border-slate-200 hover:border-rose-200 shadow-sm transition-all cursor-pointer"
+                  className="flex items-center gap-1 text-[10px] sm:text-[11px] font-extrabold text-slate-600 hover:text-rose-700 bg-slate-100 hover:bg-rose-50 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-lg sm:rounded-xl border border-slate-200 hover:border-rose-200 shadow-sm transition-all cursor-pointer"
                 >
                   <LogOut size={11} className="text-slate-500" />
                   <span>Sair</span>
@@ -334,7 +334,7 @@ export const ProfilePage: FC<ProfilePageProps> = ({
                 <button
                   type="button"
                   onClick={() => setDeleteConfirmOpen(true)}
-                  className="flex items-center gap-1 text-[10px] sm:text-[11px] font-bold text-slate-400 hover:text-rose-600 px-1.5 py-1 transition-colors cursor-pointer"
+                  className="flex items-center gap-1 text-[10px] sm:text-[11px] font-bold text-slate-400 hover:text-rose-600 px-1.5 py-0.5 transition-colors cursor-pointer"
                   title="Apagar minha conta"
                 >
                   <Trash2 size={11} />
@@ -345,77 +345,72 @@ export const ProfilePage: FC<ProfilePageProps> = ({
           </div>
 
           {/* Resumo Rápido das Estatísticas */}
-          <div className="grid grid-cols-4 gap-1.5 sm:gap-2 w-full sm:w-auto mt-2 sm:mt-0">
-            <div className="bg-slate-50 border border-slate-200 rounded-xl sm:rounded-2xl p-2 sm:p-3 text-center min-w-0 sm:min-w-[72px]">
+          <div className="grid grid-cols-4 gap-1 sm:gap-2 w-full sm:w-auto mt-1 sm:mt-0">
+            <div className="bg-slate-50 border border-slate-200 rounded-xl sm:rounded-2xl p-1.5 sm:p-3 text-center min-w-0 sm:min-w-[72px]">
               <span className="text-[9px] sm:text-[10px] text-slate-400 font-bold block">Partidas</span>
-              <span className="text-base sm:text-lg font-black text-slate-900">{stats?.totalMatches || 0}</span>
+              <span className="text-sm sm:text-lg font-black text-slate-900">{stats?.totalMatches || 0}</span>
             </div>
-            <div className="bg-emerald-50 border border-emerald-200 rounded-xl sm:rounded-2xl p-2 sm:p-3 text-center min-w-0 sm:min-w-[72px]">
+            <div className="bg-emerald-50 border border-emerald-200 rounded-xl sm:rounded-2xl p-1.5 sm:p-3 text-center min-w-0 sm:min-w-[72px]">
               <span className="text-[9px] sm:text-[10px] text-emerald-600 font-bold block">Vitórias</span>
-              <span className="text-base sm:text-lg font-black text-emerald-700">{stats?.wins || 0}</span>
+              <span className="text-sm sm:text-lg font-black text-emerald-700">{stats?.wins || 0}</span>
             </div>
-            <div className="bg-rose-50 border border-rose-200 rounded-xl sm:rounded-2xl p-2 sm:p-3 text-center min-w-0 sm:min-w-[72px]">
+            <div className="bg-rose-50 border border-rose-200 rounded-xl sm:rounded-2xl p-1.5 sm:p-3 text-center min-w-0 sm:min-w-[72px]">
               <span className="text-[9px] sm:text-[10px] text-rose-600 font-bold block">Derrotas</span>
-              <span className="text-base sm:text-lg font-black text-rose-700">{stats?.losses || 0}</span>
+              <span className="text-sm sm:text-lg font-black text-rose-700">{stats?.losses || 0}</span>
             </div>
-            <div className="bg-amber-50 border border-amber-200 rounded-xl sm:rounded-2xl p-2 sm:p-3 text-center min-w-0 sm:min-w-[72px]">
+            <div className="bg-amber-50 border border-amber-200 rounded-xl sm:rounded-2xl p-1.5 sm:p-3 text-center min-w-0 sm:min-w-[72px]">
               <span className="text-[9px] sm:text-[10px] text-amber-700 font-bold block">Winrate</span>
-              <span className="text-base sm:text-lg font-black text-amber-800">{stats?.winRate || 0}%</span>
+              <span className="text-sm sm:text-lg font-black text-amber-800">{stats?.winRate || 0}%</span>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Navegação por Abas Exclusivas */}
-      <div className="grid grid-cols-3 sm:inline-flex w-full sm:w-auto bg-slate-200/70 p-1 sm:p-1.5 rounded-xl sm:rounded-2xl mb-4 sm:mb-6 border border-slate-200 text-xs font-bold gap-1 sm:gap-1.5">
+      {/* Navegação por Abas Exclusivas (Otimizada para Mobile sem Truncar) */}
+      <div className="grid grid-cols-3 sm:inline-flex w-full sm:w-auto bg-slate-200/70 p-1 sm:p-1.5 rounded-xl sm:rounded-2xl mb-3.5 sm:mb-6 border border-slate-200 text-xs font-bold gap-1 sm:gap-1.5">
         <button
+          type="button"
           onClick={() => setActiveTab('decks')}
-          className={`px-2 sm:px-4 py-2 sm:py-2.5 rounded-lg sm:rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+          className={`px-1.5 sm:px-4 py-1.5 sm:py-2.5 rounded-lg sm:rounded-xl transition-all flex items-center justify-center gap-1 sm:gap-1.5 cursor-pointer whitespace-nowrap ${
             activeTab === 'decks'
               ? 'bg-white text-slate-900 shadow-sm border border-slate-200/80 font-black'
               : 'text-slate-600 hover:text-slate-900'
           }`}
         >
-          <Layers size={14} className="text-indigo-600 shrink-0" />
-          <span className="text-[11px] sm:text-xs truncate">Baralhos</span>
-          <span className={`text-[10px] px-1.5 py-0.2 rounded-md font-extrabold ${
-            activeTab === 'decks'
-              ? 'bg-indigo-50 text-indigo-700 border border-indigo-100'
-              : 'bg-slate-300/60 text-slate-700'
-          }`}>
+          <Layers size={13} className="text-indigo-600 shrink-0 hidden xs:inline" />
+          <span className="text-[11px] sm:text-xs">Baralhos</span>
+          <span className="text-[10px] font-extrabold opacity-60">
             ({savedDecks.length})
           </span>
         </button>
 
         <button
+          type="button"
           onClick={() => setActiveTab('faces')}
-          className={`px-2 sm:px-4 py-2 sm:py-2.5 rounded-lg sm:rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+          className={`px-1.5 sm:px-4 py-1.5 sm:py-2.5 rounded-lg sm:rounded-xl transition-all flex items-center justify-center gap-1 sm:gap-1.5 cursor-pointer whitespace-nowrap ${
             activeTab === 'faces'
               ? 'bg-white text-slate-900 shadow-sm border border-slate-200/80 font-black'
               : 'text-slate-600 hover:text-slate-900'
           }`}
         >
-          <Smile size={14} className="text-amber-600 shrink-0" />
-          <span className="text-[11px] sm:text-xs truncate">Caras</span>
-          <span className={`text-[10px] px-1.5 py-0.2 rounded-md font-extrabold ${
-            activeTab === 'faces'
-              ? 'bg-amber-50 text-amber-800 border border-amber-200'
-              : 'bg-slate-300/60 text-slate-700'
-          }`}>
+          <Smile size={13} className="text-amber-600 shrink-0 hidden xs:inline" />
+          <span className="text-[11px] sm:text-xs">Caras</span>
+          <span className="text-[10px] font-extrabold opacity-60">
             ({savedFaces.length})
           </span>
         </button>
 
         <button
+          type="button"
           onClick={() => setActiveTab('stats')}
-          className={`px-2 sm:px-4 py-2 sm:py-2.5 rounded-lg sm:rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+          className={`px-1.5 sm:px-4 py-1.5 sm:py-2.5 rounded-lg sm:rounded-xl transition-all flex items-center justify-center gap-1 sm:gap-1.5 cursor-pointer whitespace-nowrap ${
             activeTab === 'stats'
               ? 'bg-white text-slate-900 shadow-sm border border-slate-200/80 font-black'
               : 'text-slate-600 hover:text-slate-900'
           }`}
         >
-          <Trophy size={14} className="text-sky-600 shrink-0" />
-          <span className="text-[11px] sm:text-xs truncate">Histórico</span>
+          <Trophy size={13} className="text-sky-600 shrink-0 hidden xs:inline" />
+          <span className="text-[11px] sm:text-xs">Histórico</span>
         </button>
       </div>
 
@@ -443,17 +438,17 @@ export const ProfilePage: FC<ProfilePageProps> = ({
               Carregando seus baralhos...
             </div>
           ) : savedDecks.length === 0 ? (
-            <div className="bg-white border-2 border-dashed border-slate-200 rounded-3xl p-12 text-center">
-              <div className="w-16 h-16 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto mb-3">
-                <Layers size={28} />
+            <div className="bg-white border-2 border-dashed border-slate-200 rounded-2xl sm:rounded-3xl p-6 sm:p-12 text-center">
+              <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-xl sm:rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto mb-2.5 sm:mb-3 shadow-tactile-sm">
+                <Layers size={22} className="sm:w-7 sm:h-7" />
               </div>
-              <h3 className="text-base font-black text-slate-800 mb-1">Nenhum baralho salvo ainda</h3>
-              <p className="text-xs text-slate-500 max-w-sm mx-auto mb-5 leading-relaxed">
-                Você pode criar baralhos personalizados com 30, 60 ou 90 cartas usando fotos de seus amigos, familiares ou celebridades!
+              <h3 className="text-sm sm:text-base font-black text-slate-800 mb-1">Nenhum baralho salvo ainda</h3>
+              <p className="text-[11px] sm:text-xs text-slate-500 max-w-sm mx-auto mb-4 sm:mb-5 leading-relaxed">
+                Crie baralhos personalizados com 30, 60 ou 90 cartas usando fotos de seus amigos, familiares ou personagens favoritos!
               </p>
               <button
                 onClick={onCreateNewDeck}
-                className="px-5 py-2.5 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs shadow-tactile-sm transition-all"
+                className="px-4 py-2 sm:px-5 sm:py-2.5 rounded-xl sm:rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs shadow-tactile-sm transition-all cursor-pointer"
               >
                 Começar Meu Primeiro Baralho
               </button>
@@ -569,9 +564,9 @@ export const ProfilePage: FC<ProfilePageProps> = ({
             </div>
             <button
               onClick={() => setIsAddingFace(true)}
-              className="flex items-center gap-1.5 px-4 py-2.5 rounded-2xl bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-xs shadow-tactile-sm transition-all active:translate-y-0.5 cursor-pointer"
+              className="flex items-center justify-center gap-1.5 px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-xl sm:rounded-2xl bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-[11px] sm:text-xs shadow-tactile-sm transition-all active:translate-y-0.5 cursor-pointer shrink-0"
             >
-              <Plus size={16} />
+              <Plus size={14} />
               <span>Adicionar Nova Cara</span>
             </button>
           </div>
@@ -581,17 +576,17 @@ export const ProfilePage: FC<ProfilePageProps> = ({
               Carregando suas caras...
             </div>
           ) : savedFaces.length === 0 ? (
-            <div className="bg-white border-2 border-dashed border-slate-200 rounded-3xl p-12 text-center">
-              <div className="w-16 h-16 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto mb-3">
-                <Smile size={28} />
+            <div className="bg-white border-2 border-dashed border-slate-200 rounded-2xl sm:rounded-3xl p-6 sm:p-12 text-center">
+              <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-xl sm:rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto mb-2.5 sm:mb-3 shadow-tactile-sm">
+                <Smile size={22} className="sm:w-7 sm:h-7" />
               </div>
-              <h3 className="text-base font-black text-slate-800 mb-1">Nenhuma cara salva ainda</h3>
-              <p className="text-xs text-slate-500 max-w-sm mx-auto mb-5 leading-relaxed">
-                Você pode cadastrar e recortar fotos de amigos, parentes ou personagens aqui. Elas ficarão salvas no seu perfil para você usar na montagem de qualquer baralho!
+              <h3 className="text-sm sm:text-base font-black text-slate-800 mb-1">Nenhuma cara salva ainda</h3>
+              <p className="text-[11px] sm:text-xs text-slate-500 max-w-sm mx-auto mb-4 sm:mb-5 leading-relaxed">
+                Cadastre e recorte fotos de amigos ou personagens aqui. Elas ficarão prontas no seu perfil para você usar em qualquer baralho!
               </p>
               <button
                 onClick={() => setIsAddingFace(true)}
-                className="px-5 py-2.5 rounded-2xl bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-xs shadow-tactile-sm transition-all cursor-pointer"
+                className="px-4 py-2 sm:px-5 sm:py-2.5 rounded-xl sm:rounded-2xl bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-xs shadow-tactile-sm transition-all cursor-pointer"
               >
                 Cadastrar Minha Primeira Cara
               </button>

@@ -331,32 +331,33 @@ export const CustomDeckBuilder: FC<CustomDeckBuilderProps> = ({
       )}
 
       {/* Top Header */}
-      <div className="bg-white border-2 border-slate-200 rounded-3xl p-5 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
+      <div className="bg-white border-2 border-slate-200 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-sm flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 sm:gap-4">
+        <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
           <button
             onClick={onCancel}
-            className="p-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-2xl transition-colors cursor-pointer"
+            title="Voltar"
+            className="p-2 sm:p-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl sm:rounded-2xl transition-colors cursor-pointer shrink-0"
           >
-            <ArrowLeft size={18} />
+            <ArrowLeft size={16} />
           </button>
-          <div>
-            <h2 className="text-xl font-extrabold text-slate-900 flex items-center gap-2">
-              <span className="w-8 h-8 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center shadow-tactile-sm">
-                <Layers size={18} />
+          <div className="min-w-0">
+            <h2 className="text-base sm:text-xl font-black text-slate-900 flex items-center gap-1.5 sm:gap-2 truncate">
+              <span className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center shadow-tactile-sm shrink-0">
+                <Layers size={15} />
               </span>
-              <span>{initialDeck ? 'Editar Baralho Personalizado' : 'Criar Baralho de Caras'}</span>
+              <span className="truncate">{initialDeck ? 'Editar Baralho' : 'Criar Baralho de Caras'}</span>
             </h2>
-            <p className="text-xs text-slate-500 font-medium">
-              Personalize com fotos de amigos ou use personagens cadastrados no seu perfil!
+            <p className="text-[11px] sm:text-xs text-slate-500 font-medium truncate sm:whitespace-normal">
+              Monte seu baralho com fotos personalizadas ou caras do perfil!
             </p>
           </div>
         </div>
 
-        {/* Contador de Progresso */}
-        <div className="flex items-center gap-3">
-          <div className="text-right">
-            <span className="text-xs text-slate-400 block font-bold uppercase tracking-wider">Progresso:</span>
-            <span className={`text-lg font-black ${isComplete ? 'text-emerald-600' : 'text-amber-600'}`}>
+        {/* Barra de Progresso e Ação */}
+        <div className="flex items-center justify-between md:justify-end gap-2.5 pt-2.5 md:pt-0 border-t border-slate-100 md:border-0 shrink-0">
+          <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 px-2.5 py-1.5 rounded-xl text-xs">
+            <span className="text-[10px] font-extrabold uppercase text-slate-400">Progresso:</span>
+            <span className={`font-black tabular-nums ${isComplete ? 'text-emerald-600' : 'text-amber-600'}`}>
               {cards.length} / {targetCount} Caras
             </span>
           </div>
@@ -364,14 +365,16 @@ export const CustomDeckBuilder: FC<CustomDeckBuilderProps> = ({
           <button
             onClick={handleConfirm}
             disabled={!isFormValid || isSavingDeck}
-            className="flex items-center gap-2 px-6 py-3.5 rounded-2xl bg-emerald-500 hover:bg-emerald-600 disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none text-white font-extrabold text-sm shadow-[0_4px_0_#059669] active:translate-y-1 active:shadow-none transition-all cursor-pointer"
+            className="flex items-center justify-center gap-1.5 px-3.5 py-2 sm:px-5 sm:py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none text-white font-extrabold text-xs uppercase tracking-wider shadow-sm active:translate-y-0.5 transition-all cursor-pointer whitespace-nowrap"
           >
-            <Check size={16} />
+            <Check size={14} />
             <span>
               {isSavingDeck
                 ? 'Salvando...'
+                : initialDeck
+                ? 'Salvar'
                 : isFromProfile
-                ? (initialDeck ? 'Salvar Alterações' : 'Salvar no Meu Perfil')
+                ? 'Salvar Baralho'
                 : 'Iniciar Partida'}
             </span>
           </button>
@@ -379,8 +382,8 @@ export const CustomDeckBuilder: FC<CustomDeckBuilderProps> = ({
       </div>
 
       {/* Nome do Baralho e Checkbox Salvar no Perfil */}
-      <div className="bg-white border-2 border-slate-200 rounded-3xl p-4 sm:p-5 shadow-sm text-xs space-y-3">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+      <div className="bg-white border-2 border-slate-200 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-sm text-xs space-y-2.5">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 sm:gap-3">
           <div>
             <label className="block text-xs font-black text-slate-800 uppercase tracking-wider">
               Nome do Baralho
