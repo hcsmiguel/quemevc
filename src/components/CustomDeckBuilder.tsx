@@ -17,7 +17,10 @@ import {
   Camera,
   Layers,
   Globe,
+  Globe2,
   Search,
+  Sparkles,
+  Loader2,
 } from 'lucide-react';
 import { sounds } from '../utils/sound';
 import { AccountLimitModal } from './AccountLimitModal';
@@ -141,20 +144,30 @@ export const CustomDeckBuilder: FC<CustomDeckBuilderProps> = ({
   };
 
   useEffect(() => {
+    // Carrega personagens da comunidade na montagem para acesso imediato
+    auth.getPublicFaces().then(setCommunityFaces);
+  }, []);
+
+  useEffect(() => {
     if (currentUser) {
       auth.getUserSavedFaces(currentUser.id).then(setSavedFaces);
     }
   }, [currentUser]);
 
   useEffect(() => {
-    if (isFacePickerOpen && facePickerTab === 'community') {
+    if (isFacePickerOpen && facePickerTab === 'community' && faceSearchQuery.trim()) {
       setLoadingFaces(true);
       const timer = setTimeout(() => {
         auth.getPublicFaces(faceSearchQuery).then((faces) => {
-          setCommunityFaces(faces);
+          setCommunityFaces((prev) => {
+            const map = new Map<string, SavedFace>();
+            prev.forEach((f) => map.set(f.id, f));
+            faces.forEach((f) => map.set(f.id, f));
+            return Array.from(map.values());
+          });
           setLoadingFaces(false);
         });
-      }, 200);
+      }, 250);
       return () => clearTimeout(timer);
     }
   }, [isFacePickerOpen, facePickerTab, faceSearchQuery]);
@@ -179,8 +192,28 @@ export const CustomDeckBuilder: FC<CustomDeckBuilderProps> = ({
     setCards((prev) => prev.filter((c) => c.id !== id));
   };
 
-  const handleAddSavedFace = (face: SavedFace) => {
-    if (cards.length >= targetCount) return;
+  // Alterna a seleção de uma cara no baralho (adiciona ou remove em tempo real)
+  const handleToggleFace = (face: SavedFace) => {
+    const isAdded = cards.some(
+      (c) =>
+        c.name.trim().toLowerCase() === face.name.trim().toLowerCase() ||
+        (c.imageUrl && c.imageUrl === face.image_url)
+    );
+    if (isAdded) {
+      sounds.playClick();
+      setCards((prev) =>
+        prev.filter(
+          (c) =>
+            c.name.trim().toLowerCase() !== face.name.trim().toLowerCase() &&
+            (!c.imageUrl || c.imageUrl !== face.image_url)
+        )
+      );
+      return;
+    }
+    if (cards.length >= targetCount) {
+      sounds.playWrong();
+      return;
+    }
     sounds.playClick();
     const newChar: Character = {
       id: 'custom_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
@@ -190,12 +223,34 @@ export const CustomDeckBuilder: FC<CustomDeckBuilderProps> = ({
     setCards((prev) => [...prev, newChar]);
   };
 
+  // Adiciona um lote de cartas aleatórias da comunidade
+  const handleAddCommunityBatch = (count: number = 5) => {
+    const existingNames = new Set(cards.map((c) => c.name.trim().toLowerCase()));
+    const available = communityFaces.filter(
+      (f) => !existingNames.has(f.name.trim().toLowerCase())
+    );
+    if (available.length === 0) {
+      sounds.playWrong();
+      return;
+    }
+    sounds.playWin();
+    const shuffled = [...available].sort(() => 0.5 - Math.random());
+    const slotsRemaining = targetCount - cards.length;
+    const toPick = Math.min(slotsRemaining, count, shuffled.length);
+    const newBatch: Character[] = shuffled.slice(0, toPick).map((f) => ({
+      id: 'custom_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
+      name: f.name,
+      imageUrl: f.image_url,
+    }));
+    setCards((prev) => [...prev, ...newBatch]);
+  };
+
   const handleAddAllSavedFaces = () => {
     sounds.playWin();
-    const existingNames = new Set(cards.map((c) => c.name));
+    const existingNames = new Set(cards.map((c) => c.name.trim().toLowerCase()));
     const toAdd: Character[] = [];
     for (const f of savedFaces) {
-      if (!existingNames.has(f.name) && cards.length + toAdd.length < targetCount) {
+      if (!existingNames.has(f.name.trim().toLowerCase()) && cards.length + toAdd.length < targetCount) {
         toAdd.push({
           id: 'custom_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
           name: f.name,
@@ -204,10 +259,9 @@ export const CustomDeckBuilder: FC<CustomDeckBuilderProps> = ({
       }
     }
     setCards((prev) => [...prev, ...toAdd]);
-    setIsFacePickerOpen(false);
   };
 
-  // PONTO 2.a & 2.b: Preencher Aleatoriamente baseado prioritariamente nas caras salvas do usuário
+  // Preencher Aleatoriamente baseado nas caras salvas do usuário e da comunidade
   const handleFillRandomly = () => {
     sounds.playWin();
     const result: Character[] = [];
@@ -217,8 +271,8 @@ export const CustomDeckBuilder: FC<CustomDeckBuilderProps> = ({
     const shuffledSavedFaces = [...savedFaces].sort(() => 0.5 - Math.random());
     for (const f of shuffledSavedFaces) {
       if (result.length >= targetCount) break;
-      if (!usedNames.has(f.name)) {
-        usedNames.add(f.name);
+      if (!usedNames.has(f.name.toLowerCase())) {
+        usedNames.add(f.name.toLowerCase());
         result.push({
           id: 'custom_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7),
           name: f.name,
@@ -227,13 +281,29 @@ export const CustomDeckBuilder: FC<CustomDeckBuilderProps> = ({
       }
     }
 
-    // 2. Se ainda faltar cartas para o alvo, completa com as cartas padrão
+    // 2. Se ainda faltar, completa com personagens da comunidade
+    if (result.length < targetCount && communityFaces.length > 0) {
+      const shuffledCommunity = [...communityFaces].sort(() => 0.5 - Math.random());
+      for (const cf of shuffledCommunity) {
+        if (result.length >= targetCount) break;
+        if (!usedNames.has(cf.name.toLowerCase())) {
+          usedNames.add(cf.name.toLowerCase());
+          result.push({
+            id: 'custom_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7),
+            name: cf.name,
+            imageUrl: cf.image_url,
+          });
+        }
+      }
+    }
+
+    // 3. Se ainda faltar cartas para o alvo, completa com as cartas padrão
     if (result.length < targetCount) {
       const shuffledStandards = [...STANDARD_60_CHARACTERS].sort(() => 0.5 - Math.random());
       for (const std of shuffledStandards) {
         if (result.length >= targetCount) break;
-        if (!usedNames.has(std.name)) {
-          usedNames.add(std.name);
+        if (!usedNames.has(std.name.toLowerCase())) {
+          usedNames.add(std.name.toLowerCase());
           result.push(std);
         }
       }
@@ -242,21 +312,21 @@ export const CustomDeckBuilder: FC<CustomDeckBuilderProps> = ({
     setCards(result.slice(0, targetCount));
   };
 
-  // PONTO 2.a & 2.b: Completar Aleatoriamente baseado prioritariamente nas caras salvas do usuário
+  // Completar Aleatoriamente baseado nas caras salvas e da comunidade
   const handleCompleteRandomly = () => {
     sounds.playClick();
     const remainingNeeded = targetCount - cards.length;
     if (remainingNeeded <= 0) return;
 
-    const existingNames = new Set(cards.map((c) => c.name));
+    const existingNames = new Set(cards.map((c) => c.name.toLowerCase()));
     const toAdd: Character[] = [];
 
-    // 1. Prioriza caras salvas do usuário que ainda não foram inseridas
+    // 1. Prioriza caras salvas do usuário
     const shuffledSavedFaces = [...savedFaces].sort(() => 0.5 - Math.random());
     for (const f of shuffledSavedFaces) {
       if (toAdd.length >= remainingNeeded) break;
-      if (!existingNames.has(f.name)) {
-        existingNames.add(f.name);
+      if (!existingNames.has(f.name.toLowerCase())) {
+        existingNames.add(f.name.toLowerCase());
         toAdd.push({
           id: 'custom_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7),
           name: f.name,
@@ -265,13 +335,29 @@ export const CustomDeckBuilder: FC<CustomDeckBuilderProps> = ({
       }
     }
 
-    // 2. Se ainda faltar, completa com cartas padrão
+    // 2. Prioriza caras da comunidade
+    if (toAdd.length < remainingNeeded && communityFaces.length > 0) {
+      const shuffledCommunity = [...communityFaces].sort(() => 0.5 - Math.random());
+      for (const cf of shuffledCommunity) {
+        if (toAdd.length >= remainingNeeded) break;
+        if (!existingNames.has(cf.name.toLowerCase())) {
+          existingNames.add(cf.name.toLowerCase());
+          toAdd.push({
+            id: 'custom_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7),
+            name: cf.name,
+            imageUrl: cf.image_url,
+          });
+        }
+      }
+    }
+
+    // 3. Se ainda faltar, completa com cartas padrão
     if (toAdd.length < remainingNeeded) {
       const shuffledStandards = [...STANDARD_60_CHARACTERS].sort(() => 0.5 - Math.random());
       for (const std of shuffledStandards) {
         if (toAdd.length >= remainingNeeded) break;
-        if (!existingNames.has(std.name)) {
-          existingNames.add(std.name);
+        if (!existingNames.has(std.name.toLowerCase())) {
+          existingNames.add(std.name.toLowerCase());
           toAdd.push(std);
         }
       }
@@ -352,6 +438,13 @@ export const CustomDeckBuilder: FC<CustomDeckBuilderProps> = ({
     localStorage.removeItem(DRAFT_KEY);
     onFinishDeck(cards.slice(0, targetCount), finalDeckName, isFromProfile || saveToProfile);
   };
+
+  const filteredSavedFaces = savedFaces.filter((f) =>
+    f.name.toLowerCase().includes(faceSearchQuery.toLowerCase().trim())
+  );
+  const filteredCommunityFaces = communityFaces.filter((f) =>
+    f.name.toLowerCase().includes(faceSearchQuery.toLowerCase().trim())
+  );
 
   return (
     <div className="min-h-[85vh] max-w-5xl mx-auto w-full p-4 flex flex-col gap-4 animate-in fade-in duration-200">
@@ -500,42 +593,65 @@ export const CustomDeckBuilder: FC<CustomDeckBuilderProps> = ({
         />
       </div>
 
-      {/* Barra de Ações Rápidas (Minhas Caras / Aleatório) */}
+      {/* Barra de Ações Rápidas (Caras da Comunidade / Minhas Caras / Aleatório) */}
       <div className="flex flex-wrap items-center justify-between gap-2.5 bg-white p-3.5 rounded-2xl border-2 border-slate-200 shadow-sm">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Botão Caras da Comunidade (Sempre visível para todos os jogadores) */}
+          <button
+            type="button"
+            onClick={() => {
+              sounds.playClick();
+              setFacePickerTab('community');
+              setIsFacePickerOpen(true);
+            }}
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-purple-100 hover:bg-purple-200 text-purple-900 border border-purple-300 font-extrabold text-xs transition-colors cursor-pointer shadow-tactile-sm active:translate-y-0.5"
+            title="Explorar e adicionar personagens prontos da comunidade"
+          >
+            <Globe2 size={15} className="text-purple-700" />
+            <span>Caras da Comunidade ({communityFaces.length})</span>
+          </button>
+
+          {/* Botão Minhas Caras Salvas */}
           {currentUser && savedFaces.length > 0 && (
             <button
-              onClick={() => setIsFacePickerOpen(true)}
+              type="button"
+              onClick={() => {
+                sounds.playClick();
+                setFacePickerTab('my');
+                setIsFacePickerOpen(true);
+              }}
               className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 font-extrabold text-xs transition-colors cursor-pointer shadow-tactile-sm active:translate-y-0.5"
             >
               <Smile size={15} className="text-amber-700" />
-              <span>Minhas Caras Salvas ({savedFaces.length})</span>
+              <span>Minhas Caras ({savedFaces.length})</span>
             </button>
           )}
         </div>
 
         <div className="flex items-center gap-2">
-          {/* PONTO 2.b & 2.c: Só aparece se ainda não adicionou nenhuma cara */}
+          {/* Só aparece se ainda não adicionou nenhuma cara */}
           {cards.length === 0 && (
             <button
+              type="button"
               onClick={handleFillRandomly}
               className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-xs border border-slate-200 transition-colors cursor-pointer active:translate-y-0.5"
-              title="Preencher aleatoriamente com base nas suas caras salvas"
+              title="Preencher aleatoriamente com base nas caras da comunidade e salvas"
             >
               <Shuffle size={14} className="text-slate-500" />
               <span>Preencher Aleatoriamente</span>
             </button>
           )}
 
-          {/* PONTO 2.b & 2.c: Só aparece se já tem pelo menos 1 cara e ainda não atingiu o total */}
+          {/* Só aparece se já tem pelo menos 1 cara e ainda não atingiu o total */}
           {cards.length > 0 && !isComplete && (
             <button
+              type="button"
               onClick={handleCompleteRandomly}
               className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-purple-100 hover:bg-purple-200 text-purple-900 font-extrabold text-xs border border-purple-300 transition-colors cursor-pointer shadow-tactile-sm active:translate-y-0.5"
-              title="Completar o restante com base nas suas caras salvas"
+              title="Completar o restante com base nas suas caras e da comunidade"
             >
               <Wand2 size={14} className="text-purple-700" />
-              <span>Completar Aleatoriamente ({targetCount - cards.length})</span>
+              <span>Completar Restante ({targetCount - cards.length})</span>
             </button>
           )}
         </div>
@@ -544,8 +660,9 @@ export const CustomDeckBuilder: FC<CustomDeckBuilderProps> = ({
       {/* Grid de Caras Adicionadas */}
       <div className="flex-1 bg-white/85 backdrop-blur-sm border-2 border-slate-200 rounded-3xl p-4 sm:p-6 shadow-sm overflow-y-auto min-h-[350px]">
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-6 gap-3.5">
-          {/* Botão Adicionar Nova Foto */}
+          {/* Botão Adicionar Nova Foto (Upload / Recorte) */}
           <button
+            type="button"
             onClick={() => {
               sounds.playClick();
               setIsCropperOpen(true);
@@ -556,9 +673,28 @@ export const CustomDeckBuilder: FC<CustomDeckBuilderProps> = ({
             <div className="w-12 h-12 rounded-2xl bg-sky-100 text-sky-700 group-hover:scale-110 flex items-center justify-center mb-2 transition-transform shadow-tactile-sm">
               <Plus size={26} />
             </div>
-            <span className="text-xs font-extrabold text-slate-900">Adicionar Foto</span>
-            <span className="text-[11px] text-slate-500 mt-0.5 font-medium">Upload ou Ctrl+V</span>
+            <span className="text-xs font-extrabold text-slate-900">Upload de Foto</span>
+            <span className="text-[11px] text-slate-500 mt-0.5 font-medium">Arquivo ou Ctrl+V</span>
           </button>
+
+          {/* Botão Selecionar Caras da Comunidade Diretamente no Grid */}
+          {!isComplete && (
+            <button
+              type="button"
+              onClick={() => {
+                sounds.playClick();
+                setFacePickerTab('community');
+                setIsFacePickerOpen(true);
+              }}
+              className="border-2 border-dashed border-purple-300 hover:border-purple-500 rounded-2xl p-4 flex flex-col items-center justify-center text-center transition-all bg-purple-50/50 hover:bg-purple-50 group min-h-[160px] cursor-pointer shadow-sm"
+            >
+              <div className="w-12 h-12 rounded-2xl bg-purple-100 text-purple-700 group-hover:scale-110 flex items-center justify-center mb-2 transition-transform shadow-tactile-sm">
+                <Globe2 size={24} />
+              </div>
+              <span className="text-xs font-extrabold text-purple-950">Caras da Comunidade</span>
+              <span className="text-[11px] text-purple-600 mt-0.5 font-medium">Personagens Prontos</span>
+            </button>
+          )}
 
           {/* Lista de Caras no Baralho */}
           {cards.map((char, index) => (
@@ -627,165 +763,277 @@ export const CustomDeckBuilder: FC<CustomDeckBuilderProps> = ({
 
       {/* Modal / Gaveta de Seleção de Caras Salvas no Perfil e Comunidade */}
       {isFacePickerOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white border-2 border-slate-200 rounded-3xl max-w-lg w-full p-5 sm:p-6 shadow-2xl flex flex-col max-h-[85vh] animate-in zoom-in-95">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-3">
-              <div className="flex items-center gap-2">
-                <Smile size={20} className="text-amber-600" />
-                <h3 className="text-base font-extrabold text-slate-900">Adicionar Caras ao Baralho</h3>
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-200">
+          <div className="bg-white border-2 border-slate-200 rounded-3xl max-w-3xl w-full p-4 sm:p-6 shadow-2xl flex flex-col max-h-[88vh] animate-in zoom-in-95">
+            {/* Header com Título e Status */}
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-3 gap-3">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-10 h-10 rounded-2xl bg-purple-100 text-purple-700 flex items-center justify-center shrink-0 shadow-tactile-sm">
+                  <Globe2 size={22} />
+                </div>
+                <div className="min-w-0">
+                  <h3 className="text-base sm:text-lg font-black text-slate-900 leading-tight">
+                    Banco de Personagens
+                  </h3>
+                  <p className="text-[11px] text-slate-500 truncate">
+                    Toque em uma cara para adicionar ou remover do baralho em tempo real
+                  </p>
+                </div>
               </div>
-              <button
-                onClick={() => setIsFacePickerOpen(false)}
-                className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
-              >
-                <X size={18} />
-              </button>
+
+              <div className="flex items-center gap-2 shrink-0">
+                {/* Chip de progresso das cartas */}
+                <div className={`px-2.5 py-1 rounded-xl text-xs font-black flex items-center gap-1.5 border shadow-xs ${
+                  isComplete
+                    ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                    : 'bg-purple-100 text-purple-900 border-purple-300'
+                }`}>
+                  {isComplete ? <Check size={13} strokeWidth={3} /> : <Layers size={13} />}
+                  <span>{cards.length} / {targetCount} {isComplete ? 'Completo!' : ''}</span>
+                </div>
+
+                <button
+                  onClick={() => setIsFacePickerOpen(false)}
+                  className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+                  title="Fechar"
+                >
+                  <X size={20} />
+                </button>
+              </div>
             </div>
 
-            {/* Abas: Minhas Caras vs Comunidade */}
-            <div className="grid grid-cols-2 p-1 bg-slate-100 rounded-xl mb-3 text-xs font-bold gap-1">
-              <button
-                type="button"
-                onClick={() => {
-                  sounds.playClick();
-                  setFacePickerTab('my');
-                }}
-                className={`py-1.5 px-3 rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                  facePickerTab === 'my'
-                    ? 'bg-white text-slate-900 shadow-sm font-black'
-                    : 'text-slate-500 hover:text-slate-800'
-                }`}
-              >
-                <span>Minhas Caras ({savedFaces.length})</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  sounds.playClick();
-                  setFacePickerTab('community');
-                }}
-                className={`py-1.5 px-3 rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+            {/* Abas: Comunidade vs Minhas Caras */}
+            <div className="flex items-center justify-between gap-2 mb-3">
+              <div className="grid grid-cols-2 p-1 bg-slate-100 rounded-xl text-xs font-bold gap-1 w-full sm:w-auto">
+                <button
+                  type="button"
+                  onClick={() => {
+                    sounds.playClick();
+                    setFacePickerTab('community');
+                  }}
+                  className={`py-1.5 px-3.5 rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                    facePickerTab === 'community'
+                      ? 'bg-white text-purple-900 shadow-sm font-black'
+                      : 'text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  <Globe2 size={13} className="text-purple-600" />
+                  <span>Comunidade ({communityFaces.length})</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    sounds.playClick();
+                    setFacePickerTab('my');
+                  }}
+                  className={`py-1.5 px-3.5 rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                    facePickerTab === 'my'
+                      ? 'bg-white text-amber-900 shadow-sm font-black'
+                      : 'text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  <Smile size={13} className="text-amber-600" />
+                  <span>Minhas Caras ({savedFaces.length})</span>
+                </button>
+              </div>
+
+              {/* Botão de atalho para adicionar 5 aleatórias da comunidade se houver espaço */}
+              {facePickerTab === 'community' && !isComplete && communityFaces.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => handleAddCommunityBatch(5)}
+                  className="hidden sm:inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-purple-50 hover:bg-purple-100 border border-purple-200 text-purple-700 text-xs font-bold transition-all cursor-pointer shadow-xs active:translate-y-0.5"
+                  title="Adiciona 5 personagens aleatórios da comunidade que ainda não estão no baralho"
+                >
+                  <Sparkles size={13} className="text-purple-600" />
+                  <span>+5 Aleatórias</span>
+                </button>
+              )}
+            </div>
+
+            {/* Campo de Busca */}
+            <div className="relative mb-3">
+              <input
+                type="text"
+                placeholder={
                   facePickerTab === 'community'
-                    ? 'bg-white text-purple-900 shadow-sm font-black'
-                    : 'text-slate-500 hover:text-slate-800'
-                }`}
-              >
-                <Globe size={13} className="text-purple-600" />
-                <span>Comunidade</span>
-              </button>
+                    ? 'Pesquisar personagem da comunidade (ex: Neymar, Juliette, Taylor Swift)...'
+                    : 'Pesquisar nas suas caras salvas...'
+                }
+                value={faceSearchQuery}
+                onChange={(e) => setFaceSearchQuery(e.target.value)}
+                className="w-full bg-slate-50 border-2 border-slate-200 text-slate-900 placeholder-slate-400 text-xs font-semibold rounded-xl pl-8 pr-7 py-2.5 focus:outline-none focus:bg-white focus:border-purple-400 transition-all shadow-xs"
+              />
+              <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+              {faceSearchQuery && (
+                <button
+                  onClick={() => setFaceSearchQuery('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs cursor-pointer"
+                >
+                  ✕
+                </button>
+              )}
             </div>
 
-            {/* Campo de Busca na Comunidade */}
-            {facePickerTab === 'community' && (
-              <div className="relative mb-3">
-                <input
-                  type="text"
-                  placeholder="Pesquisar personagem da comunidade (ex: Neymar, Goku)..."
-                  value={faceSearchQuery}
-                  onChange={(e) => setFaceSearchQuery(e.target.value)}
-                  className="w-full bg-slate-50 border-2 border-slate-200 text-slate-900 placeholder-slate-400 text-xs font-semibold rounded-xl pl-8 pr-7 py-2 focus:outline-none focus:bg-white focus:border-purple-400 transition-all"
-                />
-                <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-                {faceSearchQuery && (
-                  <button
-                    onClick={() => setFaceSearchQuery('')}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs cursor-pointer"
-                  >
-                    ✕
-                  </button>
-                )}
-              </div>
-            )}
-
-            <div className="flex-1 overflow-y-auto grid grid-cols-3 sm:grid-cols-4 gap-2.5 p-1 min-h-[220px]">
+            {/* Grid de Personagens no Modal */}
+            <div className="flex-1 overflow-y-auto grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2.5 p-1 min-h-[260px] max-h-[48vh]">
               {facePickerTab === 'my' ? (
-                savedFaces.length === 0 ? (
-                  <div className="col-span-full py-10 text-center text-xs text-slate-400 font-semibold">
-                    Você ainda não tem caras salvas no seu perfil. Cadastre na aba "Minhas Caras" ou explore as caras da Comunidade!
+                // Minhas Caras
+                filteredSavedFaces.length === 0 ? (
+                  <div className="col-span-full py-12 text-center text-xs text-slate-400 font-semibold flex flex-col items-center gap-2">
+                    <Smile size={32} className="text-slate-300" />
+                    <span>
+                      {savedFaces.length === 0
+                        ? 'Você ainda não tem caras salvas no seu perfil. Use a aba "Comunidade" para pegar personagens prontos!'
+                        : `Nenhuma cara salva corresponde a "${faceSearchQuery}".`}
+                    </span>
                   </div>
                 ) : (
-                  savedFaces.map((face) => {
-                    const alreadyAdded = cards.some((c) => c.name === face.name);
+                  filteredSavedFaces.map((face) => {
+                    const alreadyAdded = cards.some(
+                      (c) => c.name.trim().toLowerCase() === face.name.trim().toLowerCase() || (c.imageUrl && c.imageUrl === face.image_url)
+                    );
                     return (
                       <button
                         key={face.id}
-                        onClick={() => handleAddSavedFace(face)}
-                        disabled={alreadyAdded || isComplete}
-                        className={`p-2 rounded-2xl border-2 flex flex-col items-center justify-center text-center transition-all ${
+                        type="button"
+                        onClick={() => handleToggleFace(face)}
+                        className={`group relative p-2 rounded-2xl border-2 flex flex-col items-center justify-between text-center transition-all cursor-pointer ${
                           alreadyAdded
-                            ? 'opacity-40 border-slate-200 bg-slate-50 cursor-not-allowed'
-                            : 'border-slate-200 hover:border-amber-400 bg-white hover:bg-amber-50/40 shadow-sm cursor-pointer'
+                            ? 'border-emerald-500 bg-emerald-50/60 ring-2 ring-emerald-300 shadow-sm'
+                            : 'border-slate-200 hover:border-amber-400 bg-white hover:bg-amber-50/40 shadow-xs'
                         }`}
                       >
-                        <div className="w-14 h-14 rounded-xl overflow-hidden mb-1 bg-slate-100 border border-slate-200">
-                          <img src={face.image_url} alt={face.name} className="w-full h-full object-cover" />
+                        <div className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden mb-1.5 bg-slate-100 border border-slate-200">
+                          <img src={face.image_url} alt={face.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                          {alreadyAdded && (
+                            <div className="absolute inset-0 bg-emerald-950/20 backdrop-blur-[1px] flex items-center justify-center">
+                              <span className="bg-emerald-600 text-white p-1 rounded-full shadow">
+                                <Check size={14} strokeWidth={3} />
+                              </span>
+                            </div>
+                          )}
                         </div>
-                        <span className="text-[11px] font-bold text-slate-800 truncate w-full px-1">
+
+                        <span className="text-[11px] font-black text-slate-900 truncate w-full px-1">
                           {face.name}
                         </span>
-                        {alreadyAdded && (
-                          <span className="text-[9px] text-emerald-600 font-bold">Adicionada</span>
+
+                        {alreadyAdded ? (
+                          <span className="text-[9px] font-extrabold text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded-md mt-0.5">
+                            ✓ No Baralho
+                          </span>
+                        ) : (
+                          <span className="text-[9px] font-bold text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded-md mt-0.5 group-hover:bg-amber-100">
+                            + Adicionar
+                          </span>
                         )}
                       </button>
                     );
                   })
                 )
-              ) : loadingFaces ? (
-                <div className="col-span-full py-10 text-center text-xs text-purple-600 font-extrabold animate-pulse">
-                  Buscando personagens da comunidade...
-                </div>
-              ) : communityFaces.length === 0 ? (
-                <div className="col-span-full py-10 text-center text-xs text-slate-400 font-semibold">
-                  Nenhum personagem público encontrado para "{faceSearchQuery}".
-                </div>
               ) : (
-                communityFaces.map((face) => {
-                  const alreadyAdded = cards.some((c) => c.name === face.name);
-                  return (
-                    <button
-                      key={face.id}
-                      onClick={() => handleAddSavedFace(face)}
-                      disabled={alreadyAdded || isComplete}
-                      className={`p-2 rounded-2xl border-2 flex flex-col items-center justify-center text-center transition-all ${
-                        alreadyAdded
-                          ? 'opacity-40 border-slate-200 bg-slate-50 cursor-not-allowed'
-                          : 'border-slate-200 hover:border-purple-400 bg-white hover:bg-purple-50/40 shadow-sm cursor-pointer'
-                      }`}
-                    >
-                      <div className="w-14 h-14 rounded-xl overflow-hidden mb-1 bg-slate-100 border border-slate-200">
-                        <img src={face.image_url} alt={face.name} className="w-full h-full object-cover" />
-                      </div>
-                      <span className="text-[11px] font-bold text-slate-800 truncate w-full px-1">
-                        {face.name}
-                      </span>
-                      {alreadyAdded ? (
-                        <span className="text-[9px] text-emerald-600 font-bold">Adicionada</span>
-                      ) : (
-                        <span className="text-[9px] text-purple-600 font-semibold truncate max-w-full">
-                          + Adicionar
+                // Comunidade
+                loadingFaces ? (
+                  <div className="col-span-full py-14 text-center text-xs text-purple-600 font-extrabold animate-pulse flex flex-col items-center gap-2">
+                    <Loader2 size={28} className="animate-spin text-purple-600" />
+                    <span>Carregando personagens da comunidade...</span>
+                  </div>
+                ) : filteredCommunityFaces.length === 0 ? (
+                  <div className="col-span-full py-12 text-center text-xs text-slate-400 font-semibold flex flex-col items-center gap-2">
+                    <Globe2 size={32} className="text-slate-300" />
+                    <span>
+                      {faceSearchQuery
+                        ? `Nenhum personagem público encontrado para "${faceSearchQuery}".`
+                        : 'Nenhuma cara pública disponível no momento.'}
+                    </span>
+                  </div>
+                ) : (
+                  filteredCommunityFaces.map((face) => {
+                    const alreadyAdded = cards.some(
+                      (c) => c.name.trim().toLowerCase() === face.name.trim().toLowerCase() || (c.imageUrl && c.imageUrl === face.image_url)
+                    );
+                    return (
+                      <button
+                        key={face.id}
+                        type="button"
+                        onClick={() => handleToggleFace(face)}
+                        className={`group relative p-2 rounded-2xl border-2 flex flex-col items-center justify-between text-center transition-all cursor-pointer ${
+                          alreadyAdded
+                            ? 'border-emerald-500 bg-emerald-50/60 ring-2 ring-emerald-300 shadow-sm'
+                            : 'border-slate-200 hover:border-purple-400 bg-white hover:bg-purple-50/40 shadow-xs'
+                        }`}
+                      >
+                        <div className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden mb-1.5 bg-slate-100 border border-slate-200">
+                          <img src={face.image_url} alt={face.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                          {alreadyAdded && (
+                            <div className="absolute inset-0 bg-emerald-950/20 backdrop-blur-[1px] flex items-center justify-center">
+                              <span className="bg-emerald-600 text-white p-1 rounded-full shadow">
+                                <Check size={14} strokeWidth={3} />
+                              </span>
+                            </div>
+                          )}
+                        </div>
+
+                        <span className="text-[11px] font-black text-slate-900 truncate w-full px-1">
+                          {face.name}
                         </span>
-                      )}
-                    </button>
-                  );
-                })
+
+                        <span className="text-[9px] text-slate-400 font-bold truncate max-w-full">
+                          {face.author_name ? `por ${face.author_name}` : 'comunidade'}
+                        </span>
+
+                        {alreadyAdded ? (
+                          <span className="text-[9px] font-extrabold text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded-md mt-0.5">
+                            ✓ No Baralho
+                          </span>
+                        ) : (
+                          <span className="text-[9px] font-bold text-purple-700 bg-purple-50 px-1.5 py-0.5 rounded-md mt-0.5 group-hover:bg-purple-100">
+                            + Adicionar
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })
+                )
               )}
             </div>
 
+            {/* Rodapé de Ações do Modal */}
             <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-3 mt-2">
-              {facePickerTab === 'my' && savedFaces.length > 0 && (
-                <button
-                  onClick={handleAddAllSavedFaces}
-                  disabled={isComplete}
-                  className="py-2.5 px-4 rounded-xl bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white font-extrabold text-xs shadow-tactile-sm transition-all active:translate-y-0.5 cursor-pointer"
-                >
-                  Adicionar Todas ao Baralho
-                </button>
-              )}
+              <div className="flex items-center gap-2">
+                {facePickerTab === 'my' && savedFaces.length > 0 && !isComplete && (
+                  <button
+                    type="button"
+                    onClick={handleAddAllSavedFaces}
+                    className="py-2 px-3.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-xs shadow-tactile-sm transition-all active:translate-y-0.5 cursor-pointer"
+                  >
+                    Adicionar Todas ({savedFaces.length})
+                  </button>
+                )}
+
+                {facePickerTab === 'community' && !isComplete && communityFaces.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => handleAddCommunityBatch(5)}
+                    className="sm:hidden py-2 px-3 rounded-xl bg-purple-100 hover:bg-purple-200 text-purple-900 font-extrabold text-xs transition-colors cursor-pointer"
+                  >
+                    +5 Aleatórias
+                  </button>
+                )}
+              </div>
+
               <button
+                type="button"
                 onClick={() => setIsFacePickerOpen(false)}
-                className="ml-auto py-2.5 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-xs transition-colors cursor-pointer"
+                className={`py-2 px-5 rounded-xl font-extrabold text-xs transition-all cursor-pointer shadow-tactile-sm active:translate-y-0.5 ${
+                  isComplete
+                    ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                    : 'bg-purple-600 hover:bg-purple-700 text-white'
+                }`}
               >
-                Concluir
+                Concluir ({cards.length}/{targetCount})
               </button>
             </div>
           </div>
