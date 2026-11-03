@@ -37,8 +37,39 @@ export const CustomDeckBuilder: FC<CustomDeckBuilderProps> = ({
   onFinishDeck,
   onCancel,
 }) => {
-  const [cards, setCards] = useState<Character[]>(() => initialDeck ? [...initialDeck.cards] : []);
-  const [deckName, setDeckName] = useState(() => initialDeck?.name || '');
+  const DRAFT_KEY = `cara_deck_draft_${currentUser?.id || 'guest'}_${targetCount}`;
+  const [restoredFromDraft, setRestoredFromDraft] = useState(false);
+
+  const [cards, setCards] = useState<Character[]>(() => {
+    if (initialDeck) return [...initialDeck.cards];
+    try {
+      const saved = localStorage.getItem(DRAFT_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed?.cards) && parsed.cards.length > 0) {
+          return parsed.cards;
+        }
+      }
+    } catch {
+      // ignore
+    }
+    return [];
+  });
+
+  const [deckName, setDeckName] = useState(() => {
+    if (initialDeck?.name) return initialDeck.name;
+    try {
+      const saved = localStorage.getItem(DRAFT_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed?.name) return parsed.name;
+      }
+    } catch {
+      // ignore
+    }
+    return '';
+  });
+
   const [saveToProfile, setSaveToProfile] = useState(false);
   const [isCropperOpen, setIsCropperOpen] = useState(false);
   const [isSavingDeck, setIsSavingDeck] = useState(false);
@@ -51,6 +82,52 @@ export const CustomDeckBuilder: FC<CustomDeckBuilderProps> = ({
   const [editingCardId, setEditingCardId] = useState<string | null>(null);
   const [editingCardName, setEditingCardName] = useState('');
   const [replacingCardId, setReplacingCardId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!initialDeck) {
+      try {
+        const saved = localStorage.getItem(DRAFT_KEY);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed?.cards) && parsed.cards.length > 0) {
+            setRestoredFromDraft(true);
+          }
+        }
+      } catch {
+        // ignore
+      }
+    }
+  }, [DRAFT_KEY, initialDeck]);
+
+  // Salva rascunho automaticamente a cada alteração (proteção contra F5 e crash)
+  useEffect(() => {
+    if (initialDeck) return;
+    if (cards.length === 0 && !deckName.trim()) {
+      localStorage.removeItem(DRAFT_KEY);
+      return;
+    }
+    try {
+      localStorage.setItem(
+        DRAFT_KEY,
+        JSON.stringify({
+          cards,
+          name: deckName,
+          targetCount,
+          updatedAt: Date.now(),
+        })
+      );
+    } catch {
+      // ignore
+    }
+  }, [cards, deckName, initialDeck, DRAFT_KEY, targetCount]);
+
+  const handleDiscardDraft = () => {
+    sounds.playClick();
+    localStorage.removeItem(DRAFT_KEY);
+    setCards([]);
+    setDeckName('');
+    setRestoredFromDraft(false);
+  };
 
   useEffect(() => {
     if (currentUser) {
@@ -231,11 +308,28 @@ export const CustomDeckBuilder: FC<CustomDeckBuilderProps> = ({
     }
 
     setIsSavingDeck(false);
+    localStorage.removeItem(DRAFT_KEY);
     onFinishDeck(cards.slice(0, targetCount), finalDeckName, isFromProfile || saveToProfile);
   };
 
   return (
     <div className="min-h-[85vh] max-w-5xl mx-auto w-full p-4 flex flex-col gap-4 animate-in fade-in duration-200">
+      {/* Banner de Rascunho Recuperado (proteção contra F5 e crash) */}
+      {restoredFromDraft && cards.length > 0 && (
+        <div className="flex items-center justify-between bg-purple-50 border border-purple-200 text-purple-900 text-xs px-4 py-2.5 rounded-2xl animate-in fade-in">
+          <span className="font-semibold flex items-center gap-1.5">
+            <span>💾</span>
+            <span>Rascunho recuperado automaticamente! Seus personagens foram preservados.</span>
+          </span>
+          <button
+            onClick={handleDiscardDraft}
+            className="text-xs font-bold text-rose-600 hover:text-rose-800 underline ml-2 cursor-pointer shrink-0"
+          >
+            Descartar rascunho
+          </button>
+        </div>
+      )}
+
       {/* Top Header */}
       <div className="bg-white border-2 border-slate-200 rounded-3xl p-5 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4">
         <div className="flex items-center gap-3">

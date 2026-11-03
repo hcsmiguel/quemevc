@@ -300,22 +300,6 @@ export function App() {
     return () => window.removeEventListener('popstate', handlePopState);
   }, [phase, currentUser]);
 
-  // Limpeza automática da sala se o usuário fechar a aba ou sair do site enquanto aguarda oponente
-  useEffect(() => {
-    const handleUnload = () => {
-      if (waitingForPlayer && roomCode) {
-        network.cleanupStorageAndRoomBeacon(roomCode);
-      }
-    };
-
-    window.addEventListener('pagehide', handleUnload);
-    window.addEventListener('beforeunload', handleUnload);
-    return () => {
-      window.removeEventListener('pagehide', handleUnload);
-      window.removeEventListener('beforeunload', handleUnload);
-    };
-  }, [waitingForPlayer, roomCode]);
-
   // PONTO 2 & ERRO 1: F5 / Atualizar Página (Restaurar Sessão e Turno com Pergunta Ativa)
   useEffect(() => {
     const restoreSession = async () => {
