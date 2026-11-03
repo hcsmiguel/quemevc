@@ -73,24 +73,24 @@ export const SecretSelectionModal: FC<SecretSelectionModalProps> = ({
 
         {/* Grade de Personagens com Scroll Suave e sem cortes */}
         <div className="flex-1 p-3.5 mb-3 rounded-2xl bg-slate-50/70 border border-slate-200/80 overflow-y-auto overflow-x-hidden" style={{ WebkitOverflowScrolling: 'touch' }}>
-          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2.5 pt-1 pb-2 px-1">
+          <div className="grid grid-cols-3 sm:grid-cols-5 gap-2.5 sm:gap-3.5 md:gap-4 pt-1 pb-2 px-1">
             {cards.map((char) => {
               const isSelected = selectedChar?.id === char.id;
               return (
                 <div
                   key={char.id}
                   onClick={() => handleSelect(char)}
-                  className={`relative p-2 rounded-2xl flex flex-col items-center cursor-pointer transition-all border-2 ${
+                  className={`relative p-2 sm:p-2.5 rounded-2xl flex flex-col items-center cursor-pointer transition-all border-2 ${
                     isSelected
                       ? 'bg-sky-50 border-sky-500 ring-2 ring-sky-400 shadow-md scale-[1.02]'
                       : 'bg-white hover:bg-slate-50 border-slate-200 hover:border-slate-300 shadow-sm'
                   } ${isReady ? 'pointer-events-none opacity-60' : ''}`}
                   style={{ touchAction: 'manipulation' }}
                 >
-                  <Avatar character={char} size={64} className="mb-1" />
-                  <span className="text-xs font-bold text-slate-800 truncate w-full text-center">{char.name}</span>
+                  <Avatar character={char} className="w-14 h-14 sm:w-20 sm:h-20 md:w-22 md:h-22 rounded-xl mb-1.5" />
+                  <span className="text-xs sm:text-sm font-black text-slate-800 truncate w-full text-center">{char.name}</span>
                   {isSelected && (
-                    <div className="absolute top-1 right-1 w-5 h-5 rounded-full bg-emerald-500 text-white flex items-center justify-center font-bold text-[11px] shadow-sm">
+                    <div className="absolute top-1.5 right-1.5 w-5 h-5 rounded-full bg-emerald-500 text-white flex items-center justify-center font-bold text-[11px] shadow-sm">
                       ✓
                     </div>
                   )}

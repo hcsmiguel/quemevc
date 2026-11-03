@@ -86,16 +86,16 @@ export const GuessModal: FC<GuessModalProps> = ({
           </div>
         ) : (
           <div className="flex-1 overflow-y-auto p-3 rounded-2xl bg-slate-50/70 border border-slate-200/80" style={{ WebkitOverflowScrolling: 'touch' }}>
-            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2.5">
+            <div className="grid grid-cols-3 sm:grid-cols-5 gap-2.5 sm:gap-3.5">
               {cards.map((char) => (
                 <div
                   key={char.id}
                   onClick={() => handleSelect(char)}
-                  className="bg-white hover:bg-slate-50 border-2 border-slate-200 hover:border-amber-500 hover:ring-2 hover:ring-amber-200 rounded-2xl p-2 flex flex-col items-center cursor-pointer transition-all active:scale-95 shadow-sm"
+                  className="bg-white hover:bg-slate-50 border-2 border-slate-200 hover:border-amber-500 hover:ring-2 hover:ring-amber-200 rounded-2xl p-2 sm:p-2.5 flex flex-col items-center cursor-pointer transition-all active:scale-95 shadow-sm"
                   style={{ touchAction: 'manipulation' }}
                 >
-                  <Avatar character={char} size={58} className="mb-1" />
-                  <span className="text-xs font-bold text-slate-800 truncate w-full text-center">{char.name}</span>
+                  <Avatar character={char} className="w-14 h-14 sm:w-18 sm:h-18 md:w-20 md:h-20 mb-1 rounded-xl" />
+                  <span className="text-xs sm:text-sm font-black text-slate-800 truncate w-full text-center">{char.name}</span>
                 </div>
               ))}
             </div>

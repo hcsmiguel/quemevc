@@ -89,15 +89,15 @@ export const CardActionModal: FC<CardActionModalProps> = ({
               <div className="flex items-center gap-1.5 mt-1">
                 {isDiscarded ? (
                   <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-rose-100 text-rose-800 border border-rose-200">
-                    <EyeOff size={11} /> Descartado / Virado
+                    <EyeOff size={11} /> Descarte
                   </span>
                 ) : isSuspect ? (
                   <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-amber-100 text-amber-900 border border-amber-300">
-                    <HelpCircle size={11} /> Marcado como Suspeito
+                    <HelpCircle size={11} /> Suspeito
                   </span>
                 ) : (
                   <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-emerald-100 text-emerald-800 border border-emerald-200">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Ativo no Tabuleiro
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Normal
                   </span>
                 )}
               </div>
@@ -112,13 +112,13 @@ export const CardActionModal: FC<CardActionModalProps> = ({
           </button>
         </div>
 
-        {/* Botões Principais Requisitados: "Suspeito" e "Descarte" */}
+        {/* Botões Principais: "Suspeito" e "Descarte", apenas! */}
         <div className="grid grid-cols-2 gap-3 pt-1">
           {/* Botão Suspeito */}
           <button
             type="button"
             onClick={handleToggleSuspect}
-            className={`flex flex-col items-center justify-center gap-1.5 py-3.5 px-3 rounded-2xl font-black text-sm uppercase tracking-wider transition-all border-2 active:scale-95 shadow-sm cursor-pointer ${
+            className={`flex flex-col items-center justify-center gap-2 py-4 px-3 rounded-2xl font-black text-sm uppercase tracking-wider transition-all border-2 active:scale-95 shadow-sm cursor-pointer ${
               isSuspect
                 ? 'bg-amber-100 text-amber-950 border-amber-400 ring-2 ring-amber-300 shadow-amber-100'
                 : 'bg-amber-50 hover:bg-amber-100 text-amber-900 border-amber-200'
@@ -128,16 +128,13 @@ export const CardActionModal: FC<CardActionModalProps> = ({
               <HelpCircle size={22} />
             </div>
             <span>Suspeito</span>
-            <span className="text-[10px] font-bold text-amber-700 lowercase">
-              {isSuspect ? '(desmarcar ?)' : '(marcar ?)'}
-            </span>
           </button>
 
           {/* Botão Descarte */}
           <button
             type="button"
             onClick={handleToggleDiscard}
-            className={`flex flex-col items-center justify-center gap-1.5 py-3.5 px-3 rounded-2xl font-black text-sm uppercase tracking-wider transition-all border-2 active:scale-95 shadow-sm cursor-pointer ${
+            className={`flex flex-col items-center justify-center gap-2 py-4 px-3 rounded-2xl font-black text-sm uppercase tracking-wider transition-all border-2 active:scale-95 shadow-sm cursor-pointer ${
               isDiscarded
                 ? 'bg-rose-100 text-rose-950 border-rose-400 ring-2 ring-rose-300 shadow-rose-100'
                 : 'bg-rose-50 hover:bg-rose-100 text-rose-900 border-rose-200'
@@ -147,9 +144,6 @@ export const CardActionModal: FC<CardActionModalProps> = ({
               <EyeOff size={22} />
             </div>
             <span>Descarte</span>
-            <span className="text-[10px] font-bold text-rose-700 lowercase">
-              {isDiscarded ? '(desvirar)' : '(virar carta)'}
-            </span>
           </button>
         </div>
 

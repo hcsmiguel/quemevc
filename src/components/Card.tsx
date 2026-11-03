@@ -29,19 +29,19 @@ const CardComponent: FC<CardProps> = ({
       onClick={handleClick}
       role="button"
       tabIndex={0}
-      className={`relative select-none transition-transform duration-150 rounded-2xl border-2 p-1.5 sm:p-2 flex flex-col items-center justify-between cursor-pointer active:scale-95 ${
+      className={`relative select-none transition-all duration-150 rounded-2xl border-2 p-1.5 sm:p-2.5 md:p-3 flex flex-col items-center justify-between cursor-pointer active:scale-95 min-h-[120px] sm:min-h-[165px] md:min-h-[195px] lg:min-h-[220px] ${
         isDiscarded
           ? 'bg-slate-100/80 border-slate-200 opacity-40 scale-[0.93]'
           : isSuspect
-          ? 'bg-amber-50 border-amber-400 shadow-[0_2px_0_#f59e0b]'
-          : 'bg-white border-slate-200 hover:border-sky-400 shadow-[0_2px_0_#cbd5e1]'
+          ? 'bg-amber-50 border-amber-400 shadow-[0_3px_0_#f59e0b]'
+          : 'bg-white border-slate-200 hover:border-sky-400 shadow-[0_3px_0_#cbd5e1]'
       } ${disabled ? 'cursor-not-allowed opacity-80' : ''}`}
-      style={{ minHeight: '118px', touchAction: 'manipulation' }}
+      style={{ touchAction: 'manipulation' }}
     >
       {/* Cabeçalho da Cartela */}
-      <div className="w-full flex items-center justify-between px-0.5 mb-0.5">
+      <div className="w-full flex items-center justify-between px-0.5 mb-1">
         <span
-          className={`text-[11px] sm:text-xs font-bold tracking-tight truncate max-w-[70px] sm:max-w-[85px] ${
+          className={`text-[11px] sm:text-xs md:text-sm lg:text-base font-black tracking-tight truncate max-w-[80px] sm:max-w-[110px] md:max-w-[130px] ${
             isSuspect ? 'text-amber-900' : 'text-slate-800'
           }`}
         >
@@ -50,26 +50,25 @@ const CardComponent: FC<CardProps> = ({
 
         {/* Indicador de Status */}
         {isDiscarded && (
-          <span className="bg-rose-100 text-rose-700 p-0.5 rounded-full border border-rose-300">
-            <EyeOff size={10} />
+          <span className="bg-rose-100 text-rose-700 p-0.5 sm:p-1 rounded-full border border-rose-300">
+            <EyeOff size={12} />
           </span>
         )}
         {isSuspect && (
-          <span className="bg-amber-200 text-amber-900 px-1 py-0.2 rounded-full border border-amber-400 font-black text-[9px]">
+          <span className="bg-amber-200 text-amber-900 px-1.5 py-0.2 rounded-full border border-amber-400 font-black text-[9px] sm:text-xs">
             ?
           </span>
         )}
         {!isDiscarded && !isSuspect && (
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+          <span className="w-2 h-2 rounded-full bg-emerald-500" />
         )}
       </div>
 
       {/* Avatar Central com Efeitos */}
-      <div className="relative my-0.5 flex items-center justify-center">
+      <div className="relative my-0.5 sm:my-1 flex items-center justify-center">
         <Avatar
           character={character}
-          size={58}
-          className={`transition-all duration-200 ${
+          className={`w-14 h-14 sm:w-20 sm:h-20 md:w-24 md:h-24 lg:w-28 lg:h-28 rounded-xl sm:rounded-2xl transition-all duration-200 ${
             isDiscarded ? 'grayscale' : isSuspect ? 'grayscale-[40%] brightness-95' : ''
           }`}
         />
@@ -77,7 +76,7 @@ const CardComponent: FC<CardProps> = ({
         {/* Efeito Suspeito: Interrogação Translúcida */}
         {isSuspect && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <span className="text-amber-600/70 font-black text-5xl sm:text-6xl drop-shadow select-none">
+            <span className="text-amber-600/70 font-black text-5xl sm:text-7xl drop-shadow select-none">
               ?
             </span>
           </div>
@@ -85,20 +84,12 @@ const CardComponent: FC<CardProps> = ({
 
         {/* Efeito Descarte: Overlay de Eliminado */}
         {isDiscarded && (
-          <div className="absolute inset-0 bg-slate-900/40 rounded-2xl flex items-center justify-center">
-            <span className="bg-rose-600 text-white font-black text-[8px] sm:text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded-full shadow">
+          <div className="absolute inset-0 bg-slate-900/40 rounded-xl sm:rounded-2xl flex items-center justify-center">
+            <span className="bg-rose-600 text-white font-black text-[8px] sm:text-[10px] md:text-xs uppercase tracking-wider px-2 py-0.5 rounded-full shadow">
               Descarte
             </span>
           </div>
         )}
-      </div>
-
-      {/* Rodapé da Cartela */}
-      <div className="w-full flex items-center justify-center gap-1 text-[9px] sm:text-[10px] text-slate-400 font-medium">
-        {character.traits?.glasses && <span title="Usa óculos">👓</span>}
-        {character.traits?.hat && <span title="Usa chapéu/boné">🧢</span>}
-        {character.traits?.beard && <span title="Tem barba">🧔</span>}
-        {character.traits?.earrings && <span title="Usa brinco">💍</span>}
       </div>
     </div>
   );

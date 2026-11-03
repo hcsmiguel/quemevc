@@ -1348,7 +1348,7 @@ export function App() {
 
               <div className="bg-slate-100/70 border-2 border-slate-200 rounded-2xl sm:rounded-3xl p-2 sm:p-5 shadow-sm">
                 <div
-                  className={`grid gap-1.5 sm:gap-2.5 cards-board-grid ${
+                  className={`grid gap-2 sm:gap-3 md:gap-4 cards-board-grid ${
                     activeDeck.length <= 15
                       ? 'grid-cols-3 sm:grid-cols-5'
                       : activeDeck.length <= 30

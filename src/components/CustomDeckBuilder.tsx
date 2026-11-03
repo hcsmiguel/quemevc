@@ -506,9 +506,9 @@ export const CustomDeckBuilder: FC<CustomDeckBuilderProps> = ({
           {cards.map((char, index) => (
             <div
               key={char.id || index}
-              className="relative group bg-white border-2 border-slate-200 rounded-2xl p-2.5 flex flex-col items-center justify-between shadow-sm hover:border-sky-400 hover:shadow-md transition-all min-h-[160px]"
+              className="relative group bg-white border-2 border-slate-200 rounded-2xl p-2.5 flex flex-col items-center justify-between shadow-sm hover:border-sky-400 hover:shadow-md transition-all min-h-[160px] sm:min-h-[180px] md:min-h-[195px]"
             >
-              <Avatar character={char} size={76} className="my-1 ring-1 ring-slate-100" />
+              <Avatar character={char} className="w-18 h-18 sm:w-22 sm:h-22 md:w-24 md:h-24 my-1 ring-1 ring-slate-100 rounded-2xl" />
 
               {/* Nome ou Campo de Edição de Nome */}
               {editingCardId === char.id ? (

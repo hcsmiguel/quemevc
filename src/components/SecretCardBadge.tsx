@@ -20,9 +20,9 @@ export const SecretCardBadge: FC<SecretCardBadgeProps> = ({ character }) => {
     <div className="bg-white border-2 border-slate-200 rounded-2xl p-2 sm:p-2.5 shadow-sm flex items-center gap-2.5 sm:gap-3">
       <div className="relative shrink-0">
         {showSecret ? (
-          <Avatar character={character} size={44} className="ring-2 ring-sky-300 rounded-xl" />
+          <Avatar character={character} className="w-11 h-11 sm:w-13 sm:h-13 ring-2 ring-sky-300 rounded-xl" />
         ) : (
-          <div className="w-11 h-11 rounded-xl bg-slate-100 border border-slate-200 flex flex-col items-center justify-center text-slate-400">
+          <div className="w-11 h-11 sm:w-13 sm:h-13 rounded-xl bg-slate-100 border border-slate-200 flex flex-col items-center justify-center text-slate-400">
             <Shield size={16} className="text-sky-600 mb-0.5" />
             <span className="text-[8px] font-extrabold">SECRETO</span>
           </div>

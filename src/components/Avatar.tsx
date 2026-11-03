@@ -7,15 +7,17 @@ interface AvatarProps {
   className?: string;
 }
 
-const AvatarComponent: FC<AvatarProps> = ({ character, size = 120, className = '' }) => {
-  // Se for uma foto personalizada carregada pelo usuário:
+const AvatarComponent: FC<AvatarProps> = ({ character, size, className = '' }) => {
+  const hasFixedSize = typeof size === 'number';
+  const sizeStyle = hasFixedSize ? { width: size, height: size } : {};
+
+  // Se for uma foto (como as 15 fotos padrão oficiais ou fotos enviadas pelo usuário):
   if (character.imageUrl) {
     return (
       <div
-        className={`relative rounded-2xl overflow-hidden flex items-center justify-center select-none bg-slate-900 border border-slate-700/80 ${className}`}
+        className={`relative rounded-2xl overflow-hidden flex items-center justify-center select-none bg-slate-900 border border-slate-700/80 shrink-0 ${className}`}
         style={{
-          width: size,
-          height: size,
+          ...sizeStyle,
           boxShadow: 'inset 0 2px 4px rgba(255,255,255,0.1), 0 4px 6px -1px rgba(0,0,0,0.3)',
         }}
       >
@@ -51,18 +53,15 @@ const AvatarComponent: FC<AvatarProps> = ({ character, size = 120, className = '
 
   return (
     <div 
-      className={`relative rounded-2xl overflow-hidden flex items-center justify-center select-none ${className}`}
+      className={`relative rounded-2xl overflow-hidden flex items-center justify-center select-none shrink-0 ${className}`}
       style={{ 
-        width: size, 
-        height: size, 
+        ...sizeStyle,
         backgroundColor: avatarBg,
         boxShadow: 'inset 0 2px 4px rgba(255,255,255,0.2), 0 4px 6px -1px rgba(0,0,0,0.2)' 
       }}
     >
       <svg
         viewBox="0 0 200 200"
-        width={size}
-        height={size}
         className="w-full h-full"
       >
         <defs>

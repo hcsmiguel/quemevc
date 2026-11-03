@@ -375,24 +375,24 @@ export const ProfilePage: FC<ProfilePageProps> = ({
                       </button>
                     </div>
 
-                    {/* Mini-preview das Caras do Baralho */}
+                    {/* Mini-preview das Caras do Baralho (Ampliado no Computador) */}
                     <div className="flex items-center -space-x-2 my-4 overflow-hidden py-1">
                       {deck.cards.slice(0, 6).map((c, i) => (
                         <div
                           key={c.id || i}
-                          className="w-9 h-9 rounded-full border-2 border-white shadow-sm overflow-hidden bg-slate-100 shrink-0"
+                          className="w-11 h-11 sm:w-13 sm:h-13 rounded-2xl border-2 border-white shadow-sm overflow-hidden bg-slate-100 shrink-0"
                         >
                           {c.imageUrl ? (
                             <img src={c.imageUrl} alt={c.name} className="w-full h-full object-cover" />
                           ) : (
-                            <div className="w-full h-full flex items-center justify-center text-[10px] font-bold bg-amber-200 text-amber-900">
+                            <div className="w-full h-full flex items-center justify-center text-xs font-bold bg-amber-200 text-amber-900">
                               {c.name.charAt(0)}
                             </div>
                           )}
                         </div>
                       ))}
                       {deck.cards.length > 6 && (
-                        <div className="w-9 h-9 rounded-full border-2 border-white shadow-sm bg-slate-200 flex items-center justify-center text-[10px] font-black text-slate-700 shrink-0">
+                        <div className="w-11 h-11 sm:w-13 sm:h-13 rounded-2xl border-2 border-white shadow-sm bg-slate-200 flex items-center justify-center text-xs font-black text-slate-700 shrink-0">
                           +{deck.cards.length - 6}
                         </div>
                       )}
@@ -487,28 +487,28 @@ export const ProfilePage: FC<ProfilePageProps> = ({
               </button>
             </div>
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3.5 sm:gap-4 md:gap-5">
               {savedFaces.map((face) => (
                 <div
                   key={face.id}
-                  className="bg-white border-2 border-slate-200 rounded-2xl p-2 shadow-sm hover:border-amber-400 transition-all flex flex-col items-center text-center group relative"
+                  className="bg-white border-2 border-slate-200 rounded-3xl p-3 shadow-sm hover:border-amber-400 hover:shadow-md transition-all flex flex-col items-center text-center group relative"
                 >
-                  <div className="w-20 h-20 rounded-xl overflow-hidden mb-2 bg-slate-100 border border-slate-200">
+                  <div className="w-24 h-24 sm:w-28 sm:h-28 md:w-32 md:h-32 rounded-2xl overflow-hidden mb-2 bg-slate-100 border border-slate-200 shadow-inner">
                     <img
                       src={face.image_url}
                       alt={face.name}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform"
                     />
                   </div>
-                  <span className="font-extrabold text-xs text-slate-900 truncate w-full px-1 mb-1">
+                  <span className="font-black text-xs sm:text-sm text-slate-900 truncate w-full px-1 mb-1.5">
                     {face.name}
                   </span>
                   <button
                     onClick={() => handleDeleteFace(face.id)}
                     title="Excluir cara"
-                    className="p-1 rounded-lg bg-slate-100 hover:bg-rose-50 text-slate-400 hover:text-rose-600 transition-colors"
+                    className="p-1.5 rounded-xl bg-slate-100 hover:bg-rose-50 text-slate-400 hover:text-rose-600 transition-colors cursor-pointer"
                   >
-                    <Trash2 size={12} />
+                    <Trash2 size={13} />
                   </button>
                 </div>
               ))}
