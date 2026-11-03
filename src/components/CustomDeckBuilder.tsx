@@ -15,6 +15,7 @@ import {
   X,
   Edit2,
   Camera,
+  Layers,
 } from 'lucide-react';
 import { sounds } from '../utils/sound';
 
@@ -269,8 +270,7 @@ export const CustomDeckBuilder: FC<CustomDeckBuilderProps> = ({
     setEditingCardId(null);
   };
 
-  const requiresTitle = isFromProfile || saveToProfile;
-  const isTitleMissing = requiresTitle && !deckName.trim();
+  const isTitleMissing = !deckName.trim();
   const isComplete = cards.length >= targetCount;
   const isFormValid = isComplete && !isTitleMissing;
 
@@ -341,8 +341,8 @@ export const CustomDeckBuilder: FC<CustomDeckBuilderProps> = ({
           </button>
           <div>
             <h2 className="text-xl font-extrabold text-slate-900 flex items-center gap-2">
-              <span className="w-8 h-8 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center text-sm shadow-tactile-sm">
-                🎨
+              <span className="w-8 h-8 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center shadow-tactile-sm">
+                <Layers size={18} />
               </span>
               <span>{initialDeck ? 'Editar Baralho Personalizado' : 'Criar Baralho de Caras'}</span>
             </h2>
@@ -383,17 +383,10 @@ export const CustomDeckBuilder: FC<CustomDeckBuilderProps> = ({
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div>
             <label className="block text-xs font-black text-slate-800 uppercase tracking-wider">
-              Nome do Baralho:
-              {requiresTitle ? (
-                <span className="text-rose-500 font-extrabold ml-1.5">* (Obrigatório)</span>
-              ) : (
-                <span className="text-slate-400 font-medium ml-1.5">(Opcional)</span>
-              )}
+              Nome do Baralho
             </label>
             <p className="text-[11px] text-slate-500 mt-0.5">
-              {requiresTitle
-                ? 'Defina um título para salvar e identificar este baralho no seu perfil.'
-                : 'Sem título, o baralho será utilizado apenas nesta partida sem salvar no perfil.'}
+              Defina um título para salvar e identificar este baralho no seu perfil.
             </p>
           </div>
 
@@ -422,24 +415,11 @@ export const CustomDeckBuilder: FC<CustomDeckBuilderProps> = ({
 
         <input
           type="text"
-          placeholder={
-            requiresTitle
-              ? 'Ex: Amigos da Faculdade, Família, Personagens...'
-              : 'Ex: Baralho para esta partida (opcional)...'
-          }
+          placeholder="Ex: Amigos da Faculdade, Família, Personagens..."
           value={deckName}
           onChange={(e) => setDeckName(e.target.value)}
-          className={`w-full bg-slate-50 border-2 text-slate-900 placeholder-slate-400 text-sm font-semibold rounded-2xl px-4 py-2.5 focus:outline-none focus:bg-white transition-all ${
-            isTitleMissing
-              ? 'border-amber-300 focus:border-amber-500 focus:ring-4 focus:ring-amber-100'
-              : 'border-slate-200 focus:border-sky-400 focus:ring-4 focus:ring-sky-100'
-          }`}
+          className="w-full bg-slate-50 border-2 border-slate-200 text-slate-900 placeholder-slate-400 text-sm font-semibold rounded-2xl px-4 py-2.5 focus:outline-none focus:bg-white focus:border-sky-400 transition-all"
         />
-        {isTitleMissing && (
-          <p className="text-[11px] text-amber-700 font-bold animate-in fade-in">
-            ⚠️ O título é obrigatório quando a opção de salvar no perfil estiver ativada.
-          </p>
-        )}
       </div>
 
       {/* Barra de Ações Rápidas (Minhas Caras / Aleatório) */}

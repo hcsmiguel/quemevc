@@ -34,7 +34,7 @@ import { OpponentLeftModal } from './components/OpponentLeftModal';
 import { PasswordPromptModal } from './components/PasswordPromptModal';
 import { Footer } from './components/Footer';
 import { LegalModal, type LegalTab } from './components/LegalModal';
-import { Volume2, VolumeX, User as UserIcon, LogOut, AlertTriangle, Trophy, RotateCcw, History } from 'lucide-react';
+import { Volume2, VolumeX, User as UserIcon, LogOut, AlertTriangle, Trophy, RotateCcw, History, Clock } from 'lucide-react';
 import type { SavedDeck } from './services/auth';
 
 export function App() {
@@ -212,6 +212,33 @@ export function App() {
   const turnStartTimeRef = useRef<number>(Date.now());
   turnStartTimeRef.current = turnStartTime;
   const [turnTimeLeft, setTurnTimeLeft] = useState<number>(TURN_DURATION_SECONDS);
+
+  // PONTO 1.b: Sincronização fluida do Timer no Cabeçalho ao rolar a tela
+  const [isQuestionControlVisible, setIsQuestionControlVisible] = useState(true);
+  const questionControlAnchorRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (phase !== 'PLAYING') {
+      setIsQuestionControlVisible(true);
+      return;
+    }
+
+    const target = questionControlAnchorRef.current;
+    if (!target) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setIsQuestionControlVisible(entry.isIntersecting);
+      },
+      {
+        root: null,
+        threshold: 0.05,
+      }
+    );
+
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [phase]);
 
   const toggleSound = () => {
     sounds.enabled = !soundEnabled;
@@ -398,6 +425,99 @@ export function App() {
     questionHistory,
     waitingForPlayer,
   ]);
+
+  // PONTO 1.c: Tolerância de 1 minuto ao fechar janela/sair da tela com reconexão no perfil
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      if ((phase === 'PLAYING' || phase === 'CHOOSING_SECRET') && roomCode) {
+        const sessionData = {
+          roomCode,
+          playerName,
+          opponentName,
+          opponentId,
+          isHost,
+          phase,
+          mySecretCharacter,
+          opponentSecretCharacter,
+          activeDeck,
+          cardStatuses,
+          currentTurnPlayerId,
+          currentQuestion,
+          questionHistory,
+          disconnectedAt: Date.now(),
+          expiresAt: Date.now() + 60000,
+        };
+        localStorage.setItem('cara_reconnect_session', JSON.stringify(sessionData));
+        network.markPlayerDisconnected(roomCode, network.playerId);
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener('pagehide', handleBeforeUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      window.removeEventListener('pagehide', handleBeforeUnload);
+    };
+  }, [
+    phase,
+    roomCode,
+    playerName,
+    opponentName,
+    opponentId,
+    isHost,
+    mySecretCharacter,
+    opponentSecretCharacter,
+    activeDeck,
+    cardStatuses,
+    currentTurnPlayerId,
+    currentQuestion,
+    questionHistory,
+  ]);
+
+  const handleReconnectMatch = async (session: any) => {
+    if (!session || !session.roomCode) return;
+    try {
+      setIsConnecting(true);
+      await network.clearPlayerDisconnected(session.roomCode);
+
+      const room = await network.reconnectRoom(
+        session.roomCode,
+        session.playerName,
+        session.isHost
+      );
+
+      if (room && room.status !== 'finished') {
+        setRoomCode(session.roomCode);
+        setPlayerName(session.playerName);
+        setOpponentName(session.opponentName || 'Oponente');
+        setOpponentId(session.opponentId || '');
+        setIsHost(session.isHost);
+        if (session.activeDeck?.length) setActiveDeck(session.activeDeck);
+        if (session.cardStatuses) setCardStatuses(session.cardStatuses);
+        if (session.mySecretCharacter) setMySecretCharacter(session.mySecretCharacter);
+        if (session.opponentSecretCharacter) setOpponentSecretCharacter(session.opponentSecretCharacter);
+
+        const activeTurn = room.current_turn || session.currentTurnPlayerId || '';
+        setCurrentTurnPlayerId(activeTurn);
+        const activeQuestion = room.current_question || session.currentQuestion || null;
+        setCurrentQuestion(activeQuestion);
+        if (session.questionHistory) setQuestionHistory(session.questionHistory);
+
+        setPhase(session.phase || 'PLAYING');
+        localStorage.removeItem('cara_reconnect_session');
+        sounds.playWin();
+      } else {
+        localStorage.removeItem('cara_reconnect_session');
+        localStorage.removeItem('cara_active_session');
+        sounds.playWrong();
+      }
+    } catch (err) {
+      console.warn('Erro ao reconectar à partida:', err);
+      sounds.playWrong();
+    } finally {
+      setIsConnecting(false);
+    }
+  };
 
   // 1. Criar ou Entrar na Sala
   const handleJoinRoom = async (
@@ -1073,33 +1193,62 @@ export function App() {
           </div>
 
           <div className="flex items-center gap-2">
-            {/* Header da partida com ícones ao lado dos nomes (Encaixe Perfeito no Celular) */}
+            {/* Header da partida com ícones ao lado dos nomes e timer dinâmico no scroll */}
             {phase === 'PLAYING' && (
-              <div className="flex items-center gap-1.5 sm:gap-2 bg-slate-100/90 px-2 sm:px-3 py-1 sm:py-1.5 rounded-xl border border-slate-200 text-xs font-bold shadow-sm max-w-[200px] sm:max-w-none">
-                {/* Jogador Atual */}
-                <div className="flex items-center gap-1 min-w-0">
-                  {currentUser?.avatarUrl ? (
-                    <img
-                      src={currentUser.avatarUrl}
-                      alt={playerName}
-                      className="w-4 h-4 sm:w-5 sm:h-5 rounded-full object-cover ring-1 ring-sky-500 shadow-sm shrink-0"
-                    />
-                  ) : (
-                    <div className="w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-sky-100 text-sky-700 flex items-center justify-center text-[9px] font-black border border-sky-300 shrink-0">
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                <div className="flex items-center gap-1.5 sm:gap-2 bg-slate-100/90 px-2 sm:px-3 py-1 sm:py-1.5 rounded-xl border border-slate-200 text-xs font-bold shadow-sm max-w-[200px] sm:max-w-none">
+                  {/* Jogador Atual */}
+                  <div className="flex items-center gap-1 min-w-0">
+                    {currentUser?.avatarUrl ? (
+                      <img
+                        src={currentUser.avatarUrl}
+                        alt={playerName}
+                        className="w-4 h-4 sm:w-5 sm:h-5 rounded-full object-cover ring-1 ring-sky-500 shadow-sm shrink-0"
+                      />
+                    ) : (
+                      <div className="w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-sky-100 text-sky-700 flex items-center justify-center text-[9px] font-black border border-sky-300 shrink-0">
+                        <UserIcon size={10} />
+                      </div>
+                    )}
+                    <span className="text-slate-800 font-extrabold truncate max-w-[50px] sm:max-w-[90px]">{playerName}</span>
+                  </div>
+
+                  <span className="text-slate-400 text-[9px] sm:text-[10px] font-black uppercase tracking-wider shrink-0">vs</span>
+
+                  {/* Oponente */}
+                  <div className="flex items-center gap-1 min-w-0">
+                    <div className="w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-rose-100 text-rose-700 flex items-center justify-center text-[9px] font-black border border-rose-300 shrink-0">
                       <UserIcon size={10} />
                     </div>
-                  )}
-                  <span className="text-slate-800 font-extrabold truncate max-w-[50px] sm:max-w-[90px]">{playerName}</span>
+                    <span className="text-rose-600 font-black truncate max-w-[50px] sm:max-w-[90px]">{opponentName}</span>
+                  </div>
                 </div>
 
-                <span className="text-slate-400 text-[9px] sm:text-[10px] font-black uppercase tracking-wider shrink-0">vs</span>
-
-                {/* Oponente */}
-                <div className="flex items-center gap-1 min-w-0">
-                  <div className="w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-rose-100 text-rose-700 flex items-center justify-center text-[9px] font-black border border-rose-300 shrink-0">
-                    <UserIcon size={10} />
-                  </div>
-                  <span className="text-rose-600 font-black truncate max-w-[50px] sm:max-w-[90px]">{opponentName}</span>
+                {/* PONTO 1.b: Timer Fluido que aparece no cabeçalho quando o painel de turno sai da visão */}
+                <div
+                  onClick={() => {
+                    questionControlAnchorRef.current?.scrollIntoView({ behavior: 'smooth' });
+                  }}
+                  title="Clique para rolar até o controle da sua jogada"
+                  className={`flex items-center gap-1.5 px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-xl text-xs font-black transition-all duration-300 ease-out cursor-pointer select-none ${
+                    !isQuestionControlVisible
+                      ? 'opacity-100 translate-y-0 scale-100 shadow-sm'
+                      : 'opacity-0 -translate-y-2 scale-90 pointer-events-none max-w-0 px-0 overflow-hidden border-0'
+                  } ${
+                    turnTimeLeft <= 10
+                      ? 'bg-rose-50 text-rose-600 border border-rose-300 animate-pulse'
+                      : isMyTurn
+                      ? 'bg-emerald-50 text-emerald-800 border border-emerald-300'
+                      : 'bg-purple-50 text-purple-800 border border-purple-300'
+                  }`}
+                >
+                  <Clock size={12} className={`shrink-0 ${turnTimeLeft <= 10 ? 'animate-spin' : ''}`} />
+                  <span className="font-mono tabular-nums text-xs">
+                    0:{turnTimeLeft.toString().padStart(2, '0')}
+                  </span>
+                  <span className="hidden sm:inline text-[10px] uppercase tracking-wider opacity-80">
+                    {isMyTurn ? 'Seu Turno' : 'Adversário'}
+                  </span>
                 </div>
               </div>
             )}
@@ -1292,6 +1441,7 @@ export function App() {
               setDeckTargetCount(30);
               setIsBuildingDeck(true);
             }}
+            onReconnectMatch={handleReconnectMatch}
           />
         )}
 
@@ -1380,23 +1530,25 @@ export function App() {
             </div>
 
             {/* Painel de Perguntas / Turno Otimizado para Mobile */}
-            <QuestionControl
-              isMyTurn={isMyTurn}
-              opponentName={opponentName}
-              currentQuestion={currentQuestion}
-              timeLeft={turnTimeLeft}
-              totalTime={TURN_DURATION_SECONDS}
-              isCallMode={roomConfig.isCallMode}
-              onAskQuestion={handleAskQuestion}
-              onPassTurn={handlePassTurn}
-              onOpenGuessModal={() => {
-                if (isMyTurn) {
-                  setGuessModalOpen(true);
-                } else {
-                  sounds.playWrong();
-                }
-              }}
-            />
+            <div ref={questionControlAnchorRef}>
+              <QuestionControl
+                isMyTurn={isMyTurn}
+                opponentName={opponentName}
+                currentQuestion={currentQuestion}
+                timeLeft={turnTimeLeft}
+                totalTime={TURN_DURATION_SECONDS}
+                isCallMode={roomConfig.isCallMode}
+                onAskQuestion={handleAskQuestion}
+                onPassTurn={handlePassTurn}
+                onOpenGuessModal={() => {
+                  if (isMyTurn) {
+                    setGuessModalOpen(true);
+                  } else {
+                    sounds.playWrong();
+                  }
+                }}
+              />
+            </div>
 
             {/* Tabuleiro Expandido Horizontalmente (Mais Cartas por Linha) */}
             <div className="bg-slate-100/70 border-2 border-slate-200 rounded-2xl sm:rounded-3xl p-2 sm:p-5 shadow-sm">

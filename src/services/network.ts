@@ -307,6 +307,42 @@ export class NetworkService {
         .maybeSingle();
 
       if (room) {
+        // Encerramento da partida detectado
+        if (room.status === 'finished') {
+          this.messageListeners.forEach((fn) =>
+            fn({
+              type: 'ABANDON_GAME',
+              senderId: 'system',
+              senderName: (this.isHost ? room.guest_name : room.host_name) || 'Oponente',
+              payload: { reason: 'timeout' },
+              timestamp: Date.now(),
+            })
+          );
+          return;
+        }
+
+        // Tolerância de 1 minuto para reconexão: encerrar se o prazo expirar
+        if (
+          room.disconnect_expires_at &&
+          room.disconnected_player_id &&
+          room.disconnected_player_id !== this.playerId
+        ) {
+          const expiresTime = new Date(room.disconnect_expires_at).getTime();
+          if (Date.now() > expiresTime) {
+            this.finishRoom(this.roomCode);
+            this.messageListeners.forEach((fn) =>
+              fn({
+                type: 'ABANDON_GAME',
+                senderId: 'system',
+                senderName: (this.isHost ? room.guest_name : room.host_name) || 'Oponente',
+                payload: { reason: 'timeout' },
+                timestamp: Date.now(),
+              })
+            );
+            return;
+          }
+        }
+
         // Dispara JOIN para o Host se o convidado acabou de entrar
         if (this.isHost && room.guest_id) {
           this.opponentId = room.guest_id;
@@ -425,6 +461,66 @@ export class NetworkService {
         }),
         keepalive: true,
       });
+    } catch {
+      // ignore
+    }
+  }
+
+  // Sinaliza desconexão temporária com tolerância de 1 minuto
+  public markPlayerDisconnected(roomCode: string, playerId: string) {
+    if (!roomCode || !playerId) return;
+    try {
+      const url = `https://ddfefbwauuhqxqufhwwr.supabase.co/rest/v1/game_rooms?room_code=eq.${roomCode}`;
+      const key = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRkZmVmYndhdXVocXhxdWZod3dyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM1ODMxNjgsImV4cCI6MjEwOTE1OTE2OH0.l1eh6jmMsi1fTiqy7h28fjkgl0SJLegELUoNmk0dRPE';
+      const expiresAt = new Date(Date.now() + 60000).toISOString();
+      fetch(url, {
+        method: 'PATCH',
+        headers: {
+          'apikey': key,
+          'Authorization': `Bearer ${key}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=minimal',
+        },
+        body: JSON.stringify({
+          disconnected_player_id: playerId,
+          disconnect_expires_at: expiresAt,
+          updated_at: new Date().toISOString(),
+        }),
+        keepalive: true,
+      });
+    } catch {
+      // ignore
+    }
+  }
+
+  // Limpa o estado de desconexão quando o jogador retorna dentro de 1 minuto
+  public async clearPlayerDisconnected(roomCode: string) {
+    if (!roomCode) return;
+    try {
+      await supabase
+        .from('game_rooms')
+        .update({
+          disconnected_player_id: null,
+          disconnect_expires_at: null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('room_code', roomCode);
+    } catch {
+      // ignore
+    }
+  }
+
+  // Encerra oficialmente a partida no Supabase
+  public async finishRoom(roomCode: string) {
+    if (!roomCode) return;
+    try {
+      await supabase
+        .from('game_rooms')
+        .update({
+          status: 'finished',
+          updated_at: new Date().toISOString(),
+        })
+        .eq('room_code', roomCode);
     } catch {
       // ignore
     }

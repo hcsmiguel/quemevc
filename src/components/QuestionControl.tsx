@@ -97,8 +97,11 @@ export const QuestionControl: FC<QuestionControlProps> = ({
             <Headphones size={18} />
           </div>
           <div className="min-w-0">
-            <div className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+            <div className="flex items-center gap-2">
+              <span className="relative flex h-2.5 w-2.5 shrink-0 ml-0.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
+              </span>
               <span className="text-[10px] font-black text-purple-900 uppercase tracking-wider">
                 Seu Turno • Modo Call (Voz)
               </span>
@@ -269,8 +272,11 @@ export const QuestionControl: FC<QuestionControlProps> = ({
     <div className="bg-white border-2 border-slate-200 rounded-2xl p-2.5 sm:p-3.5 shadow-sm flex flex-col gap-2.5">
       <div className="flex items-center justify-between gap-2">
         <div className="min-w-0">
-          <div className="flex items-center gap-1.5 text-xs sm:text-sm font-extrabold text-slate-900 truncate">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping shrink-0" />
+          <div className="flex items-center gap-2 text-xs sm:text-sm font-extrabold text-slate-900 truncate">
+            <span className="relative flex h-2.5 w-2.5 shrink-0 ml-0.5">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
+            </span>
             <span className="truncate">É a sua vez de fazer uma pergunta para <strong className="text-sky-700">{opponentName}</strong>!</span>
           </div>
           <div className="text-[10px] sm:text-[11px] text-slate-500 font-medium">

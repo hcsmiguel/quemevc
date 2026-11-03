@@ -31,3 +31,16 @@ button, a, input, select, [role="button"] {
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
 }
+
+/* Previne zoom automático do iOS Safari ao focar em campos de texto no mobile */
+@media screen and (max-width: 768px) {
+  input[type="text"],
+  input[type="number"],
+  input[type="email"],
+  input[type="password"],
+  input[type="search"],
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}

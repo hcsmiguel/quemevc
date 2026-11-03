@@ -22,8 +22,10 @@ import {
   KeyRound,
   LogOut,
   AlertTriangle,
+  RotateCcw,
 } from 'lucide-react';
 import { sounds } from '../utils/sound';
+import { network } from '../services/network';
 import { ImageCropperModal } from './ImageCropperModal';
 
 interface ProfilePageProps {
@@ -32,6 +34,7 @@ interface ProfilePageProps {
   onPlayDeck: (deck: SavedDeck) => void;
   onEditDeck: (deck: SavedDeck) => void;
   onCreateNewDeck: () => void;
+  onReconnectMatch?: (session: any) => void;
 }
 
 export const ProfilePage: FC<ProfilePageProps> = ({
@@ -40,12 +43,73 @@ export const ProfilePage: FC<ProfilePageProps> = ({
   onPlayDeck,
   onEditDeck,
   onCreateNewDeck,
+  onReconnectMatch,
 }) => {
   const [activeTab, setActiveTab] = useState<'decks' | 'faces' | 'stats'>('decks');
   const [stats, setStats] = useState<UserStats | null>(null);
   const [savedDecks, setSavedDecks] = useState<SavedDeck[]>([]);
   const [savedFaces, setSavedFaces] = useState<SavedFace[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // PONTO 1.c: Reconectar à Partida em Andamento (Opção de 1 minuto no Perfil)
+  const [reconnectSession, setReconnectSession] = useState<any>(null);
+  const [reconnectSecondsLeft, setReconnectSecondsLeft] = useState<number>(0);
+
+  useEffect(() => {
+    const checkSession = () => {
+      try {
+        const raw = localStorage.getItem('cara_reconnect_session') || localStorage.getItem('cara_active_session');
+        if (!raw) {
+          setReconnectSession(null);
+          return;
+        }
+        const session = JSON.parse(raw);
+        if (!session.roomCode || session.phase === 'LOBBY') {
+          setReconnectSession(null);
+          return;
+        }
+
+        const expiresAt = session.expiresAt || (session.disconnectedAt ? session.disconnectedAt + 60000 : Date.now() + 60000);
+        const remaining = Math.max(0, Math.floor((expiresAt - Date.now()) / 1000));
+
+        if (remaining > 0) {
+          setReconnectSession({ ...session, expiresAt });
+          setReconnectSecondsLeft(remaining);
+        } else {
+          localStorage.removeItem('cara_reconnect_session');
+          setReconnectSession(null);
+          if (session.roomCode) {
+            network.finishRoom(session.roomCode);
+          }
+        }
+      } catch {
+        setReconnectSession(null);
+      }
+    };
+
+    checkSession();
+    const timer = setInterval(() => {
+      setReconnectSecondsLeft((prev) => {
+        if (prev <= 1) {
+          checkSession();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, []);
+
+  const handleDismissReconnect = () => {
+    sounds.playClick();
+    if (reconnectSession?.roomCode) {
+      network.finishRoom(reconnectSession.roomCode);
+    }
+    localStorage.removeItem('cara_reconnect_session');
+    localStorage.removeItem('cara_active_session');
+    setReconnectSession(null);
+  };
 
   // Modal para adicionar nova cara avulsa no perfil
   const [isAddingFace, setIsAddingFace] = useState(false);
@@ -165,6 +229,52 @@ export const ProfilePage: FC<ProfilePageProps> = ({
           <span>Voltar ao Menu Principal</span>
         </button>
       </div>
+
+      {/* PONTO 1.c: Banner de Reconexão para Partida em Andamento (Opção de 1 minuto) */}
+      {reconnectSession && reconnectSecondsLeft > 0 && (
+        <div className="bg-gradient-to-r from-purple-50 via-sky-50 to-amber-50 border-2 border-purple-300 rounded-2xl sm:rounded-3xl p-4 sm:p-5 shadow-md mb-4 sm:mb-6 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 animate-in fade-in slide-in-from-top-2 duration-300">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-purple-600 text-white flex items-center justify-center font-black shadow-tactile-sm shrink-0">
+              <RotateCcw size={22} className="animate-spin" style={{ animationDuration: '6s' }} />
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="text-xs sm:text-sm font-black text-purple-900 uppercase tracking-wider">
+                  Partida em Andamento
+                </span>
+                <span className="text-[10px] sm:text-[11px] bg-purple-100 text-purple-800 font-extrabold px-2 py-0.5 rounded-full border border-purple-200 shrink-0">
+                  Sala #{reconnectSession.roomCode}
+                </span>
+              </div>
+              <p className="text-xs text-slate-600 font-medium mt-0.5 truncate">
+                Partida contra <strong className="text-purple-700">{reconnectSession.opponentName || 'Oponente'}</strong>. Tempo para reconectar: <span className="font-mono font-black text-rose-600 tabular-nums">{reconnectSecondsLeft}s</span>
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={() => {
+                sounds.playClick();
+                if (onReconnectMatch) {
+                  onReconnectMatch(reconnectSession);
+                }
+              }}
+              className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-extrabold text-xs uppercase tracking-wider shadow-[0_2px_0_#6b21a8] transition-all cursor-pointer active:translate-y-0.5"
+            >
+              <RotateCcw size={14} />
+              <span>Reconectar à Partida</span>
+            </button>
+            <button
+              onClick={handleDismissReconnect}
+              className="px-3 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 font-bold text-xs transition-colors cursor-pointer"
+              title="Desistir da partida"
+            >
+              Desistir
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Banner de Identificação do Usuário */}
       <div className="bg-white border-2 border-slate-200 rounded-2xl sm:rounded-3xl p-4 sm:p-7 shadow-md mb-4 sm:mb-6 relative overflow-hidden">

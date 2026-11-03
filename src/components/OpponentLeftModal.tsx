@@ -49,7 +49,7 @@ export const OpponentLeftModal: FC<OpponentLeftModalProps> = ({
         </h3>
 
         <p className="text-xs text-slate-600 mb-2 leading-relaxed">
-          <strong className="text-slate-900">{opponentName || 'Seu oponente'}</strong> abandonou a sala ou desconectou.
+          <strong className="text-slate-900">{opponentName || 'Seu oponente'}</strong> ausentou-se e a partida foi encerrada.
         </p>
 
         <p className="text-[11px] text-slate-400 mb-6 font-medium">

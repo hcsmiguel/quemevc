@@ -292,7 +292,7 @@ export const Lobby: FC<LobbyProps> = ({
               <img
                 src="/logo-icon.svg"
                 alt="Tá na Cara!"
-                className="h-13 w-13 sm:h-16 sm:w-16 object-contain drop-shadow-sm transition-transform duration-300 group-hover:scale-105 group-hover:rotate-3 cursor-pointer"
+                className="w-12 h-12 sm:w-16 sm:h-16 max-w-[48px] max-h-[48px] sm:max-w-[64px] sm:max-h-[64px] object-contain drop-shadow-sm transition-transform duration-300 group-hover:scale-105 group-hover:rotate-3 cursor-pointer"
               />
             </div>
 
