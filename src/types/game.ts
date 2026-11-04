@@ -93,7 +93,9 @@ export interface NetworkMessage {
     | 'REQUEST_REMATCH'
     | 'START_REMATCH'
     | 'ABANDON_GAME'
-    | 'CHAT';
+    | 'CHAT'
+    | 'RECONNECT'
+    | 'REQUEST_STATE_SYNC';
   senderId: string;
   senderName: string;
   payload: any;

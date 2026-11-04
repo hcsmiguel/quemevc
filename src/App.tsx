@@ -208,6 +208,19 @@ export function App() {
 
   const hasStartedGameRef = useRef<boolean>(false);
 
+  const phaseRef = useRef<GamePhase>(phase);
+  phaseRef.current = phase;
+
+  const currentTurnPlayerIdRef = useRef<string>(currentTurnPlayerId);
+  currentTurnPlayerIdRef.current = currentTurnPlayerId;
+
+  const currentQuestionRef = useRef<Question | null>(currentQuestion);
+  currentQuestionRef.current = currentQuestion;
+
+  // Reconexão ativa com contagem regressiva
+  const [reconnectSession, setReconnectSession] = useState<any>(null);
+  const [reconnectSecondsLeft, setReconnectSecondsLeft] = useState<number>(0);
+
   // PONTO 3: Temporizador para cada turno (60 segundos)
   const TURN_DURATION_SECONDS = 60;
   const [turnStartTime, setTurnStartTime] = useState<number>(Date.now());
@@ -348,66 +361,173 @@ export function App() {
     return () => window.removeEventListener('popstate', handlePopState);
   }, [phase, currentUser]);
 
-  // PONTO 2 & ERRO 1: F5 / Atualizar Página (Restaurar Sessão e Turno com Pergunta Ativa)
+  // Ação centralizada para reconectar à partida
+  const handleReconnectMatch = async (session: any) => {
+    if (!session || !session.roomCode) return;
+    try {
+      setIsConnecting(true);
+      await network.clearPlayerDisconnected(session.roomCode);
+
+      const room = await network.reconnectRoom(
+        session.roomCode,
+        session.playerName,
+        session.isHost
+      );
+
+      if (room && room.status !== 'finished') {
+        setRoomCode(session.roomCode);
+        setPlayerName(session.playerName);
+        setOpponentName(session.opponentName || 'Oponente');
+        setOpponentId(session.opponentId || '');
+        setIsHost(session.isHost);
+        if (session.activeDeck?.length) setActiveDeck(session.activeDeck);
+        if (session.cardStatuses) setCardStatuses(session.cardStatuses);
+        if (session.mySecretCharacter) setMySecretCharacter(session.mySecretCharacter);
+        if (session.opponentSecretCharacter) setOpponentSecretCharacter(session.opponentSecretCharacter);
+
+        const activeTurn = room.current_turn || session.currentTurnPlayerId || '';
+        setCurrentTurnPlayerId(activeTurn);
+        const activeQuestion = room.current_question || session.currentQuestion || null;
+        setCurrentQuestion(activeQuestion);
+        if (session.questionHistory) setQuestionHistory(session.questionHistory);
+
+        if (
+          activeQuestion &&
+          (activeQuestion.answer === null || activeQuestion.answer === undefined) &&
+          activeTurn !== network.playerId &&
+          !session.config?.isCallMode
+        ) {
+          setQuestionToAnswer(activeQuestion);
+        }
+
+        setPhase(session.phase || 'PLAYING');
+        setReconnectSession(null);
+        setReconnectSecondsLeft(0);
+        sounds.playWin();
+      } else {
+        localStorage.removeItem('cara_reconnect_session');
+        localStorage.removeItem('cara_active_session');
+    localStorage.removeItem('cara_reconnect_session');
+    setReconnectSession(null);
+    setReconnectSecondsLeft(0);
+        setReconnectSession(null);
+        setReconnectSecondsLeft(0);
+        sounds.playWrong();
+      }
+    } catch (err) {
+      console.warn('Erro ao reconectar à partida:', err);
+      sounds.playWrong();
+    } finally {
+      setIsConnecting(false);
+    }
+  };
+
+  // Abandonar partida salva e limpar dados
+  const handleDismissReconnect = () => {
+    sounds.playClick();
+    if (reconnectSession?.roomCode) {
+      network.finishRoom(reconnectSession.roomCode);
+    }
+    localStorage.removeItem('cara_active_session');
+    localStorage.removeItem('cara_reconnect_session');
+    setReconnectSession(null);
+    setReconnectSecondsLeft(0);
+    localStorage.removeItem('cara_reconnect_session');
+    setReconnectSession(null);
+    setReconnectSecondsLeft(0);
+  };
+
+  // Monitorar partida em andamento para reconexão (botão no cabeçalho e card no lobby)
   useEffect(() => {
-    const restoreSession = async () => {
-      const saved = localStorage.getItem('cara_active_session');
-      if (!saved) return;
+    const checkActiveSession = () => {
+      if (phase === 'PLAYING' || phase === 'CHOOSING_SECRET') {
+        setReconnectSession(null);
+        setReconnectSecondsLeft(0);
+        return;
+      }
+
+      const raw = localStorage.getItem('cara_active_session') || localStorage.getItem('cara_reconnect_session');
+      if (!raw) {
+        setReconnectSession(null);
+        setReconnectSecondsLeft(0);
+        return;
+      }
+
       try {
-        const session = JSON.parse(saved);
-        if (!session.roomCode) return;
+        const session = JSON.parse(raw);
+        if (!session.roomCode || session.phase === 'LOBBY' || session.phase === 'GAME_OVER') {
+          setReconnectSession(null);
+          setReconnectSecondsLeft(0);
+          return;
+        }
 
-        const room = await network.reconnectRoom(
-          session.roomCode,
-          session.playerName,
-          session.isHost
-        );
+        const expiresAt = session.expiresAt || (session.disconnectedAt ? session.disconnectedAt + 180000 : Date.now() + 180000);
+        const remaining = Math.max(0, Math.floor((expiresAt - Date.now()) / 1000));
 
-        if (room && room.status !== 'finished') {
-          // Limpa imediatamente qualquer flag de desconexão anterior
-          await network.clearPlayerDisconnected(session.roomCode);
-
-          setRoomCode(session.roomCode);
-          setPlayerName(session.playerName);
-          setOpponentName(session.opponentName || 'Oponente');
-          setOpponentId(session.opponentId || '');
-          setIsHost(session.isHost);
-          if (session.activeDeck?.length) setActiveDeck(session.activeDeck);
-          if (session.cardStatuses) setCardStatuses(session.cardStatuses);
-          if (session.mySecretCharacter) setMySecretCharacter(session.mySecretCharacter);
-          if (session.opponentSecretCharacter) setOpponentSecretCharacter(session.opponentSecretCharacter);
-          
-          // Restaurar turno e pergunta ativa (ERRO 1 RESOLVIDO)
-          const activeTurn = room.current_turn || session.currentTurnPlayerId || '';
-          setCurrentTurnPlayerId(activeTurn);
-          const activeQuestion = room.current_question || session.currentQuestion || null;
-          setCurrentQuestion(activeQuestion);
-          if (session.questionHistory) setQuestionHistory(session.questionHistory);
-
-          if (
-            activeQuestion &&
-            (activeQuestion.answer === null || activeQuestion.answer === undefined) &&
-            activeTurn !== network.playerId &&
-            !session.config?.isCallMode
-          ) {
-            setQuestionToAnswer(activeQuestion);
-          }
-
-          setPhase(session.phase || 'PLAYING');
+        if (remaining > 0) {
+          setReconnectSession({ ...session, expiresAt });
+          setReconnectSecondsLeft(remaining);
         } else {
           localStorage.removeItem('cara_active_session');
+    localStorage.removeItem('cara_reconnect_session');
+    setReconnectSession(null);
+    setReconnectSecondsLeft(0);
+          localStorage.removeItem('cara_reconnect_session');
+          setReconnectSession(null);
+          setReconnectSecondsLeft(0);
+          if (session.roomCode) {
+            network.finishRoom(session.roomCode);
+          }
         }
+      } catch {
+        setReconnectSession(null);
+        setReconnectSecondsLeft(0);
+      }
+    };
+
+    checkActiveSession();
+    const interval = window.setInterval(checkActiveSession, 1000);
+    return () => clearInterval(interval);
+  }, [phase]);
+
+  // F5 / Restaurar Sessão Automática ao Abrir a Página
+  useEffect(() => {
+    const restoreSession = async () => {
+      const params = new URLSearchParams(window.location.search);
+      const urlSala = params.get('sala') || params.get('room');
+
+      const raw = localStorage.getItem('cara_active_session') || localStorage.getItem('cara_reconnect_session');
+      if (!raw) return;
+      try {
+        const session = JSON.parse(raw);
+        if (!session.roomCode || session.phase === 'LOBBY' || session.phase === 'GAME_OVER') return;
+
+        // Se o usuário abriu um link de sala diferente da salva, não tenta auto-reconectar a antiga
+        if (urlSala && urlSala.toUpperCase() !== session.roomCode.toUpperCase()) {
+          return;
+        }
+
+        const expiresAt = session.expiresAt || (session.disconnectedAt ? session.disconnectedAt + 180000 : Date.now() + 180000);
+        if (Date.now() > expiresAt) {
+          localStorage.removeItem('cara_active_session');
+    localStorage.removeItem('cara_reconnect_session');
+    setReconnectSession(null);
+    setReconnectSecondsLeft(0);
+          localStorage.removeItem('cara_reconnect_session');
+          return;
+        }
+
+        await handleReconnectMatch(session);
       } catch (err) {
         console.warn('Erro ao restaurar sessão anterior:', err);
-        localStorage.removeItem('cara_active_session');
       }
     };
     restoreSession();
   }, []);
 
-  // Salvar sessão ativa para persistência em F5
+  // Salvar sessão ativa durante partida (persistência em F5 e fechamento acidental)
   useEffect(() => {
-    if (phase !== 'LOBBY' && roomCode) {
+    if ((phase === 'PLAYING' || phase === 'CHOOSING_SECRET') && roomCode) {
       const sessionData = {
         roomCode,
         playerName,
@@ -422,10 +542,10 @@ export function App() {
         currentTurnPlayerId,
         currentQuestion,
         questionHistory,
+        expiresAt: Date.now() + 180000,
       };
       localStorage.setItem('cara_active_session', JSON.stringify(sessionData));
-    } else if (phase === 'LOBBY' && !waitingForPlayer) {
-      localStorage.removeItem('cara_active_session');
+      localStorage.setItem('cara_reconnect_session', JSON.stringify(sessionData));
     }
   }, [
     phase,
@@ -441,7 +561,6 @@ export function App() {
     currentTurnPlayerId,
     currentQuestion,
     questionHistory,
-    waitingForPlayer,
   ]);
 
   // Tolerância de reconexão de 3 minutos ao fechar a janela, com religação instantânea em focus/pageshow/online
@@ -465,6 +584,7 @@ export function App() {
           disconnectedAt: Date.now(),
           expiresAt: Date.now() + 180000,
         };
+        localStorage.setItem('cara_active_session', JSON.stringify(sessionData));
         localStorage.setItem('cara_reconnect_session', JSON.stringify(sessionData));
         network.markPlayerDisconnected(roomCode, network.playerId);
       }
@@ -511,51 +631,6 @@ export function App() {
     currentQuestion,
     questionHistory,
   ]);
-
-  const handleReconnectMatch = async (session: any) => {
-    if (!session || !session.roomCode) return;
-    try {
-      setIsConnecting(true);
-      await network.clearPlayerDisconnected(session.roomCode);
-
-      const room = await network.reconnectRoom(
-        session.roomCode,
-        session.playerName,
-        session.isHost
-      );
-
-      if (room && room.status !== 'finished') {
-        setRoomCode(session.roomCode);
-        setPlayerName(session.playerName);
-        setOpponentName(session.opponentName || 'Oponente');
-        setOpponentId(session.opponentId || '');
-        setIsHost(session.isHost);
-        if (session.activeDeck?.length) setActiveDeck(session.activeDeck);
-        if (session.cardStatuses) setCardStatuses(session.cardStatuses);
-        if (session.mySecretCharacter) setMySecretCharacter(session.mySecretCharacter);
-        if (session.opponentSecretCharacter) setOpponentSecretCharacter(session.opponentSecretCharacter);
-
-        const activeTurn = room.current_turn || session.currentTurnPlayerId || '';
-        setCurrentTurnPlayerId(activeTurn);
-        const activeQuestion = room.current_question || session.currentQuestion || null;
-        setCurrentQuestion(activeQuestion);
-        if (session.questionHistory) setQuestionHistory(session.questionHistory);
-
-        setPhase(session.phase || 'PLAYING');
-        localStorage.removeItem('cara_reconnect_session');
-        sounds.playWin();
-      } else {
-        localStorage.removeItem('cara_reconnect_session');
-        localStorage.removeItem('cara_active_session');
-        sounds.playWrong();
-      }
-    } catch (err) {
-      console.warn('Erro ao reconectar à partida:', err);
-      sounds.playWrong();
-    } finally {
-      setIsConnecting(false);
-    }
-  };
 
   // 1. Criar ou Entrar na Sala
   const handleJoinRoom = async (
@@ -604,6 +679,53 @@ export function App() {
         setPasswordModalCode('');
         setPasswordModalError(null);
         setIsConnecting(false);
+
+        // Se a entrada na sala foi detectada como uma reconexão legítima
+        if ((room as any).isReconnect) {
+          const raw = localStorage.getItem('cara_active_session') || localStorage.getItem('cara_reconnect_session');
+          let savedSession: any = null;
+          if (raw) {
+            try {
+              const parsed = JSON.parse(raw);
+              if (parsed.roomCode && parsed.roomCode.toUpperCase() === code.toUpperCase()) {
+                savedSession = parsed;
+              }
+            } catch {
+              // ignore
+            }
+          }
+
+          if (savedSession) {
+            await handleReconnectMatch(savedSession);
+            return;
+          }
+
+          // Se reconectou sem dados salvos locais no navegador (ex: abriu em outro navegador/app)
+          const isReturningHost = !!(room as any).reconnectingAsHost;
+          setIsHost(isReturningHost);
+          setOpponentName(isReturningHost ? (room.guest_name || 'Oponente') : room.host_name);
+          setOpponentId(isReturningHost ? (room.guest_id || '') : room.host_id);
+          opponentIdRef.current = isReturningHost ? (room.guest_id || '') : room.host_id;
+          network.opponentId = isReturningHost ? (room.guest_id || '') : room.host_id;
+
+          if (room.config) {
+            setRoomConfig(room.config);
+            const syncedDeck = getDeckByDifficulty(room.config.cardCount, room.config.customCards);
+            setActiveDeck(syncedDeck);
+          }
+
+          const activeTurn = room.current_turn || '';
+          setCurrentTurnPlayerId(activeTurn);
+          const activeQuestion = room.current_question || null;
+          setCurrentQuestion(activeQuestion);
+
+          setWaitingForPlayer(false);
+          setPhase(room.status === 'choosing' ? 'CHOOSING_SECRET' : 'PLAYING');
+          network.send('REQUEST_STATE_SYNC', { playerId: network.playerId });
+          sounds.playWin();
+          return;
+        }
+
         setOpponentName(room.host_name);
         setOpponentId(room.host_id);
         opponentIdRef.current = room.host_id;
@@ -648,6 +770,36 @@ export function App() {
           network.opponentId = msg.senderId;
           setWaitingForPlayer(false);
           setPhase((curr) => (curr === 'LOBBY' ? 'CHOOSING_SECRET' : curr));
+          break;
+        }
+
+        case 'RECONNECT': {
+          sounds.playClick();
+          if (msg.senderName) {
+            setOpponentName(msg.senderName);
+          }
+          if (msg.senderId) {
+            setOpponentId(msg.senderId);
+            opponentIdRef.current = msg.senderId;
+            network.opponentId = msg.senderId;
+          }
+          // Sincronizar estado da partida com o jogador que voltou
+          if (phaseRef.current === 'PLAYING') {
+            network.send('SYNC_GAME_STATE', {
+              currentTurnPlayerId: currentTurnPlayerIdRef.current,
+              currentQuestion: currentQuestionRef.current,
+            });
+          }
+          break;
+        }
+
+        case 'REQUEST_STATE_SYNC': {
+          if (phaseRef.current === 'PLAYING') {
+            network.send('SYNC_GAME_STATE', {
+              currentTurnPlayerId: currentTurnPlayerIdRef.current,
+              currentQuestion: currentQuestionRef.current,
+            });
+          }
           break;
         }
 
@@ -1167,6 +1319,9 @@ export function App() {
       await network.cleanupStorageAndRoom(roomCode);
     }
     localStorage.removeItem('cara_active_session');
+    localStorage.removeItem('cara_reconnect_session');
+    setReconnectSession(null);
+    setReconnectSecondsLeft(0);
     setPhase('LOBBY');
     setWaitingForPlayer(false);
     setRoomCode('');
@@ -1243,7 +1398,23 @@ export function App() {
                 className="hidden sm:block h-7 sm:h-9 w-auto object-contain hover:opacity-90 transition-opacity"
               />
             </span>
-            {roomCode && (
+            {/* Botão de Reconectar no Canto Superior Esquerdo ao lado do Logo / Tag */}
+            {reconnectSession && reconnectSecondsLeft > 0 && phase !== 'PLAYING' && phase !== 'CHOOSING_SECRET' && (
+              <button
+                onClick={() => handleReconnectMatch(reconnectSession)}
+                className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full bg-gradient-to-r from-amber-500 to-rose-500 hover:from-amber-600 hover:to-rose-600 text-white font-black text-[11px] sm:text-xs shadow-tactile transition-all active:scale-95 animate-pulse cursor-pointer shrink-0"
+                title="Clique para voltar para sua partida em andamento"
+              >
+                <RotateCcw size={13} className="animate-spin-slow shrink-0" />
+                <span className="hidden xs:inline">Reconectar</span>
+                <span>#{reconnectSession.roomCode}</span>
+                <span className="bg-black/25 text-white text-[10px] px-1.5 py-0.5 rounded-full font-mono font-bold tabular-nums">
+                  {Math.floor(reconnectSecondsLeft / 60)}:{String(reconnectSecondsLeft % 60).padStart(2, '0')}
+                </span>
+              </button>
+            )}
+
+            {roomCode && (phase === 'PLAYING' || phase === 'CHOOSING_SECRET') && (
               <span className="hidden md:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-50 border border-amber-200 text-xs font-sans font-black tracking-tight text-amber-900 shadow-sm">
                 <span>Sala:</span>
                 <span className="font-extrabold">{roomCode}</span>
@@ -1408,6 +1579,10 @@ export function App() {
             waitingForPlayer={waitingForPlayer}
             roomCode={roomCode}
             errorMessage={errorMessage}
+            reconnectSession={reconnectSession}
+            reconnectSecondsLeft={reconnectSecondsLeft}
+            onReconnectMatch={handleReconnectMatch}
+            onDismissReconnect={handleDismissReconnect}
           />
         )}
 

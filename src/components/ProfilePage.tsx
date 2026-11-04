@@ -71,7 +71,7 @@ export const ProfilePage: FC<ProfilePageProps> = ({
           return;
         }
 
-        const expiresAt = session.expiresAt || (session.disconnectedAt ? session.disconnectedAt + 60000 : Date.now() + 60000);
+        const expiresAt = session.expiresAt || (session.disconnectedAt ? session.disconnectedAt + 180000 : Date.now() + 180000);
         const remaining = Math.max(0, Math.floor((expiresAt - Date.now()) / 1000));
 
         if (remaining > 0) {

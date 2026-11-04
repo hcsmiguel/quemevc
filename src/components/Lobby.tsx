@@ -17,6 +17,8 @@ import {
   Clock,
   Sparkles,
   Globe2,
+  RotateCcw,
+  X,
 } from 'lucide-react';
 import { sounds } from '../utils/sound';
 import type { DifficultyCount, RoomConfig } from '../types/game';
@@ -38,6 +40,10 @@ interface LobbyProps {
   waitingForPlayer: boolean;
   roomCode: string;
   errorMessage?: string | null;
+  reconnectSession?: any | null;
+  reconnectSecondsLeft?: number;
+  onReconnectMatch?: (session: any) => void;
+  onDismissReconnect?: () => void;
 }
 
 export const Lobby: FC<LobbyProps> = ({
@@ -54,6 +60,10 @@ export const Lobby: FC<LobbyProps> = ({
   waitingForPlayer,
   roomCode,
   errorMessage,
+  reconnectSession,
+  reconnectSecondsLeft = 0,
+  onReconnectMatch,
+  onDismissReconnect,
 }) => {
   const [activeTab, setActiveTab] = useState<'create' | 'join'>('create');
   const [name, setName] = useState(currentUser?.username || '');
@@ -224,6 +234,52 @@ export const Lobby: FC<LobbyProps> = ({
     <div className="min-h-[75vh] flex flex-col items-center justify-center py-3 sm:py-6 px-3 sm:px-4">
       {/* Container Principal */}
       <div className="relative max-w-lg w-full">
+        {/* Banner de Reconexão Rápida */}
+        {reconnectSession && reconnectSecondsLeft > 0 && onReconnectMatch && (
+          <div className="mb-4 bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 text-white rounded-2xl sm:rounded-3xl p-4 sm:p-5 shadow-tactile animate-in zoom-in-95 duration-200">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-amber-100 mb-1">
+                  <RotateCcw size={14} className="animate-spin-slow shrink-0" />
+                  <span>Partida em Andamento Detectada</span>
+                </div>
+                <p className="text-sm sm:text-base font-extrabold text-white leading-tight">
+                  Sala #{reconnectSession.roomCode} contra <span className="underline decoration-amber-300">{reconnectSession.opponentName || 'Oponente'}</span>
+                </p>
+                <p className="text-xs text-amber-100 font-medium mt-1">
+                  Tempo restante para reconectar: <strong className="font-mono text-white text-xs sm:text-sm tabular-nums font-black">{Math.floor(reconnectSecondsLeft / 60)}:{String(reconnectSecondsLeft % 60).padStart(2, '0')}</strong>
+                </p>
+              </div>
+              {onDismissReconnect && (
+                <button
+                  onClick={onDismissReconnect}
+                  className="text-white/80 hover:text-white p-1 rounded-xl hover:bg-white/20 transition-colors"
+                  title="Abandonar partida salva"
+                >
+                  <X size={18} />
+                </button>
+              )}
+            </div>
+
+            <div className="mt-3.5 flex items-center gap-2">
+              <button
+                onClick={() => onReconnectMatch(reconnectSession)}
+                className="flex-1 bg-white hover:bg-amber-50 text-slate-900 font-black text-xs sm:text-sm py-2.5 px-4 rounded-xl sm:rounded-2xl shadow-sm transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <Play size={15} className="fill-slate-900" />
+                <span>Reconectar Agora</span>
+              </button>
+              {onDismissReconnect && (
+                <button
+                  onClick={onDismissReconnect}
+                  className="bg-black/25 hover:bg-black/35 text-white font-bold text-xs py-2.5 px-3.5 rounded-xl sm:rounded-2xl transition-all cursor-pointer"
+                >
+                  Abandonar
+                </button>
+              )}
+            </div>
+          </div>
+        )}
         {/* Card Principal */}
         <div className="bg-white border-2 border-slate-200 rounded-2xl sm:rounded-3xl p-4 sm:p-7 shadow-xl relative z-10 animate-in fade-in duration-200">
           {/* Barra Superior do Card (Status do Usuário Integrado) */}

@@ -161,23 +161,78 @@ export class NetworkService {
       throw new Error('Esta partida já foi encerrada.');
     }
 
-    // BLOQUEIO 1: Impossibilitar um terceiro jogador de entrar em uma sala em andamento
-    const isPlayerAlreadyInRoom = (room.host_id === this.playerId) || (room.guest_id === this.playerId);
-    if (!isPlayerAlreadyInRoom) {
-      if (room.guest_id || room.status === 'choosing' || room.status === 'playing') {
-        throw new Error('Esta sala já está em andamento (dois jogadores já estão na partida).');
+    // Identificar reconexão legítima em partida em andamento ('choosing' ou 'playing')
+    const isHostPlayer = room.host_id === this.playerId;
+    const isGuestPlayer = room.guest_id === this.playerId;
+    const isDisconnectedPlayer = room.disconnected_player_id === this.playerId;
+    const isWithinDisconnectGrace = room.disconnect_expires_at
+      ? new Date(room.disconnect_expires_at).getTime() > Date.now()
+      : false;
+
+    // Se a sala já está em andamento ou se este jogador já faz parte dela
+    const isRoomInProgress = room.status === 'choosing' || room.status === 'playing';
+    const isReconnecting = (
+      (isRoomInProgress && (
+        isHostPlayer ||
+        isGuestPlayer ||
+        isDisconnectedPlayer ||
+        (isWithinDisconnectGrace && (
+          (room.disconnected_player_id === room.guest_id && (!room.guest_name || room.guest_name === this.playerName)) ||
+          (room.disconnected_player_id === room.host_id && (!room.host_name || room.host_name === this.playerName))
+        ))
+      )) ||
+      (room.status === 'waiting' && isHostPlayer)
+    );
+
+    if (isReconnecting) {
+      const reconnectingAsHost = isHostPlayer || (room.disconnected_player_id === room.host_id);
+      this.isHost = reconnectingAsHost;
+      this.opponentId = reconnectingAsHost ? (room.guest_id || '') : room.host_id;
+
+      const updates: any = {
+        disconnected_player_id: null,
+        disconnect_expires_at: null,
+        updated_at: new Date().toISOString(),
+      };
+      if (reconnectingAsHost) {
+        updates.host_id = this.playerId;
+        if (this.playerName) updates.host_name = this.playerName;
+      } else {
+        updates.guest_id = this.playerId;
+        if (this.playerName) updates.guest_name = this.playerName;
       }
 
-      // Verificação de Senha para Salas Secretas
-      if (room.is_secret) {
-        if (!passwordInput) {
-          const err: any = new Error('Esta sala é secreta e requer uma senha numérica para entrar.');
-          err.requiresPassword = true;
-          throw err;
-        }
-        if (passwordInput.trim() !== String(room.password || '').trim()) {
-          throw new Error('Senha incorreta! Digite a senha numérica correta desta sala secreta.');
-        }
+      await supabase.from('game_rooms').update(updates).eq('room_code', this.roomCode);
+      await this.subscribeToRoom(this.roomCode);
+      this.send('RECONNECT', {
+        playerId: this.playerId,
+        playerName: this.playerName,
+        isHost: reconnectingAsHost,
+      });
+      this.startPollingRoom();
+
+      return {
+        ...room,
+        ...updates,
+        isReconnect: true,
+        reconnectingAsHost,
+      } as any;
+    }
+
+    // Se a sala já está em andamento (ou cheia) e o usuário não é nenhum dos jogadores reconectando
+    if (isRoomInProgress || (room.guest_id && room.guest_id !== this.playerId)) {
+      throw new Error('Esta sala já está em andamento (dois jogadores já estão na partida).');
+    }
+
+    // Verificação de Senha para Salas Secretas
+    if (room.is_secret) {
+      if (!passwordInput) {
+        const err: any = new Error('Esta sala é secreta e requer uma senha numérica para entrar.');
+        err.requiresPassword = true;
+        throw err;
+      }
+      if (passwordInput.trim() !== String(room.password || '').trim()) {
+        throw new Error('Senha incorreta! Digite a senha numérica correta desta sala secreta.');
       }
     }
 
@@ -242,8 +297,24 @@ export class NetworkService {
     this.playerName = playerName.trim();
     this.isHost = isHost;
 
-    // Limpa imediatamente qualquer flag de desconexão anterior
-    await this.clearPlayerDisconnected(this.roomCode);
+    // Limpa imediatamente qualquer flag de desconexão anterior e atualiza o player_id da aba
+    const updates: any = {
+      disconnected_player_id: null,
+      disconnect_expires_at: null,
+      updated_at: new Date().toISOString(),
+    };
+    if (isHost) {
+      updates.host_id = this.playerId;
+      if (this.playerName) updates.host_name = this.playerName;
+    } else {
+      updates.guest_id = this.playerId;
+      if (this.playerName) updates.guest_name = this.playerName;
+    }
+
+    await supabase
+      .from('game_rooms')
+      .update(updates)
+      .eq('room_code', this.roomCode);
 
     const { data: room } = await supabase
       .from('game_rooms')
@@ -256,6 +327,11 @@ export class NetworkService {
     this.opponentId = isHost ? (room.guest_id || '') : room.host_id;
 
     await this.subscribeToRoom(this.roomCode);
+    this.send('RECONNECT', {
+      playerId: this.playerId,
+      playerName: this.playerName,
+      isHost,
+    });
     this.startPollingRoom();
     return room as RoomRecord;
   }
