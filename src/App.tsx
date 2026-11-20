@@ -30,7 +30,7 @@ import { OpponentLeftModal } from './components/OpponentLeftModal';
 import { PasswordPromptModal } from './components/PasswordPromptModal';
 import { Footer } from './components/Footer';
 import { LegalModal, type LegalTab } from './components/LegalModal';
-import { Volume2, VolumeX, User as UserIcon, LogOut, AlertTriangle, RotateCcw, Clock, Sparkles } from 'lucide-react';
+import { Volume2, VolumeX, User as UserIcon, LogOut, AlertTriangle, RotateCcw, Clock } from 'lucide-react';
 import type { SavedDeck } from './services/auth';
 import { MatchDesignSandbox } from './components/redesign/MatchDesignSandbox';
 import { MatchDesignB } from './components/redesign/MatchDesignB';
@@ -1576,19 +1576,6 @@ export function App() {
                 </button>
               )
             )}
-
-            {/* Atalho para SandBox de Redesign no Localhost */}
-            <button
-              onClick={() => {
-                window.history.pushState(null, '', '/partida-design/a');
-                setCurrentPath('/partida-design/a');
-              }}
-              title="Testar propostas de Redesign da Partida"
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#FFE8E0] hover:bg-[#FFD2C4] text-[#C25E3E] border border-[#FFB59A] text-xs font-bold transition-all cursor-pointer shrink-0 min-h-[40px] shadow-2xs"
-            >
-              <Sparkles size={14} className="text-[#C25E3E]" />
-              <span className="hidden sm:inline">Propostas UI</span>
-            </button>
 
             {/* Botão de Som: Ícone puro, 44x44px touch target, aria-label descritivo */}
             <button
