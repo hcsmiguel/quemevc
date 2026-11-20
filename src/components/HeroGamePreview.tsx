@@ -1,22 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { HelpCircle, Check } from 'lucide-react';
-import { sounds } from '../utils/sound';
+import { Check } from 'lucide-react';
 
 interface PreviewCharacter {
   id: string;
   name: string;
   imageUrl: string;
-  hasBeard: boolean;
-  hasHat: boolean;
 }
 
 const PREVIEW_CHARACTERS: PreviewCharacter[] = [
-  { id: 'hugo', name: 'Hugo', imageUrl: '/standard-faces/Hugo.jpg', hasBeard: true, hasHat: true },
-  { id: 'ana', name: 'Ana', imageUrl: '/standard-faces/Ana.jpg', hasBeard: false, hasHat: false },
-  { id: 'bruno', name: 'Bruno', imageUrl: '/standard-faces/Bruno.jpg', hasBeard: true, hasHat: false },
-  { id: 'carla', name: 'Carla', imageUrl: '/standard-faces/Carla.jpg', hasBeard: false, hasHat: false },
-  { id: 'davi', name: 'Davi', imageUrl: '/standard-faces/Davi.jpg', hasBeard: false, hasHat: true },
-  { id: 'felipe', name: 'Felipe', imageUrl: '/standard-faces/Felipe.jpg', hasBeard: true, hasHat: false },
+  { id: 'hugo', name: 'Hugo', imageUrl: '/standard-faces/Hugo.jpg' },
+  { id: 'ana', name: 'Ana', imageUrl: '/standard-faces/Ana.jpg' },
+  { id: 'bruno', name: 'Bruno', imageUrl: '/standard-faces/Bruno.jpg' },
+  { id: 'carla', name: 'Carla', imageUrl: '/standard-faces/Carla.jpg' },
+  { id: 'davi', name: 'Davi', imageUrl: '/standard-faces/Davi.jpg' },
+  { id: 'felipe', name: 'Felipe', imageUrl: '/standard-faces/Felipe.jpg' },
 ];
 
 interface SimulationStep {
@@ -29,22 +26,31 @@ interface SimulationStep {
 
 const SIMULATION_STEPS: SimulationStep[] = [
   {
-    question: 'Tem barba ou bigode?',
-    answer: 'NÃO',
-    isYes: false,
-    discardedIds: ['hugo', 'bruno', 'felipe'],
+    question: 'É homem?',
+    answer: 'SIM',
+    isYes: true,
+    // Ana e Carla são eliminadas; Hugo, Bruno, Davi e Felipe ficam ativos
+    discardedIds: ['ana', 'carla'],
   },
   {
     question: 'Usa chapéu ou boné?',
     answer: 'SIM',
     isYes: true,
-    discardedIds: ['hugo', 'bruno', 'felipe', 'ana', 'carla'],
+    // Hugo usa chapéu e Davi usa boné! Bruno e Felipe são eliminados
+    discardedIds: ['ana', 'carla', 'bruno', 'felipe'],
+  },
+  {
+    question: 'Tem barba ou bigode?',
+    answer: 'NÃO',
+    isYes: false,
+    // Hugo tem barba/bigode, logo é eliminado; sobra apenas o Davi
+    discardedIds: ['ana', 'carla', 'bruno', 'felipe', 'hugo'],
   },
   {
     question: 'O seu personagem é o Davi?',
     answer: 'SIM, ACERTOU!',
     isYes: true,
-    discardedIds: ['hugo', 'bruno', 'felipe', 'ana', 'carla'],
+    discardedIds: ['ana', 'carla', 'bruno', 'felipe', 'hugo'],
     winnerId: 'davi',
   },
 ];
@@ -52,17 +58,11 @@ const SIMULATION_STEPS: SimulationStep[] = [
 export const HeroGamePreview: React.FC = () => {
   const [stepIndex, setStepIndex] = useState(0);
 
-  // Ciclo 100% automático e contínuo da demonstração
+  // Ciclo 100% automático, contínuo e silencioso
   useEffect(() => {
     const timer = setInterval(() => {
-      setStepIndex((prev) => {
-        const next = (prev + 1) % (SIMULATION_STEPS.length + 1);
-        if (next < SIMULATION_STEPS.length) {
-          sounds.playFlip();
-        }
-        return next;
-      });
-    }, 3400);
+      setStepIndex((prev) => (prev + 1) % (SIMULATION_STEPS.length + 1));
+    }, 3200);
 
     return () => clearInterval(timer);
   }, []);
@@ -87,14 +87,9 @@ export const HeroGamePreview: React.FC = () => {
     >
       {/* Cabeçalho da Simulação: Pergunta e Resposta */}
       <div className="flex items-center justify-between gap-2 pb-3 mb-3 border-b border-[#E2DACD]">
-        <div className="flex items-center gap-1.5 min-w-0">
-          <div className="w-5 h-5 rounded-full bg-[#F6F2EA] flex items-center justify-center text-[#B4532F] shrink-0">
-            <HelpCircle size={12} />
-          </div>
-          <span className="text-xs font-serif font-bold text-[#2B2420] truncate">
-            "{currentStep.question}"
-          </span>
-        </div>
+        <span className="text-xs font-serif font-bold text-[#2B2420] truncate">
+          "{currentStep.question}"
+        </span>
 
         <span
           className={`text-[11px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md border shrink-0 transition-colors ${

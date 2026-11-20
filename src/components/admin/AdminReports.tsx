@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { adminService, type ContentReportItem } from '../../services/admin';
 import { Button } from '../ui/Button';
-import { ShieldAlert, X, EyeOff } from 'lucide-react';
 import { sounds } from '../../utils/sound';
 
 export const AdminReports: React.FC = () => {
@@ -96,9 +95,6 @@ export const AdminReports: React.FC = () => {
         </div>
       ) : reports.length === 0 ? (
         <div className="bg-white border border-[#E2DACD] rounded-2xl p-10 text-center space-y-3">
-          <div className="w-12 h-12 rounded-2xl bg-[#F6F2EA] text-[#B4532F] flex items-center justify-center mx-auto">
-            <ShieldAlert size={22} />
-          </div>
           <h3 className="font-serif text-base text-[#2B2420]">
             Nenhuma denúncia nesta categoria
           </h3>
@@ -221,8 +217,7 @@ export const AdminReports: React.FC = () => {
                 disabled={isProcessing}
                 onClick={() => handleResolve('dismissed', false)}
               >
-                <X size={12} />
-                <span>Descartar Denúncia</span>
+                Descartar Denúncia
               </Button>
 
               <Button
@@ -231,8 +226,7 @@ export const AdminReports: React.FC = () => {
                 disabled={isProcessing}
                 onClick={() => handleResolve('resolved', true)}
               >
-                <EyeOff size={12} />
-                <span>Ocultar Conteúdo</span>
+                Ocultar Conteúdo
               </Button>
             </div>
           </div>

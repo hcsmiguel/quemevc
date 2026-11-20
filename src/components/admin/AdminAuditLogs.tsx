@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { adminService, type AdminAuditLog } from '../../services/admin';
-import { Clock } from 'lucide-react';
 
 export const AdminAuditLogs: React.FC = () => {
   const [logs, setLogs] = useState<AdminAuditLog[]>([]);
@@ -30,9 +29,6 @@ export const AdminAuditLogs: React.FC = () => {
         </div>
       ) : logs.length === 0 ? (
         <div className="bg-white border border-[#E2DACD] rounded-2xl p-10 text-center space-y-3">
-          <div className="w-12 h-12 rounded-2xl bg-[#F6F2EA] text-[#B4532F] flex items-center justify-center mx-auto">
-            <Clock size={22} />
-          </div>
           <h3 className="font-serif text-base text-[#2B2420]">
             Nenhuma ação registrada ainda
           </h3>

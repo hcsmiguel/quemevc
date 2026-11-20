@@ -4,26 +4,16 @@ import { auth } from '../../services/auth';
 import { adminService, type AdminOverviewMetrics, type AdminAuditLog } from '../../services/admin';
 import { AdminOverview } from './AdminOverview';
 import { AdminOfficialDecks } from './AdminOfficialDecks';
+import { AdminOfficialFaces } from './AdminOfficialFaces';
 import { AdminFeaturedDecks } from './AdminFeaturedDecks';
 import { AdminReports } from './AdminReports';
 import { AdminAccounts } from './AdminAccounts';
 import { AdminAuditLogs } from './AdminAuditLogs';
-import {
-  LayoutDashboard,
-  Layers,
-  Sparkles,
-  ShieldAlert,
-  Users,
-  Clock,
-  ArrowLeft,
-  Shield,
-  Loader2,
-  RefreshCw,
-} from 'lucide-react';
 
 export type AdminTab =
   | 'overview'
   | 'official_decks'
+  | 'official_faces'
   | 'featured_decks'
   | 'reports'
   | 'accounts'
@@ -43,6 +33,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [metrics, setMetrics] = useState<AdminOverviewMetrics>({
     officialDecksCount: 0,
+    officialFacesCount: 0,
     communityDecksCount: 0,
     pendingReportsCount: 0,
     bannedUsersCount: 0,
@@ -50,7 +41,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
   const [auditLogs, setAuditLogs] = useState<AdminAuditLog[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // 1. Verificação contínua e rigorosa de autorização no Supabase
+  // Verificação contínua de autorização no Supabase
   const checkAccess = useCallback(async () => {
     const authorized = await auth.verifyAdminStatus();
     if (!authorized) {
@@ -62,7 +53,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
     setIsVerifying(false);
   }, [onBackToGame]);
 
-  // 2. Carregar dados da visão geral
+  // Carregar dados da visão geral
   const loadData = useCallback(async () => {
     setIsRefreshing(true);
     try {
@@ -87,17 +78,14 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
     }
   }, [isAuthorized, loadData]);
 
-  // Se estiver verificando status
   if (isVerifying) {
     return (
       <div className="min-h-screen bg-[#FBF8F3] flex flex-col items-center justify-center p-4">
-        <Loader2 className="w-8 h-8 text-[#B4532F] animate-spin mb-3" />
         <p className="text-xs font-bold text-[#6F655C]">Verificando credenciais...</p>
       </div>
     );
   }
 
-  // Se não autorizado, não renderiza nada (o pai já redireciona/trata como 404)
   if (!isAuthorized) {
     return null;
   }
@@ -125,25 +113,25 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
               onClick={loadData}
               disabled={isRefreshing}
               title="Atualizar dados"
-              className="w-8 h-8 rounded-lg border border-[#E2DACD] bg-white hover:bg-[#F6F2EA] flex items-center justify-center text-[#6F655C] hover:text-[#2B2420] transition-colors cursor-pointer"
+              className="text-xs font-medium px-2.5 py-1.5 rounded-lg border border-[#E2DACD] bg-white hover:bg-[#F6F2EA] text-[#6F655C] hover:text-[#2B2420] transition-colors cursor-pointer"
             >
-              <RefreshCw size={14} className={isRefreshing ? 'animate-spin' : ''} />
+              {isRefreshing ? 'Atualizando...' : 'Atualizar'}
             </button>
 
             <div className="hidden sm:flex items-center gap-2 px-3 py-1 rounded-lg bg-white border border-[#E2DACD]">
-              <Shield size={13} className="text-[#B4532F]" />
-              <span className="text-xs font-bold text-[#2B2420]">{currentUser?.username || auth.getCurrentUser()?.username || 'Administrador'}</span>
-              <span className="text-[10px] uppercase font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded">
+              <span className="text-xs font-bold text-[#2B2420]">
+                {currentUser?.username || auth.getCurrentUser()?.username || 'Administrador'}
+              </span>
+              <span className="text-[10px] uppercase font-bold text-emerald-800 bg-emerald-50 px-1.5 py-0.2 rounded">
                 Admin
               </span>
             </div>
 
             <button
               onClick={onBackToGame}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#E2DACD] bg-white hover:bg-[#F6F2EA] text-xs font-bold text-[#6F655C] hover:text-[#2B2420] transition-colors cursor-pointer"
+              className="px-3 py-1.5 rounded-lg border border-[#E2DACD] bg-white hover:bg-[#F6F2EA] text-xs font-bold text-[#6F655C] hover:text-[#2B2420] transition-colors cursor-pointer"
             >
-              <ArrowLeft size={13} />
-              <span>Voltar ao Jogo</span>
+              Voltar ao Jogo
             </button>
           </div>
         </div>
@@ -151,57 +139,62 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
 
       {/* Conteúdo Principal com Barra Lateral e Área de Trabalho */}
       <div className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-8 py-8 flex flex-col md:flex-row gap-8">
-        {/* Navegação Lateral */}
-        <aside className="w-full md:w-56 shrink-0">
+        {/* Navegação Lateral (Design Limpo e Editorial, Sem Ícones Genéricos de IA) */}
+        <aside className="w-full md:w-52 shrink-0">
           <nav className="flex md:flex-col gap-1 overflow-x-auto pb-2 md:pb-0">
             <button
               onClick={() => setActiveTab('overview')}
-              className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold transition-all text-left cursor-pointer shrink-0 ${
+              className={`px-3 py-2 rounded-lg text-xs font-bold transition-all text-left cursor-pointer shrink-0 ${
                 activeTab === 'overview'
                   ? 'bg-[#2B2420] text-white shadow-2xs'
                   : 'text-[#6F655C] hover:bg-white hover:text-[#2B2420]'
               }`}
             >
-              <LayoutDashboard size={15} />
-              <span>Visão Geral</span>
+              Visão Geral
             </button>
 
             <button
               onClick={() => setActiveTab('official_decks')}
-              className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold transition-all text-left cursor-pointer shrink-0 ${
+              className={`px-3 py-2 rounded-lg text-xs font-bold transition-all text-left cursor-pointer shrink-0 ${
                 activeTab === 'official_decks'
                   ? 'bg-[#2B2420] text-white shadow-2xs'
                   : 'text-[#6F655C] hover:bg-white hover:text-[#2B2420]'
               }`}
             >
-              <Layers size={15} />
-              <span>Baralhos Oficiais</span>
+              Baralhos Oficiais
+            </button>
+
+            <button
+              onClick={() => setActiveTab('official_faces')}
+              className={`px-3 py-2 rounded-lg text-xs font-bold transition-all text-left cursor-pointer shrink-0 ${
+                activeTab === 'official_faces'
+                  ? 'bg-[#2B2420] text-white shadow-2xs'
+                  : 'text-[#6F655C] hover:bg-white hover:text-[#2B2420]'
+              }`}
+            >
+              Caras Oficiais
             </button>
 
             <button
               onClick={() => setActiveTab('featured_decks')}
-              className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold transition-all text-left cursor-pointer shrink-0 ${
+              className={`px-3 py-2 rounded-lg text-xs font-bold transition-all text-left cursor-pointer shrink-0 ${
                 activeTab === 'featured_decks'
                   ? 'bg-[#2B2420] text-white shadow-2xs'
                   : 'text-[#6F655C] hover:bg-white hover:text-[#2B2420]'
               }`}
             >
-              <Sparkles size={15} />
-              <span>Destaques da Home</span>
+              Destaques da Home
             </button>
 
             <button
               onClick={() => setActiveTab('reports')}
-              className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-all text-left cursor-pointer shrink-0 ${
+              className={`flex items-center justify-between px-3 py-2 rounded-lg text-xs font-bold transition-all text-left cursor-pointer shrink-0 ${
                 activeTab === 'reports'
                   ? 'bg-[#2B2420] text-white shadow-2xs'
                   : 'text-[#6F655C] hover:bg-white hover:text-[#2B2420]'
               }`}
             >
-              <div className="flex items-center gap-2.5">
-                <ShieldAlert size={15} />
-                <span>Denúncias</span>
-              </div>
+              <span>Denúncias</span>
               {metrics.pendingReportsCount > 0 && (
                 <span
                   className={`text-[10px] font-bold px-1.5 py-0.2 rounded-full ${
@@ -215,26 +208,24 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
 
             <button
               onClick={() => setActiveTab('accounts')}
-              className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold transition-all text-left cursor-pointer shrink-0 ${
+              className={`px-3 py-2 rounded-lg text-xs font-bold transition-all text-left cursor-pointer shrink-0 ${
                 activeTab === 'accounts'
                   ? 'bg-[#2B2420] text-white shadow-2xs'
                   : 'text-[#6F655C] hover:bg-white hover:text-[#2B2420]'
               }`}
             >
-              <Users size={15} />
-              <span>Contas e Banimentos</span>
+              Contas e Banimentos
             </button>
 
             <button
               onClick={() => setActiveTab('audit_logs')}
-              className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold transition-all text-left cursor-pointer shrink-0 ${
+              className={`px-3 py-2 rounded-lg text-xs font-bold transition-all text-left cursor-pointer shrink-0 ${
                 activeTab === 'audit_logs'
                   ? 'bg-[#2B2420] text-white shadow-2xs'
                   : 'text-[#6F655C] hover:bg-white hover:text-[#2B2420]'
               }`}
             >
-              <Clock size={15} />
-              <span>Histórico de Ações</span>
+              Histórico de Ações
             </button>
           </nav>
         </aside>
@@ -251,6 +242,10 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
 
           {activeTab === 'official_decks' && (
             <AdminOfficialDecks />
+          )}
+
+          {activeTab === 'official_faces' && (
+            <AdminOfficialFaces />
           )}
 
           {activeTab === 'featured_decks' && (

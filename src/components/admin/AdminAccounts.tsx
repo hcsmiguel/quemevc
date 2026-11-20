@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { adminService, type AdminUserItem } from '../../services/admin';
 import { Button } from '../ui/Button';
-import { Users, Ban, CheckCircle2 } from 'lucide-react';
 import { sounds } from '../../utils/sound';
 
 export const AdminAccounts: React.FC = () => {
@@ -70,9 +69,6 @@ export const AdminAccounts: React.FC = () => {
         </div>
       ) : users.length === 0 ? (
         <div className="bg-white border border-[#E2DACD] rounded-2xl p-10 text-center space-y-3">
-          <div className="w-12 h-12 rounded-2xl bg-[#F6F2EA] text-[#B4532F] flex items-center justify-center mx-auto">
-            <Users size={22} />
-          </div>
           <h3 className="font-serif text-base text-[#2B2420]">
             Nenhum usuário encontrado
           </h3>
@@ -123,8 +119,7 @@ export const AdminAccounts: React.FC = () => {
                         variant="secondary"
                         onClick={() => handleToggleBan(u, false)}
                       >
-                        <CheckCircle2 size={12} className="text-emerald-600" />
-                        <span>Remover Suspensão</span>
+                        Remover Suspensão
                       </Button>
                     ) : (
                       <Button
@@ -135,8 +130,7 @@ export const AdminAccounts: React.FC = () => {
                           setSelectedUser(u);
                         }}
                       >
-                        <Ban size={12} />
-                        <span>Suspender Conta</span>
+                        Suspender Conta
                       </Button>
                     )
                   )}
@@ -151,10 +145,6 @@ export const AdminAccounts: React.FC = () => {
       {selectedUser && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#2B2420]/40 backdrop-blur-xs animate-in fade-in duration-150">
           <div className="bg-[#FBF8F3] border border-[#E2DACD] rounded-2xl max-w-sm w-full p-6 shadow-xl space-y-4">
-            <div className="w-10 h-10 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 flex items-center justify-center mx-auto">
-              <Ban size={20} />
-            </div>
-
             <div className="text-center">
               <h3 className="font-serif text-lg text-[#2B2420]">
                 Suspender {selectedUser.username}?

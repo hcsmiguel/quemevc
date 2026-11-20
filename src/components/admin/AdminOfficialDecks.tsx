@@ -4,17 +4,7 @@ import { auth, type SavedDeck, type SavedFace } from '../../services/auth';
 import type { Character } from '../../types/game';
 import { Button } from '../ui/Button';
 import { ImageCropperModal } from '../ImageCropperModal';
-import {
-  Layers,
-  Plus,
-  Trash2,
-  Edit2,
-  Check,
-  AlertCircle,
-  Search,
-  ArrowLeft,
-  Camera,
-} from 'lucide-react';
+import { Check } from 'lucide-react';
 import { sounds } from '../../utils/sound';
 
 export const AdminOfficialDecks: React.FC = () => {
@@ -32,7 +22,9 @@ export const AdminOfficialDecks: React.FC = () => {
   const [validationError, setValidationError] = useState<string | null>(null);
 
   // Auxiliares de cartas
+  const [officialFaces, setOfficialFaces] = useState<SavedFace[]>([]);
   const [communityFaces, setCommunityFaces] = useState<SavedFace[]>([]);
+  const [facePickerTab, setFacePickerTab] = useState<'official' | 'community'>('official');
   const [isFacePickerOpen, setIsFacePickerOpen] = useState(false);
   const [faceSearch, setFaceSearch] = useState('');
   const [isCropperOpen, setIsCropperOpen] = useState(false);
@@ -49,6 +41,7 @@ export const AdminOfficialDecks: React.FC = () => {
 
   useEffect(() => {
     loadOfficialDecks();
+    adminService.getOfficialFaces().then(setOfficialFaces);
     auth.getPublicFaces().then(setCommunityFaces);
   }, []);
 
@@ -251,10 +244,9 @@ export const AdminOfficialDecks: React.FC = () => {
         <div className="flex items-center justify-between pb-4 border-b border-[#E2DACD]">
           <button
             onClick={() => setIsEditing(false)}
-            className="flex items-center gap-1.5 text-xs text-[#6F655C] hover:text-[#2B2420] cursor-pointer"
+            className="text-xs text-[#6F655C] hover:text-[#2B2420] cursor-pointer"
           >
-            <ArrowLeft size={14} />
-            <span>Voltar aos Baralhos Oficiais</span>
+            ← Voltar aos Baralhos Oficiais
           </button>
 
           <div className="flex items-center gap-3">
@@ -279,9 +271,8 @@ export const AdminOfficialDecks: React.FC = () => {
 
         {/* Mensagem de Erro de Validação */}
         {validationError && (
-          <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center gap-2">
-            <AlertCircle size={16} className="shrink-0 text-rose-600" />
-            <span>{validationError}</span>
+          <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs">
+            {validationError}
           </div>
         )}
 
@@ -351,8 +342,7 @@ export const AdminOfficialDecks: React.FC = () => {
                 setIsFacePickerOpen(true);
               }}
             >
-              <Search size={14} />
-              <span>Adicionar da Comunidade</span>
+              Adicionar da Comunidade
             </Button>
             <Button
               variant="secondary"
@@ -363,8 +353,7 @@ export const AdminOfficialDecks: React.FC = () => {
                 setIsCropperOpen(true);
               }}
             >
-              <Plus size={14} />
-              <span>Subir Foto Nova</span>
+              Subir Foto Nova
             </Button>
           </div>
         </div>
@@ -391,9 +380,9 @@ export const AdminOfficialDecks: React.FC = () => {
                     setIsCropperOpen(true);
                   }}
                   title="Substituir foto"
-                  className="absolute top-1 left-1 p-1 bg-white/90 hover:bg-white rounded text-[#6F655C] hover:text-[#2B2420] opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer shadow-xs"
+                  className="absolute top-1 left-1 px-1.5 py-0.5 bg-white/90 hover:bg-white rounded text-[10px] font-bold text-[#6F655C] hover:text-[#2B2420] opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer shadow-xs"
                 >
-                  <Camera size={11} />
+                  Trocar
                 </button>
 
                 {/* Remover */}
@@ -401,9 +390,9 @@ export const AdminOfficialDecks: React.FC = () => {
                   type="button"
                   onClick={() => handleRemoveCard(char.id)}
                   title="Remover carta"
-                  className="absolute top-1 right-1 p-1 bg-white/90 hover:bg-rose-50 rounded text-[#6F655C] hover:text-rose-700 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer shadow-xs"
+                  className="absolute top-1 right-1 px-1.5 py-0.5 bg-white/90 hover:bg-rose-50 rounded text-[10px] font-bold text-[#6F655C] hover:text-rose-700 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer shadow-xs"
                 >
-                  <Trash2 size={11} />
+                  Remover
                 </button>
               </div>
 
@@ -467,23 +456,40 @@ export const AdminOfficialDecks: React.FC = () => {
             }}
             className="p-3 rounded-xl border border-dashed border-[#E2DACD] hover:border-[#2B2420] bg-[#FBF8F3] hover:bg-white transition-colors flex flex-col items-center justify-center text-center min-h-[150px] cursor-pointer group"
           >
-            <div className="w-8 h-8 rounded-lg bg-white border border-[#E2DACD] flex items-center justify-center text-[#B4532F] mb-1.5 group-hover:scale-105 transition-transform">
-              <Plus size={16} />
-            </div>
+            <span className="text-2xl font-serif text-[#B4532F] mb-0.5 leading-none">+</span>
             <span className="text-xs font-sans font-medium text-[#2B2420]">
               Adicionar carta
             </span>
           </button>
         </div>
 
-        {/* Modal de Busca de Caras da Comunidade */}
+        {/* Modal de Busca de Caras */}
         {isFacePickerOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#2B2420]/40 backdrop-blur-xs animate-in fade-in duration-150">
             <div className="bg-[#FBF8F3] border border-[#E2DACD] rounded-2xl max-w-2xl w-full p-5 max-h-[85vh] flex flex-col shadow-xl">
               <div className="flex items-center justify-between pb-3 border-b border-[#E2DACD]">
-                <h4 className="font-serif text-base text-[#2B2420]">
-                  Escolher Caras da Comunidade
-                </h4>
+                <div className="flex items-center gap-2 text-xs">
+                  <button
+                    onClick={() => setFacePickerTab('official')}
+                    className={`px-3 py-1.5 rounded-lg font-bold transition-colors cursor-pointer ${
+                      facePickerTab === 'official'
+                        ? 'bg-[#2B2420] text-white'
+                        : 'text-[#6F655C] hover:bg-white hover:text-[#2B2420]'
+                    }`}
+                  >
+                    Caras Oficiais ({officialFaces.length})
+                  </button>
+                  <button
+                    onClick={() => setFacePickerTab('community')}
+                    className={`px-3 py-1.5 rounded-lg font-bold transition-colors cursor-pointer ${
+                      facePickerTab === 'community'
+                        ? 'bg-[#2B2420] text-white'
+                        : 'text-[#6F655C] hover:bg-white hover:text-[#2B2420]'
+                    }`}
+                  >
+                    Comunidade ({communityFaces.length})
+                  </button>
+                </div>
                 <button
                   onClick={() => {
                     setIsFacePickerOpen(false);
@@ -506,7 +512,7 @@ export const AdminOfficialDecks: React.FC = () => {
               </div>
 
               <div className="flex-1 overflow-y-auto grid grid-cols-3 sm:grid-cols-5 gap-2.5 p-1">
-                {communityFaces
+                {(facePickerTab === 'official' ? officialFaces : communityFaces)
                   .filter((f) => f.name.toLowerCase().includes(faceSearch.toLowerCase().trim()))
                   .map((face) => {
                     const isAdded = cards.some((c) => c.imageUrl === face.image_url);
@@ -577,8 +583,7 @@ export const AdminOfficialDecks: React.FC = () => {
         </div>
 
         <Button size="sm" variant="primary" onClick={handleStartNewDeck}>
-          <Plus size={14} />
-          <span>Criar Baralho Oficial</span>
+          Criar Baralho Oficial
         </Button>
       </div>
 
@@ -588,9 +593,6 @@ export const AdminOfficialDecks: React.FC = () => {
         </div>
       ) : decks.length === 0 ? (
         <div className="bg-white border border-[#E2DACD] rounded-2xl p-10 text-center space-y-3">
-          <div className="w-12 h-12 rounded-2xl bg-[#F6F2EA] text-[#B4532F] flex items-center justify-center mx-auto">
-            <Layers size={22} />
-          </div>
           <h3 className="font-serif text-base text-[#2B2420]">
             Nenhum baralho oficial cadastrado ainda
           </h3>
@@ -598,8 +600,7 @@ export const AdminOfficialDecks: React.FC = () => {
             Crie seu primeiro baralho oficial com 15 a 90 cartas para disponibilizar aos jogadores.
           </p>
           <Button size="sm" variant="primary" onClick={handleStartNewDeck}>
-            <Plus size={14} />
-            <span>Criar Baralho Oficial Agora</span>
+            Criar Baralho Oficial Agora
           </Button>
         </div>
       ) : (
@@ -674,17 +675,15 @@ export const AdminOfficialDecks: React.FC = () => {
                     className="flex-1"
                     onClick={() => handleStartEditDeck(deck)}
                   >
-                    <Edit2 size={12} />
-                    <span>Editar</span>
+                    Editar
                   </Button>
 
                   <button
                     type="button"
                     onClick={() => handleDeleteDeck(deck)}
-                    title="Excluir baralho"
-                    className="w-8 h-8 rounded-lg border border-[#E2DACD] hover:bg-rose-50 hover:border-rose-200 text-[#6F655C] hover:text-rose-700 flex items-center justify-center transition-colors cursor-pointer"
+                    className="px-2.5 py-1 rounded-lg border border-[#E2DACD] hover:bg-rose-50 hover:border-rose-200 text-xs font-medium text-[#6F655C] hover:text-rose-700 transition-colors cursor-pointer"
                   >
-                    <Trash2 size={14} />
+                    Excluir
                   </button>
                 </div>
               </div>

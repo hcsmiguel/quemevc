@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import { auth, type SavedDeck } from './auth';
+import { auth, type SavedDeck, type SavedFace } from './auth';
 import type { Character } from '../types/game';
 
 export interface AdminAuditLog {
@@ -16,6 +16,7 @@ export interface AdminAuditLog {
 
 export interface AdminOverviewMetrics {
   officialDecksCount: number;
+  officialFacesCount: number;
   communityDecksCount: number;
   pendingReportsCount: number;
   bannedUsersCount: number;
@@ -75,7 +76,6 @@ export class AdminService {
         .maybeSingle();
 
       if (error || !data) {
-        // Fallback por e-mail ou username
         if (user.email) {
           const { data: emailData } = await supabase
             .from('user_profiles')
@@ -97,15 +97,17 @@ export class AdminService {
    */
   public async getOverviewMetrics(): Promise<AdminOverviewMetrics> {
     try {
-      const [officialRes, communityRes, reportsRes, bannedRes] = await Promise.all([
+      const [officialDecksRes, officialFacesRes, communityRes, reportsRes, bannedRes] = await Promise.all([
         supabase.from('saved_decks').select('id', { count: 'exact', head: true }).eq('is_official', true),
+        supabase.from('saved_faces').select('id', { count: 'exact', head: true }).eq('is_official', true),
         supabase.from('saved_decks').select('id', { count: 'exact', head: true }).eq('is_public', true).eq('is_official', false),
         supabase.from('content_reports').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
         supabase.from('user_profiles').select('id', { count: 'exact', head: true }).eq('is_banned', true),
       ]);
 
       return {
-        officialDecksCount: officialRes.count || 0,
+        officialDecksCount: officialDecksRes.count || 0,
+        officialFacesCount: officialFacesRes.count || 0,
         communityDecksCount: communityRes.count || 0,
         pendingReportsCount: reportsRes.count || 0,
         bannedUsersCount: bannedRes.count || 0,
@@ -114,6 +116,7 @@ export class AdminService {
       console.warn('Erro ao carregar métricas da visão geral:', err);
       return {
         officialDecksCount: 0,
+        officialFacesCount: 0,
         communityDecksCount: 0,
         pendingReportsCount: 0,
         bannedUsersCount: 0,
@@ -171,6 +174,98 @@ export class AdminService {
   }
 
   // ==========================================
+  // CARAS OFICIAIS
+  // ==========================================
+
+  /**
+   * Busca todas as caras oficiais do jogo
+   */
+  public async getOfficialFaces(): Promise<SavedFace[]> {
+    try {
+      const { data, error } = await supabase
+        .from('saved_faces')
+        .select('*')
+        .eq('is_official', true)
+        .eq('is_hidden', false)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.warn('Erro ao buscar caras oficiais:', error);
+        return [];
+      }
+      return (data as SavedFace[]) || [];
+    } catch (err) {
+      console.warn('Exceção ao buscar caras oficiais:', err);
+      return [];
+    }
+  }
+
+  /**
+   * Cria ou atualiza uma cara oficial do Tá na Cara!
+   */
+  public async saveOfficialFace(name: string, imageUrl: string, id?: string): Promise<SavedFace | null> {
+    const user = auth.getCurrentUser();
+    const adminId = user?.id || 'admin_tanacara';
+    const cleanName = name.trim().slice(0, 20);
+
+    const payload = {
+      name: cleanName,
+      image_url: imageUrl,
+      is_official: true,
+      is_public: true,
+      is_hidden: false,
+      author_name: 'Tá na Cara!',
+      user_id: adminId,
+    };
+
+    try {
+      if (id) {
+        const { data, error } = await supabase
+          .from('saved_faces')
+          .update(payload)
+          .eq('id', id)
+          .select()
+          .single();
+
+        if (error) throw error;
+        await this.logAction('Atualizou cara oficial', 'card', id, cleanName);
+        return data as SavedFace;
+      } else {
+        const { data, error } = await supabase
+          .from('saved_faces')
+          .insert(payload)
+          .select()
+          .single();
+
+        if (error) throw error;
+        await this.logAction('Criou cara oficial', 'card', data.id, cleanName);
+        return data as SavedFace;
+      }
+    } catch (err) {
+      console.error('Erro ao salvar cara oficial:', err);
+      return null;
+    }
+  }
+
+  /**
+   * Exclui uma cara oficial
+   */
+  public async deleteOfficialFace(faceId: string, faceName?: string): Promise<boolean> {
+    try {
+      const { error } = await supabase
+        .from('saved_faces')
+        .delete()
+        .eq('id', faceId);
+
+      if (error) throw error;
+      await this.logAction('Excluiu cara oficial', 'card', faceId, faceName || 'Cara Oficial');
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  // ==========================================
   // BARALHOS OFICIAIS
   // ==========================================
 
@@ -219,7 +314,6 @@ export class AdminService {
 
     try {
       if (deckInput.id) {
-        // Atualização
         const { data, error } = await supabase
           .from('saved_decks')
           .update(payload)
@@ -227,10 +321,7 @@ export class AdminService {
           .select()
           .single();
 
-        if (error) {
-          console.error('Erro ao atualizar baralho oficial:', error);
-          throw error;
-        }
+        if (error) throw error;
 
         await this.logAction(
           deckInput.is_draft ? 'Salvou rascunho de baralho oficial' : 'Publicou baralho oficial',
@@ -242,17 +333,13 @@ export class AdminService {
 
         return data as SavedDeck;
       } else {
-        // Criação
         const { data, error } = await supabase
           .from('saved_decks')
           .insert(payload)
           .select()
           .single();
 
-        if (error) {
-          console.error('Erro ao criar baralho oficial:', error);
-          throw error;
-        }
+        if (error) throw error;
 
         await this.logAction(
           deckInput.is_draft ? 'Criou rascunho de baralho oficial' : 'Criou e publicou baralho oficial',
@@ -294,11 +381,11 @@ export class AdminService {
   }
 
   // ==========================================
-  // DESTAQUES DA HOME
+  // DESTAQUES DA HOME (SOMENTE OFICIAIS DO TÁ NA CARA!)
   // ==========================================
 
   /**
-   * Busca os baralhos que estão marcados como destaque para a tela inicial
+   * Busca os baralhos que estão marcados como destaque para a tela inicial (somente oficiais)
    */
   public async getFeaturedDecks(): Promise<SavedDeck[]> {
     try {
@@ -306,6 +393,7 @@ export class AdminService {
         .from('saved_decks')
         .select('*')
         .eq('is_featured', true)
+        .eq('is_official', true)
         .eq('is_hidden', false)
         .order('featured_order', { ascending: true });
 
@@ -320,18 +408,17 @@ export class AdminService {
   }
 
   /**
-   * Busca todos os baralhos elegíveis para destaque (publicados e não ocultos)
+   * Busca SOMENTE baralhos oficiais elegíveis para destaque (publicados e não ocultos)
    */
   public async getEligibleDecksForFeatured(): Promise<SavedDeck[]> {
     try {
       const { data, error } = await supabase
         .from('saved_decks')
         .select('*')
+        .eq('is_official', true)
         .eq('is_draft', false)
         .eq('is_hidden', false)
-        .order('is_official', { ascending: false })
-        .order('created_at', { ascending: false })
-        .limit(50);
+        .order('created_at', { ascending: false });
 
       if (error) return [];
       return (data as SavedDeck[]) || [];
@@ -360,7 +447,7 @@ export class AdminService {
       }
 
       await this.logAction(
-        'Atualizou baralhos em destaque na Home',
+        'Atualizou baralhos oficiais em destaque na Home',
         'system',
         'home_featured',
         `${deckIdsInOrder.length} baralhos`,
@@ -421,7 +508,6 @@ export class AdminService {
 
       if (error) return false;
 
-      // Se solicitado ocultar o conteúdo
       if (hideContent && targetType && targetId) {
         if (targetType === 'deck') {
           await supabase.from('saved_decks').update({ is_hidden: true }).eq('id', targetId);
@@ -488,7 +574,7 @@ export class AdminService {
           is_banned: isBanned,
           ban_reason: isBanned ? (reason || 'Violação dos Termos de Uso') : null,
           banned_by: isBanned ? (admin?.username || 'admin') : null,
-          banned_until: isBanned ? null : null, // Banimento permanente até remoção
+          banned_until: null,
         })
         .eq('id', userId);
 

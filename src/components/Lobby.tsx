@@ -144,6 +144,7 @@ export const Lobby: FC<LobbyProps> = ({
           .from('saved_decks')
           .select('*')
           .eq('is_featured', true)
+          .eq('is_official', true)
           .eq('is_hidden', false)
           .order('featured_order', { ascending: true });
         if (data && data.length > 0) {
