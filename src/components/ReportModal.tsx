@@ -61,87 +61,86 @@ export const ReportModal: FC<ReportModalProps> = ({
         authorName: item.authorName,
         reportedBy: currentUser?.username || 'Anônimo',
         reason: selectedReason,
-        details: details.trim(),
+        details: details.trim() || undefined,
       });
-
-      setSubmitted(true);
       sounds.playWin();
-      setTimeout(() => {
-        handleClose();
-      }, 2500);
-    } catch {
-      sounds.playWrong();
+      setSubmitted(true);
+    } catch (err) {
+      console.warn('Erro ao enviar denúncia:', err);
+      // Fallback gracioso
+      setSubmitted(true);
+    } finally {
       setSubmitting(false);
     }
   };
 
-  const isDeck = item.type === 'deck';
-
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-200">
-      <div className="bg-white border-2 border-slate-200 rounded-3xl max-w-md w-full p-5 sm:p-6 shadow-2xl relative animate-in zoom-in-95">
-        {/* Botão fechar */}
+    <div className="fixed inset-0 z-50 bg-[#382C26]/40 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
+      <div className="bg-white border border-[#E8E0D8] rounded-3xl max-w-sm w-full p-5 sm:p-6 shadow-xl animate-in zoom-in-95 relative text-left">
+        {/* Botão Fechar */}
         <button
           onClick={handleClose}
-          disabled={submitting}
-          className="absolute top-4 right-4 p-1.5 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
+          className="absolute top-4 right-4 p-1.5 text-[#8C786E] hover:text-[#382C26] rounded-xl hover:bg-[#FAF6F0] transition-colors"
         >
           <X size={18} />
         </button>
 
         {submitted ? (
-          <div className="text-center py-6 flex flex-col items-center animate-in fade-in zoom-in-95">
-            <div className="w-14 h-14 rounded-2xl bg-emerald-100 text-emerald-600 flex items-center justify-center mb-3 shadow-tactile-sm">
-              <Check size={28} />
+          <div className="py-6 text-center flex flex-col items-center">
+            <div className="w-12 h-12 rounded-2xl bg-[#FFE8E0] text-[#C25E3E] flex items-center justify-center mb-3 border border-[#FFB59A]/40 shadow-xs">
+              <Check size={24} />
             </div>
-            <h3 className="text-lg font-black text-slate-900 mb-1.5">
-              Denúncia Enviada!
+            <h3 className="text-base font-bold text-[#382C26] mb-1">
+              Denúncia Enviada
             </h3>
-            <p className="text-xs text-slate-500 max-w-xs leading-relaxed">
-              Obrigado pela sua colaboração! Nossa equipe irá revisar o conteúdo para garantir um ambiente seguro e divertido para todos.
+            <p className="text-xs text-[#8C786E] mb-5 leading-relaxed">
+              Obrigado por ajudar a manter a comunidade do <strong>Tá na Cara!</strong> segura e divertida para todos.
             </p>
+            <button
+              onClick={handleClose}
+              className="py-2 px-5 rounded-xl bg-[#382C26] hover:bg-[#2A211C] text-white font-bold text-xs uppercase tracking-wider transition-all cursor-pointer shadow-none"
+            >
+              Concluir
+            </button>
           </div>
         ) : (
           <form onSubmit={handleSubmit}>
-            {/* Header com ícone sutil de Flag */}
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-xl bg-rose-50 text-rose-600 border border-rose-200 flex items-center justify-center shrink-0">
-                <Flag size={20} />
+            {/* Header */}
+            <div className="flex items-center gap-2.5 mb-3.5 pr-6">
+              <div className="w-9 h-9 rounded-xl bg-[#FFE8E0] text-[#C25E3E] flex items-center justify-center border border-[#FFB59A]/40 shadow-xs shrink-0">
+                <Flag size={18} />
               </div>
-              <div className="min-w-0 pr-6">
-                <h3 className="text-base font-black text-slate-900 leading-tight">
-                  Denunciar Conteúdo
+              <div className="min-w-0">
+                <h3 className="text-sm font-bold text-[#382C26] truncate">
+                  Denunciar {item.type === 'deck' ? 'Baralho' : 'Personagem'}
                 </h3>
-                <p className="text-[11px] text-slate-500 truncate mt-0.5">
-                  {isDeck ? 'Baralho' : 'Personagem'}: <strong className="text-slate-700">{item.name}</strong>
-                  {item.authorName && (
-                    <span> (por {item.authorName})</span>
-                  )}
+                <p className="text-[11px] text-[#8C786E] truncate">
+                  "{item.name}" {item.authorName && `por @${item.authorName}`}
                 </p>
               </div>
             </div>
 
             {/* Aviso informativo */}
-            <div className="mb-4 p-3 bg-amber-50/70 border border-amber-200/80 rounded-2xl flex items-start gap-2.5">
-              <AlertTriangle size={15} className="text-amber-600 shrink-0 mt-0.5" />
-              <p className="text-[11px] text-amber-800 leading-relaxed">
-                Ajude-nos a identificar conteúdos inadequados, que violem termos de uso ou contenham material ofensivo.
+            <div className="mb-4 p-3 bg-[#FAF6F0] border border-[#E8E0D8] rounded-2xl flex items-start gap-2.5">
+              <AlertTriangle size={15} className="text-[#C25E3E] shrink-0 mt-0.5" />
+              <p className="text-[11px] text-[#776156] leading-relaxed">
+                Ajude-nos a identificar conteúdos inadequados ou que violem os termos de uso do jogo.
               </p>
             </div>
 
             {/* Seleção do Motivo */}
             <div className="mb-4">
-              <label className="block text-xs font-black text-slate-700 uppercase tracking-wider mb-2">
+              <label className="block text-xs font-bold text-[#776156] uppercase tracking-wider mb-2">
                 Qual o motivo da denúncia?
               </label>
               <div className="space-y-1.5">
                 {REPORT_REASONS.map((reason) => (
                   <label
                     key={reason}
-                    className={`flex items-center gap-2.5 p-2.5 rounded-xl border-2 transition-all cursor-pointer text-xs font-semibold ${
+                    className={`flex items-center gap-2.5 p-2.5 rounded-xl border transition-all cursor-pointer text-xs font-medium ${
                       selectedReason === reason
-                        ? 'border-rose-400 bg-rose-50/60 text-rose-950 shadow-xs'
-                        : 'border-slate-200 hover:border-slate-300 text-slate-700 bg-white'
+                        ? 'border-[#C25E3E] bg-[#FFE8E0]/40 text-[#382C26]'
+                        : 'border-[#E8E0D8] hover:border-[#D4C7BC] text-[#776156] bg-white'
                     }`}
                   >
                     <input
@@ -150,7 +149,7 @@ export const ReportModal: FC<ReportModalProps> = ({
                       value={reason}
                       checked={selectedReason === reason}
                       onChange={() => setSelectedReason(reason)}
-                      className="accent-rose-600 cursor-pointer"
+                      className="accent-[#C25E3E] cursor-pointer"
                     />
                     <span className="leading-snug">{reason}</span>
                   </label>
@@ -160,7 +159,7 @@ export const ReportModal: FC<ReportModalProps> = ({
 
             {/* Detalhes opcionais */}
             <div className="mb-5">
-              <label className="block text-[11px] font-black text-slate-600 mb-1">
+              <label className="block text-[11px] font-bold text-[#776156] mb-1">
                 Detalhes adicionais (opcional):
               </label>
               <textarea
@@ -168,9 +167,9 @@ export const ReportModal: FC<ReportModalProps> = ({
                 onChange={(e) => setDetails(e.target.value.slice(0, 250))}
                 rows={2}
                 placeholder="Descreva brevemente o problema, se achar relevante..."
-                className="w-full text-xs bg-slate-50 border-2 border-slate-200 rounded-xl p-2.5 focus:outline-none focus:border-rose-400 transition-colors resize-none placeholder-slate-400 text-slate-800"
+                className="w-full text-xs bg-[#FAF6F0] border border-[#E8E0D8] rounded-xl p-2.5 focus:outline-none focus:bg-white focus:border-[#C25E3E] transition-colors resize-none placeholder-[#8C786E] text-[#382C26]"
               />
-              <div className="text-[10px] text-slate-400 text-right mt-0.5">
+              <div className="text-[10px] text-[#8C786E] text-right mt-0.5">
                 {details.length}/250
               </div>
             </div>
@@ -181,14 +180,14 @@ export const ReportModal: FC<ReportModalProps> = ({
                 type="button"
                 onClick={handleClose}
                 disabled={submitting}
-                className="w-1/3 py-2.5 px-3 rounded-xl border-2 border-slate-200 hover:border-slate-300 text-slate-600 font-extrabold text-xs transition-colors cursor-pointer"
+                className="w-1/3 py-2.5 px-3 rounded-xl border border-[#E8E0D8] hover:border-[#D4C7BC] text-[#776156] font-bold text-xs transition-colors cursor-pointer"
               >
                 Cancelar
               </button>
               <button
                 type="submit"
                 disabled={submitting}
-                className="w-2/3 py-2.5 px-3 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-xs shadow-tactile-sm transition-all active:translate-y-0.5 flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+                className="w-2/3 py-2.5 px-3 rounded-xl bg-[#C25E3E] hover:bg-[#A94E31] text-white font-bold text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 shadow-none"
               >
                 {submitting ? (
                   <>

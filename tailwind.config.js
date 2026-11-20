@@ -7,9 +7,31 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['"Plus Jakarta Sans"', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
+        serif: ['Fraunces', 'Georgia', 'serif'],
+        sans: ['"DM Sans"', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
+      },
+      borderRadius: {
+        sm: '6px',
+        md: '12px',
       },
       colors: {
+        paper: '#F6F2EA',
+        surface: '#FBF8F3',
+        ink: {
+          DEFAULT: '#2B2420',
+          primary: '#2B2420',
+          secondary: '#6F655C',
+          tertiary: '#A39A90',
+        },
+        line: {
+          DEFAULT: '#E2DACD',
+          subtle: '#E2DACD',
+        },
+        action: {
+          DEFAULT: '#B4532F',
+          primary: '#B4532F',
+          hover: '#984323',
+        },
         game: {
           blue: '#2563EB',
           red: '#EF4444',

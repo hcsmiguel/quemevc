@@ -1,0 +1,32 @@
+:root {
+  /* Mesa de Jogo — Design Tokens */
+  --bg-paper: #F6F2EA;
+  --surface-elevated: #FBF8F3;
+  --ink-primary: #2B2420;
+  --ink-secondary: #6F655C;
+  --ink-tertiary: #A39A90;
+  --line-subtle: #E2DACD;
+  --action-primary: #B4532F;
+  --action-hover: #984323;
+  --color-selection: #2B2420;
+
+  /* Feedback Semântico */
+  --success-text: #2E6038;
+  --success-bg: #EDF5EE;
+  --success-line: #C8E2CC;
+  --error-text: #8C2E2A;
+  --error-bg: #F8EBEA;
+  --error-line: #ECC7C5;
+
+  /* Raios Estritos */
+  --radius-sm: 6px;
+  --radius-md: 12px;
+
+  /* Tipografia */
+  --font-serif: 'Fraunces', Georgia, serif;
+  --font-sans: 'DM Sans', system-ui, -apple-system, sans-serif;
+
+  /* Elevação Física Sutil (Apenas Cartas e Modais) */
+  --elevation-card: 0 2px 6px rgba(43, 36, 32, 0.05), 0 1px 2px rgba(43, 36, 32, 0.04);
+  --elevation-modal: 0 16px 36px -8px rgba(43, 36, 32, 0.12), 0 4px 12px rgba(43, 36, 32, 0.06);
+}

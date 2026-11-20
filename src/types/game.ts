@@ -18,6 +18,7 @@ export interface CharacterTraits {
 export interface Character {
   id: string;
   name: string;
+  nickname?: string; // Apelido curto opcional (máx. 12 caracteres, prioridade na cartela)
   imageUrl?: string; // Para caras personalizadas
   traits?: CharacterTraits; // Para caras padrão
   avatarBg?: string;
@@ -48,7 +49,8 @@ export type GamePhase =
   | 'GAME_OVER'
   | 'PROFILE'
   | 'PUBLIC_LOBBIES'
-  | 'COMMUNITY';
+  | 'COMMUNITY'
+  | 'ADMIN_PANEL';
 
 export interface Question {
   id: string;

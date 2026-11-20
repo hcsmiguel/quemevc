@@ -1,7 +1,9 @@
 import { useState, type FC, type FormEvent } from 'react';
 import { auth, type AppUser } from '../services/auth';
-import { User, Lock, LogIn, UserPlus, X, AlertCircle } from 'lucide-react';
+import { X, AlertCircle } from 'lucide-react';
 import { sounds } from '../utils/sound';
+import { Button } from './ui/Button';
+import { Input } from './ui/Input';
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -57,37 +59,45 @@ export const LoginModal: FC<LoginModalProps> = ({ isOpen, onClose, onLoginSucces
   };
 
   return (
-    <div className="fixed inset-0 z-[80] bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4">
-      <div className="bg-slate-900 border-2 border-indigo-500/70 rounded-3xl max-w-sm w-full p-6 shadow-2xl animate-in zoom-in-95">
+    <div className="fixed inset-0 z-[80] bg-[#2B2420]/60 backdrop-blur-xs flex items-center justify-center p-4">
+      <div className="bg-[#FBF8F3] border border-[#E2DACD] rounded-[10px] max-w-sm w-full p-6 shadow-xl animate-in zoom-in-95 text-left">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center">
-              {isRegister ? <UserPlus size={18} /> : <LogIn size={18} />}
-            </div>
-            <h3 className="text-base font-black text-white">
-              {isRegister ? 'Criar Conta' : 'Entrar no Jogo'}
-            </h3>
-          </div>
-          <button onClick={onClose} className="p-1 text-slate-400 hover:text-white rounded-lg bg-slate-800">
+        <div className="flex items-center justify-between border-b border-[#E2DACD] pb-3 mb-4">
+          <h3 className="font-serif text-xl font-normal text-[#2B2420]">
+            {isRegister ? 'Criar conta' : 'Entrar no jogo'}
+          </h3>
+          <button
+            onClick={onClose}
+            className="p-1 text-[#6F655C] hover:text-[#2B2420] cursor-pointer"
+          >
             <X size={16} />
           </button>
         </div>
 
         {errorMsg && (
-          <div className="p-2.5 rounded-xl bg-red-950/80 border border-red-500/60 text-xs text-red-300 mb-4 flex items-center gap-2">
-            <AlertCircle size={15} className="shrink-0" />
+          <div className="p-2.5 rounded-[4px] bg-[#F8EBEA] border border-[#ECC7C5] text-xs text-[#8C2E2A] mb-4 flex items-center gap-2">
+            <AlertCircle size={14} className="shrink-0 text-[#8C2E2A]" />
             <span>{errorMsg}</span>
           </div>
         )}
 
-        {/* PONTO 1: Botões de Login Social (Google e Discord) */}
-        <div className="space-y-2.5 mb-4">
-          {/* Botão Google */}
+        {/* Botões de Login Social */}
+        <div className="space-y-2 mb-4">
+          <button
+            type="button"
+            onClick={() => handleOAuthLogin('discord')}
+            className="w-full py-2.5 px-4 rounded-[6px] bg-[#5865F2] hover:bg-[#4752C4] text-white font-sans font-medium text-xs flex items-center justify-center gap-2.5 transition-colors cursor-pointer"
+          >
+            <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+              <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994.021-.041.001-.09-.041-.106a13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.929 1.793 8.18 1.793 12.061 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.893.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.028zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z" />
+            </svg>
+            <span>Continuar com Discord</span>
+          </button>
+
           <button
             type="button"
             onClick={() => handleOAuthLogin('google')}
-            className="w-full py-2.5 px-4 rounded-xl bg-white hover:bg-slate-100 text-slate-900 font-bold text-xs flex items-center justify-center gap-3 transition-all active:scale-95 shadow-md"
+            className="w-full py-2 px-4 rounded-[6px] bg-white hover:bg-[#F2ECE1] text-[#2B2420] font-sans font-medium text-xs flex items-center justify-center gap-2.5 transition-colors border border-[#E2DACD] cursor-pointer"
           >
             <svg className="w-4 h-4" viewBox="0 0 24 24">
               <path
@@ -107,43 +117,32 @@ export const LoginModal: FC<LoginModalProps> = ({ isOpen, onClose, onLoginSucces
                 d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
               />
             </svg>
-            <span>Continuar com o Google</span>
-          </button>
-
-          {/* Botão Discord */}
-          <button
-            type="button"
-            onClick={() => handleOAuthLogin('discord')}
-            className="w-full py-2.5 px-4 rounded-xl bg-[#5865F2] hover:bg-[#4752C4] text-white font-bold text-xs flex items-center justify-center gap-3 transition-all active:scale-95 shadow-md shadow-[#5865F2]/20"
-          >
-            <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
-              <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994.021-.041.001-.09-.041-.106a13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.929 1.793 8.18 1.793 12.061 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.893.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.028zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z" />
-            </svg>
-            <span>Continuar com o Discord</span>
+            <span>Continuar com Google</span>
           </button>
         </div>
 
         {/* Divisor */}
-        <div className="relative flex items-center justify-center my-3">
-          <div className="border-t border-slate-800 w-full" />
-          <span className="bg-slate-900 px-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider absolute">
+        <div className="relative flex items-center justify-center my-4">
+          <div className="border-t border-[#E2DACD] w-full" />
+          <span className="bg-[#FBF8F3] px-2 text-[10px] text-[#A39A90] font-sans absolute">
             ou usuário e senha
           </span>
         </div>
 
-        {/* Abas Entrar / Criar Conta */}
-        <div className="flex bg-slate-950 p-1 rounded-xl mb-3.5 border border-slate-800 text-xs font-bold">
+        {/* Alternância Entrar / Criar Conta */}
+        <div className="flex border-b border-[#E2DACD] mb-4 text-xs">
           <button
             type="button"
             onClick={() => {
               setIsRegister(false);
               setErrorMsg(null);
             }}
-            className={`flex-1 py-1.5 rounded-lg transition-all ${
-              !isRegister ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white'
+            className={`flex-1 pb-2 font-sans transition-colors cursor-pointer text-center relative ${
+              !isRegister ? 'text-[#2B2420] font-semibold' : 'text-[#6F655C]'
             }`}
           >
-            Entrar
+            <span>Entrar</span>
+            {!isRegister && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#2B2420]" />}
           </button>
           <button
             type="button"
@@ -151,57 +150,52 @@ export const LoginModal: FC<LoginModalProps> = ({ isOpen, onClose, onLoginSucces
               setIsRegister(true);
               setErrorMsg(null);
             }}
-            className={`flex-1 py-1.5 rounded-lg transition-all ${
-              isRegister ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white'
+            className={`flex-1 pb-2 font-sans transition-colors cursor-pointer text-center relative ${
+              isRegister ? 'text-[#2B2420] font-semibold' : 'text-[#6F655C]'
             }`}
           >
-            Cadastrar
+            <span>Cadastrar</span>
+            {isRegister && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#2B2420]" />}
           </button>
         </div>
 
         {/* Formulário */}
         <form onSubmit={handleSubmit} className="space-y-3">
           <div>
-            <label className="block text-[11px] font-bold text-slate-300 uppercase tracking-wider mb-1">
-              Nome de Usuário:
+            <label className="block text-xs font-medium text-[#6F655C] mb-1">
+              Nome de Usuário
             </label>
-            <div className="relative">
-              <User size={15} className="absolute left-3 top-3 text-slate-500" />
-              <input
-                type="text"
-                placeholder="Seu usuário"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                required
-                className="w-full bg-slate-950 border border-slate-700 text-white placeholder-slate-500 text-xs rounded-xl pl-9 pr-3 py-2.5 focus:outline-none focus:border-indigo-500"
-              />
-            </div>
+            <Input
+              type="text"
+              placeholder="Seu usuário"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              required
+            />
           </div>
 
           <div>
-            <label className="block text-[11px] font-bold text-slate-300 uppercase tracking-wider mb-1">
-              Senha:
+            <label className="block text-xs font-medium text-[#6F655C] mb-1">
+              Senha
             </label>
-            <div className="relative">
-              <Lock size={15} className="absolute left-3 top-3 text-slate-500" />
-              <input
-                type="password"
-                placeholder="Sua senha"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                className="w-full bg-slate-950 border border-slate-700 text-white placeholder-slate-500 text-xs rounded-xl pl-9 pr-3 py-2.5 focus:outline-none focus:border-indigo-500"
-              />
-            </div>
+            <Input
+              type="password"
+              placeholder="Sua senha"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
           </div>
 
-          <button
+          <Button
             type="submit"
+            size="md"
+            variant="primary"
             disabled={loading}
-            className="w-full mt-2 py-2.5 rounded-xl bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-400 hover:to-indigo-500 disabled:opacity-50 text-white font-black text-xs uppercase tracking-wider shadow-lg shadow-indigo-500/30 transition-all active:scale-95 flex items-center justify-center gap-2"
+            className="w-full mt-2"
           >
-            {loading ? 'Carregando...' : isRegister ? 'Criar Conta' : 'Entrar'}
-          </button>
+            {loading ? 'Carregando...' : isRegister ? 'Criar conta' : 'Entrar'}
+          </Button>
         </form>
       </div>
     </div>

@@ -1,31 +1,28 @@
 import { useState, useEffect, type FC } from 'react';
 import {
-  Users,
   Copy,
   Check,
-  Heart,
-  Play,
-  LogIn,
-  User as UserIcon,
-  AlertCircle,
-  Loader2,
-  KeyRound,
-  HelpCircle,
-  LogOut,
-  Gamepad2,
-  PlusCircle,
-  Clock,
-  Sparkles,
-  Globe2,
   RotateCcw,
   X,
+  Compass,
+  Plus,
+  Eye,
+  EyeOff,
+  Share2,
 } from 'lucide-react';
 import { sounds } from '../utils/sound';
-import type { DifficultyCount, RoomConfig } from '../types/game';
-import type { AppUser, SavedDeck } from '../services/auth';
+import { network } from '../services/network';
+import type { DifficultyCount, RoomConfig, Character } from '../types/game';
+import { auth, type AppUser, type SavedDeck } from '../services/auth';
+import { MOCK_90_CHARACTERS } from './redesign/mockData';
+import { Button } from './ui/Button';
+import { Input } from './ui/Input';
+import { SegmentedControl } from './ui/SegmentedControl';
+import { Radio } from './ui/Radio';
+import { Checkbox } from './ui/Checkbox';
 
 interface LobbyProps {
-  onJoinRoom: (roomCode: string, playerName: string, isHost: boolean, config: RoomConfig) => void;
+  onJoinRoom: (roomCode: string, playerName: string, isHost: boolean, config: RoomConfig, password?: string) => void;
   onOpenCreateLobby: (playerName: string) => void;
   onOpenDeckBuilder?: (targetCount: DifficultyCount, isSecret?: boolean, password?: string) => void;
   onOpenLogin: () => void;
@@ -44,18 +41,46 @@ interface LobbyProps {
   reconnectSecondsLeft?: number;
   onReconnectMatch?: (session: any) => void;
   onDismissReconnect?: () => void;
+  roomConfig?: RoomConfig;
+  onUpdateConfig?: (newConfig: RoomConfig) => void;
+  isConfiguringRoom?: boolean;
+  onStartConfiguringRoom?: () => void;
+  onCancelConfiguringRoom?: () => void;
 }
+
+// 5 Personagens autênticos com fotos para o leque físico da Mesa de Jogo
+const FAN_CARDS = [
+  { id: 'ana', name: 'Ana', imageUrl: '/standard-faces/Ana.jpg', rotation: '-6deg', translate: '-translate-x-4' },
+  { id: 'bruno', name: 'Bruno', imageUrl: '/standard-faces/Bruno.jpg', rotation: '-3deg', translate: '-translate-x-2' },
+  { id: 'face-down', name: 'Verso', imageUrl: '', rotation: '0deg', translate: 'translate-x-0', isBack: true },
+  { id: 'carla', name: 'Carla', imageUrl: '/standard-faces/Carla.jpg', rotation: '3deg', translate: 'translate-x-2' },
+  { id: 'davi', name: 'Davi', imageUrl: '/standard-faces/Davi.jpg', rotation: '6deg', translate: 'translate-x-4' },
+];
+
+const FUN_NICKNAMES = [
+  'Detetive Pipoca',
+  'Detetive Farofa',
+  'Detetive Sherlock',
+  'Detetive Raposa',
+  'Detetive Curioso',
+  'Detetive Malandro',
+  'Detetive Coxinha',
+  'Detetive Tapioca',
+  'Detetive Pão de Queijo',
+];
+
+const getRandomNickname = () => {
+  return FUN_NICKNAMES[Math.floor(Math.random() * FUN_NICKNAMES.length)];
+};
 
 export const Lobby: FC<LobbyProps> = ({
   onJoinRoom,
-  onOpenCreateLobby,
-  onOpenLogin,
-  onOpenProfile: _onOpenProfile,
-  onOpenPublicLobbies,
+  onOpenDeckBuilder,
+  onOpenLogin: _onOpenLogin,
+  onOpenPublicLobbies: _onOpenPublicLobbies,
   onOpenCommunity,
   onAbandonWaiting,
   currentUser,
-  onLogout,
   isConnecting,
   waitingForPlayer,
   roomCode,
@@ -64,486 +89,941 @@ export const Lobby: FC<LobbyProps> = ({
   reconnectSecondsLeft = 0,
   onReconnectMatch,
   onDismissReconnect,
+  roomConfig,
+  isConfiguringRoom: propIsConfiguringRoom,
+  onStartConfiguringRoom,
+  onCancelConfiguringRoom,
 }) => {
-  const [activeTab, setActiveTab] = useState<'create' | 'join'>('create');
-  const [name, setName] = useState(currentUser?.username || '');
+  // Apelido do jogador
+  const [name, setName] = useState<string>(() => {
+    return currentUser?.username || localStorage.getItem('cara_player_name') || getRandomNickname();
+  });
+
+  // Códigos e Gaveta de Entrada
   const [inputCode, setInputCode] = useState('');
-  const [copied, setCopied] = useState(false);
+  const [showCodeDrawer, setShowCodeDrawer] = useState(false);
 
-  // Timer de expiração de 10 minutos (600s) para salas criadas sem começar
-  const [waitingSecondsLeft, setWaitingSecondsLeft] = useState(600);
+  // Link de Convidado direto da URL (?sala=XXXX)
+  const [guestRoomCode, setGuestRoomCode] = useState<string | null>(null);
+  const [guestRequiresPassword, setGuestRequiresPassword] = useState(false);
+  const [guestPassword, setGuestPassword] = useState('');
+  const [showGuestPassword, setShowGuestPassword] = useState(false);
+  const [guestPasswordError, setGuestPasswordError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!waitingForPlayer) {
-      setWaitingSecondsLeft(600);
-      return;
+  // Feedbacks de Cópia
+  const [copiedLink, setCopiedLink] = useState(false);
+  const [copiedCode, setCopiedCode] = useState(false);
+
+  // Configuração prévia de sala
+  const [localIsConfiguring, setLocalIsConfiguring] = useState(false);
+  const isConfiguring = propIsConfiguringRoom !== undefined ? propIsConfiguringRoom : localIsConfiguring;
+
+  const [hostDeckName, setHostDeckName] = useState(() => (roomConfig?.deckName && roomConfig.deckName !== 'Turma do Clássico') ? roomConfig.deckName : 'Aleatório #1');
+  const [hostCardCount, setHostCardCount] = useState<DifficultyCount>(() => (roomConfig?.cardCount as DifficultyCount) || 30);
+  const [hostCustomCards, setHostCustomCards] = useState<Character[]>(() => {
+    if (roomConfig?.customCards && roomConfig.customCards.length > 0) {
+      return roomConfig.customCards;
     }
+    return MOCK_90_CHARACTERS.slice(0, 30);
+  });
+  const [hostIsCallMode, setHostIsCallMode] = useState(() => Boolean(roomConfig?.isCallMode));
+  const [hostHasPassword, setHostHasPassword] = useState(false);
+  const [hostPassword, setHostPassword] = useState('');
+  const [showHostPassword, setShowHostPassword] = useState(false);
+  const [hostPasswordError, setHostPasswordError] = useState<string | null>(null);
 
-    setWaitingSecondsLeft(600);
+  // Menu de troca de baralho dentro de Configurar Partida
+  const [showDeckPicker, setShowDeckPicker] = useState(false);
+  const [mySavedDecks, setMySavedDecks] = useState<SavedDeck[]>([]);
 
-    const timer = setInterval(() => {
-      setWaitingSecondsLeft((prev) => {
-        if (prev <= 1) {
-          clearInterval(timer);
-          if (onAbandonWaiting) {
-            onAbandonWaiting();
-          }
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
+  // Sincronizar regras caso sejam alteradas externamente (ex.: selecionado na comunidade)
+  useEffect(() => {
+    if (roomConfig) {
+      if (roomConfig.deckName && roomConfig.deckName !== 'Turma do Clássico') {
+        setHostDeckName(roomConfig.deckName);
+      }
+      if (roomConfig.cardCount) {
+        setHostCardCount(roomConfig.cardCount as DifficultyCount);
+      }
+      if (roomConfig.customCards && roomConfig.customCards.length > 0) {
+        setHostCustomCards(roomConfig.customCards);
+      }
+      if (roomConfig.isCallMode !== undefined) {
+        setHostIsCallMode(Boolean(roomConfig.isCallMode));
+      }
+    }
+  }, [roomConfig]);
 
-    return () => clearInterval(timer);
-  }, [waitingForPlayer, onAbandonWaiting]);
+  // Carregar baralhos do usuário ao abrir o seletor
+  useEffect(() => {
+    if (currentUser?.id && showDeckPicker) {
+      auth.getUserSavedDecks(currentUser.id).then(setMySavedDecks).catch(() => {});
+    }
+  }, [currentUser, showDeckPicker]);
 
-  const formatWaitingTimer = (totalSeconds: number) => {
-    const mins = Math.floor(totalSeconds / 60);
-    const secs = totalSeconds % 60;
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
-
+  // Sincronizar nome de usuário
   useEffect(() => {
     if (currentUser?.username) {
       setName(currentUser.username);
-    } else {
-      const savedName = localStorage.getItem('cara_player_name') || '';
-      if (savedName) setName(savedName);
-    }
-
-    const urlParams = new URLSearchParams(window.location.search);
-    const urlRoom = urlParams.get('sala') || urlParams.get('room');
-    if (urlRoom) {
-      setInputCode(urlRoom.toUpperCase());
-      setActiveTab('join');
     }
   }, [currentUser]);
 
-  const handleProceedToCreateLobby = () => {
-    if (!name.trim()) {
+  // Detectar convite direto na URL
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlRoom = urlParams.get('sala') || urlParams.get('room');
+    if (urlRoom && urlRoom.trim().length >= 4) {
+      setGuestRoomCode(urlRoom.trim().toUpperCase());
+    }
+    if (urlParams.get('protegida') === '1' || urlParams.get('senha') === '1') {
+      setGuestRequiresPassword(true);
+    }
+  }, []);
+
+  const handleStartConfiguring = () => {
+    sounds.playClick();
+    if (onStartConfiguringRoom) {
+      onStartConfiguringRoom();
+    } else {
+      setLocalIsConfiguring(true);
+    }
+    if (!hostDeckName || hostDeckName === 'Turma do Clássico') {
+      setHostDeckName('Aleatório #1');
+      setHostCustomCards(MOCK_90_CHARACTERS.slice(0, hostCardCount));
+    }
+  };
+
+  const handleCancelConfiguring = () => {
+    sounds.playClick();
+    if (onCancelConfiguringRoom) {
+      onCancelConfiguringRoom();
+    } else {
+      setLocalIsConfiguring(false);
+    }
+    setShowDeckPicker(false);
+  };
+
+  const handleCreateAndLaunchRoom = async () => {
+    if (hostHasPassword && hostPassword.trim().length < 4) {
+      setHostPasswordError('A senha precisa ter pelo menos 4 caracteres.');
       sounds.playWrong();
       return;
     }
+
     sounds.playClick();
-    localStorage.setItem('cara_player_name', name.trim());
-    onOpenCreateLobby(name.trim());
+    const playerName = name.trim() || getRandomNickname();
+    localStorage.setItem('cara_player_name', playerName);
+
+    const isSecret = hostHasPassword && hostPassword.trim().length >= 4;
+    const pwd = isSecret ? hostPassword.trim() : undefined;
+    const finalCards = hostCustomCards && hostCustomCards.length > 0 
+      ? hostCustomCards.slice(0, hostCardCount) 
+      : MOCK_90_CHARACTERS.slice(0, hostCardCount);
+    const finalDeckName = hostDeckName || 'Aleatório #1';
+
+    try {
+      const code = await network.generateUniqueRoomCode();
+      if (onCancelConfiguringRoom) onCancelConfiguringRoom();
+      setLocalIsConfiguring(false);
+      onJoinRoom(code, playerName, true, {
+        mode: 'custom',
+        cardCount: hostCardCount,
+        deckName: finalDeckName,
+        customCards: finalCards,
+        isCallMode: hostIsCallMode,
+        password: pwd,
+        isSecret,
+      });
+    } catch {
+      const randomCode = Math.floor(100000 + Math.random() * 900000).toString();
+      if (onCancelConfiguringRoom) onCancelConfiguringRoom();
+      setLocalIsConfiguring(false);
+      onJoinRoom(randomCode, playerName, true, {
+        mode: 'custom',
+        cardCount: hostCardCount,
+        deckName: finalDeckName,
+        customCards: finalCards,
+        isCallMode: hostIsCallMode,
+        password: pwd,
+        isSecret,
+      });
+    }
   };
 
-  const handleJoinWithCode = () => {
-    if (!name.trim() || !inputCode.trim()) return;
+  const handleJoinWithCode = (codeToJoin?: string, passwordInput?: string) => {
+    const targetCode = (codeToJoin || inputCode).trim().toUpperCase();
+    if (!targetCode) return;
+
     sounds.playClick();
-    localStorage.setItem('cara_player_name', name.trim());
-    onJoinRoom(inputCode.trim(), name.trim(), false, {
-      mode: 'standard',
-      cardCount: 15,
-    });
+    const playerName = name.trim() || getRandomNickname();
+    localStorage.setItem('cara_player_name', playerName);
+
+    onJoinRoom(
+      targetCode,
+      playerName,
+      false,
+      {
+        mode: 'custom',
+        cardCount: 30,
+      },
+      passwordInput
+    );
   };
 
-  const copyInviteLink = () => {
+  const isRoomPasswordProtected = hostHasPassword && hostPassword.trim().length >= 4;
+  const waitingInviteUrl = `${window.location.origin}${window.location.pathname}?sala=${roomCode}${
+    isRoomPasswordProtected ? '&protegida=1' : ''
+  }`;
+
+  const copyRoomCode = async () => {
     sounds.playClick();
-    const url = `${window.location.origin}${window.location.pathname}?sala=${roomCode}`;
-    navigator.clipboard.writeText(url);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2500);
+    try {
+      await navigator.clipboard.writeText(roomCode);
+      setCopiedCode(true);
+      setTimeout(() => setCopiedCode(false), 2400);
+    } catch {
+      setCopiedCode(true);
+      setTimeout(() => setCopiedCode(false), 2400);
+    }
   };
 
-  // Tela de Aguardando Jogador
-  if (waitingForPlayer) {
+  const copyInviteLink = async () => {
+    sounds.playClick();
+    try {
+      await navigator.clipboard.writeText(waitingInviteUrl);
+      setCopiedLink(true);
+      setTimeout(() => setCopiedLink(false), 2400);
+    } catch {
+      setCopiedLink(true);
+      setTimeout(() => setCopiedLink(false), 2400);
+    }
+  };
+
+  const handleShareWhatsApp = () => {
+    sounds.playClick();
+    const msgText = isRoomPasswordProtected
+      ? `Bora jogar Tá na Cara! A sala #${roomCode} tem senha. Entra aí: ${waitingInviteUrl}`
+      : `Bora jogar Tá na Cara! Entra aí: ${waitingInviteUrl}`;
+    window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(msgText)}`, '_blank');
+  };
+
+  const handleCopyDiscord = () => {
+    sounds.playClick();
+    const discordText = isRoomPasswordProtected
+      ? `**Tá na Cara!** Bora jogar uma partida agora? Entra aí na sala **#${roomCode}** (com senha): ${waitingInviteUrl}`
+      : `**Tá na Cara!** Bora jogar uma partida agora? Entra aí na sala **#${roomCode}**: ${waitingInviteUrl}`;
+    navigator.clipboard.writeText(discordText);
+    setCopiedLink(true);
+    setTimeout(() => setCopiedLink(false), 2400);
+  };
+
+  // =========================================================================
+  // CENÁRIO A: ENTRADA DO CONVIDADO VIA LINK (?sala=XXXX)
+  // =========================================================================
+  if (guestRoomCode && !waitingForPlayer) {
     return (
-      <div className="min-h-[75vh] flex items-center justify-center p-4">
-        <div className="bg-white border-2 border-slate-200 rounded-3xl max-w-md w-full p-8 shadow-xl text-center relative overflow-hidden animate-in zoom-in-95 duration-200">
-          {/* Faixa decorativa pastel */}
-          <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-amber-200 via-rose-200 to-sky-200" />
+      <div className="w-full max-w-[460px] mx-auto py-12 px-4 text-left animate-in fade-in duration-150">
+        <h2 className="font-serif text-3xl font-normal text-[#2B2420] mb-2">
+          Entrar na partida
+        </h2>
+        <p className="text-sm text-[#6F655C] font-sans mb-6">
+          Seu amigo te convidou para descobrir o personagem misterioso na sala <strong className="font-mono text-[#2B2420]">#{guestRoomCode}</strong>.
+        </p>
 
-          <div className="w-16 h-16 bg-rose-100 text-rose-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-tactile-sm">
-            <Heart size={30} className="fill-rose-500 text-rose-500 animate-pulse" />
+        <div className="space-y-4 mb-6">
+          <div>
+            <label className="text-xs font-medium text-[#6F655C] uppercase tracking-wider block mb-1.5">
+              Seu apelido
+            </label>
+            <Input
+              value={name}
+              maxLength={22}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Digite seu nome ou apelido"
+            />
           </div>
 
-          <span className="inline-block text-[11px] font-bold uppercase tracking-wider px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200 mb-2">
-            Sala Aberta
-          </span>
-
-          <h2 className="text-2xl font-black text-slate-900 mb-1">Tudo Pronto!</h2>
-          <p className="text-xs text-slate-500 mb-6">
-            Envie o código ou copie o link direto para o outro jogador entrar:
-          </p>
-
-          {/* Ticket do Código da Sala */}
-          <div className="bg-amber-50/80 border-2 border-dashed border-amber-300 rounded-2xl p-5 mb-5 text-center relative">
-            <span className="text-[10px] uppercase text-amber-800 font-extrabold tracking-wider block mb-1">
-              Código da Sala
-            </span>
-            <span className="text-3xl font-black tracking-[0.2em] text-slate-900 font-sans tabular-nums select-all">
-              {roomCode}
-            </span>
-          </div>
-
-          {/* Botão Copiar Link */}
-          <button
-            onClick={copyInviteLink}
-            className={`w-full flex items-center justify-center gap-2 py-3.5 px-4 rounded-2xl font-bold text-sm transition-all shadow-tactile active:translate-y-1 mb-6 ${
-              copied
-                ? 'bg-emerald-100 text-emerald-800 border-2 border-emerald-300'
-                : 'bg-slate-900 hover:bg-slate-800 text-white'
-            }`}
-          >
-            {copied ? (
-              <>
-                <Check size={18} className="text-emerald-600" />
-                <span>Link Copiado com Sucesso!</span>
-              </>
-            ) : (
-              <>
-                <Copy size={18} />
-                <span>Copiar Link da Partida</span>
-              </>
-            )}
-          </button>
-
-          {/* Indicador de Espera com Contador de 10 minutos */}
-          <div className="flex flex-col gap-2 bg-amber-50/80 border border-amber-200/80 py-3 px-4 rounded-2xl mb-4">
-            <div className="flex items-center justify-center gap-2 text-xs text-amber-950 font-semibold">
-              <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-ping" />
-              <span>Aguardando oponente entrar na sala...</span>
+          {guestRequiresPassword && (
+            <div>
+              <label className="text-xs font-medium text-[#6F655C] uppercase tracking-wider block mb-1.5">
+                Senha da sala
+              </label>
+              <div className="relative">
+                <Input
+                  type={showGuestPassword ? 'text' : 'password'}
+                  value={guestPassword}
+                  maxLength={30}
+                  onChange={(e) => {
+                    setGuestPassword(e.target.value);
+                    setGuestPasswordError(null);
+                  }}
+                  placeholder="Senha definida pelo anfitrião"
+                  error={Boolean(guestPasswordError)}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowGuestPassword(!showGuestPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#A39A90] hover:text-[#2B2420] cursor-pointer"
+                >
+                  {showGuestPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
+              {guestPasswordError && (
+                <p className="text-xs text-[#8C2E2A] mt-1">{guestPasswordError}</p>
+              )}
             </div>
-            <div className="flex items-center justify-center gap-1.5 text-[11px] font-bold text-amber-800">
-              <Clock size={13} className="text-amber-600" />
-              <span>A sala fechará por inatividade em: <span className="font-mono text-amber-900 font-extrabold">{formatWaitingTimer(waitingSecondsLeft)}</span></span>
-            </div>
-          </div>
-
-          {/* Botão Cancelar e Fechar Sala */}
-          {onAbandonWaiting && (
-            <button
-              onClick={() => {
-                sounds.playClick();
-                onAbandonWaiting();
-              }}
-              className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-2xl text-xs font-extrabold text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 transition-all cursor-pointer shadow-sm active:translate-y-0.5"
-            >
-              <LogOut size={15} />
-              <span>Cancelar e Fechar Sala</span>
-            </button>
           )}
+        </div>
+
+        <Button
+          size="lg"
+          className="w-full mb-3"
+          disabled={!name.trim() || isConnecting}
+          onClick={() => {
+            if (guestRequiresPassword && guestPassword.trim().length < 4) {
+              setGuestPasswordError('Digite a senha da sala (mínimo de 4 caracteres).');
+              return;
+            }
+            handleJoinWithCode(guestRoomCode, guestRequiresPassword ? guestPassword.trim() : undefined);
+          }}
+        >
+          {isConnecting ? 'Entrando...' : 'Entrar na partida'}
+        </Button>
+
+        <div className="text-center">
+          <Button
+            variant="text"
+            onClick={() => {
+              sounds.playClick();
+              setGuestRoomCode(null);
+              window.history.replaceState({}, document.title, window.location.pathname);
+            }}
+          >
+            Voltar ao início
+          </Button>
         </div>
       </div>
     );
   }
 
-  return (
-    <div className="min-h-[75vh] flex flex-col items-center justify-center py-3 sm:py-6 px-3 sm:px-4">
-      {/* Container Principal */}
-      <div className="relative max-w-lg w-full">
-        {/* Banner de Reconexão Rápida */}
-        {reconnectSession && reconnectSecondsLeft > 0 && onReconnectMatch && (
-          <div className="mb-4 bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 text-white rounded-2xl sm:rounded-3xl p-4 sm:p-5 shadow-tactile animate-in zoom-in-95 duration-200">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-amber-100 mb-1">
-                  <RotateCcw size={14} className="animate-spin-slow shrink-0" />
-                  <span>Partida em Andamento Detectada</span>
-                </div>
-                <p className="text-sm sm:text-base font-extrabold text-white leading-tight">
-                  Sala #{reconnectSession.roomCode} contra <span className="underline decoration-amber-300">{reconnectSession.opponentName || 'Oponente'}</span>
-                </p>
-                <p className="text-xs text-amber-100 font-medium mt-1">
-                  Tempo restante para reconectar: <strong className="font-mono text-white text-xs sm:text-sm tabular-nums font-black">{Math.floor(reconnectSecondsLeft / 60)}:{String(reconnectSecondsLeft % 60).padStart(2, '0')}</strong>
-                </p>
-              </div>
-              {onDismissReconnect && (
-                <button
-                  onClick={onDismissReconnect}
-                  className="text-white/80 hover:text-white p-1 rounded-xl hover:bg-white/20 transition-colors"
-                  title="Abandonar partida salva"
-                >
-                  <X size={18} />
-                </button>
-              )}
-            </div>
+  // =========================================================================
+  // CENÁRIO B: SCREEN 2 - SALA CRIADA (waitingForPlayer === true)
+  // =========================================================================
+  if (waitingForPlayer) {
+    const dynamicLabel = hostIsCallMode ? 'Por voz ou chamada' : 'Perguntas no jogo';
+    const accessLabel = hostHasPassword ? 'Com senha' : 'Sala livre';
 
-            <div className="mt-3.5 flex items-center gap-2">
-              <button
-                onClick={() => onReconnectMatch(reconnectSession)}
-                className="flex-1 bg-white hover:bg-amber-50 text-slate-900 font-black text-xs sm:text-sm py-2.5 px-4 rounded-xl sm:rounded-2xl shadow-sm transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
-              >
-                <Play size={15} className="fill-slate-900" />
-                <span>Reconectar Agora</span>
-              </button>
-              {onDismissReconnect && (
-                <button
-                  onClick={onDismissReconnect}
-                  className="bg-black/25 hover:bg-black/35 text-white font-bold text-xs py-2.5 px-3.5 rounded-xl sm:rounded-2xl transition-all cursor-pointer"
-                >
-                  Abandonar
-                </button>
-              )}
-            </div>
+    return (
+      <div className="w-full max-w-[520px] mx-auto py-10 sm:py-16 px-4 text-center animate-in fade-in duration-150">
+        <span className="text-xs font-medium text-[#6F655C] uppercase tracking-wider block mb-1">
+          Código da sala
+        </span>
+
+        {/* Código grande em Fraunces */}
+        <div className="font-serif text-6xl sm:text-7xl font-normal text-[#2B2420] tracking-wide select-all my-4">
+          {roomCode}
+        </div>
+
+        {/* Resumo editorial em uma linha */}
+        <p className="text-sm text-[#6F655C] font-sans mb-8">
+          {hostDeckName} · {hostCardCount} cartas · {dynamicLabel} · {accessLabel}
+        </p>
+
+        {/* Botões de ação em texto / discretos */}
+        <div className="flex flex-wrap items-center justify-center gap-3 mb-8">
+          <button
+            type="button"
+            onClick={copyRoomCode}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium text-[#2B2420] bg-[#FBF8F3] hover:bg-[#F2ECE1] border border-[#E2DACD] rounded-[6px] transition-colors cursor-pointer"
+          >
+            {copiedCode ? <Check size={13} className="text-[#2E7D32]" /> : <Copy size={13} />}
+            <span>{copiedCode ? 'Código copiado!' : 'Copiar código'}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={copyInviteLink}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium text-[#2B2420] bg-[#FBF8F3] hover:bg-[#F2ECE1] border border-[#E2DACD] rounded-[6px] transition-colors cursor-pointer"
+          >
+            {copiedLink ? <Check size={13} className="text-[#2E7D32]" /> : <Share2 size={13} />}
+            <span>{copiedLink ? 'Link copiado!' : 'Copiar link'}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={handleShareWhatsApp}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium text-[#2B2420] bg-[#FBF8F3] hover:bg-[#F2ECE1] border border-[#E2DACD] rounded-[6px] transition-colors cursor-pointer"
+          >
+            <span>WhatsApp</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={handleCopyDiscord}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium text-[#2B2420] bg-[#FBF8F3] hover:bg-[#F2ECE1] border border-[#E2DACD] rounded-[6px] transition-colors cursor-pointer"
+          >
+            <span>Discord</span>
+          </button>
+        </div>
+
+        {/* Indicador de espera: texto sutil com ponto pulsando */}
+        <div className="flex items-center justify-center gap-2 text-sm text-[#6F655C] py-3">
+          <span className="w-2 h-2 rounded-full bg-[#B4532F] animate-pulse" />
+          <span>Aguardando seu amigo entrar...</span>
+        </div>
+
+        {/* Link discreto de cancelamento */}
+        {onAbandonWaiting && (
+          <div className="mt-6">
+            <button
+              type="button"
+              onClick={() => {
+                sounds.playClick();
+                onAbandonWaiting();
+              }}
+              className="text-xs text-[#6F655C] hover:text-[#B4532F] underline underline-offset-4 transition-colors cursor-pointer"
+            >
+              Cancelar sala
+            </button>
           </div>
         )}
-        {/* Card Principal */}
-        <div className="bg-white border-2 border-slate-200 rounded-2xl sm:rounded-3xl p-4 sm:p-7 shadow-xl relative z-10 animate-in fade-in duration-200">
-          {/* Barra Superior do Card (Status do Usuário Integrado) */}
-          <div className="flex items-center justify-between pb-3 mb-3 border-b border-slate-100">
-            <div className="flex items-center gap-2 text-xs font-semibold min-w-0">
-              {currentUser ? (
-                <div className="flex items-center gap-2 min-w-0">
-                  <div className="relative shrink-0">
-                    {currentUser.avatarUrl ? (
-                      <img
-                        src={currentUser.avatarUrl}
-                        alt={currentUser.username}
-                        className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl object-cover ring-2 ring-indigo-500/40 shadow-sm"
-                      />
-                    ) : (
-                      <span className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center font-bold">
-                        <UserIcon size={14} />
-                      </span>
-                    )}
-                    <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-white" title="Online" />
-                  </div>
-                  <div className="min-w-0">
-                    <span className="text-slate-700 block leading-tight text-xs font-semibold truncate max-w-[140px] sm:max-w-none">
-                      Olá, <strong className="text-slate-900 font-extrabold">{currentUser.username}</strong>
-                    </span>
-                    <span className="text-[10px] text-slate-400 font-medium flex items-center gap-1">
-                      {currentUser.provider && currentUser.provider !== 'email' ? (
-                        <span className="text-indigo-600 font-bold uppercase">via {currentUser.provider}</span>
-                      ) : (
-                        <span>Conta Ativa</span>
-                      )}
-                      <span className="hidden xs:inline">• Pronto para jogar</span>
-                    </span>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex items-center gap-2 text-xs text-slate-500 font-semibold">
-                  <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
-                  <span>Jogando como visitante</span>
-                </div>
-              )}
-            </div>
+      </div>
+    );
+  }
 
-            <div className="flex items-center gap-1.5 shrink-0">
-              {currentUser ? (
-                <button
-                  onClick={onLogout}
-                  className="text-[11px] sm:text-xs text-slate-400 hover:text-rose-600 font-semibold transition-colors px-2 py-1 rounded-lg hover:bg-rose-50 border border-transparent hover:border-rose-100 cursor-pointer flex items-center gap-1"
-                  title="Sair da conta"
-                >
-                  <LogOut size={12} />
-                  <span>Sair</span>
-                </button>
-              ) : (
-                <button
-                  onClick={onOpenLogin}
-                  className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] sm:text-xs font-bold transition-all border border-slate-200 cursor-pointer active:scale-95"
-                >
-                  <LogIn size={12} />
-                  <span>Entrar / Cadastrar</span>
-                </button>
-              )}
-            </div>
-          </div>
+  // =========================================================================
+  // CENÁRIO C: SCREEN 1 - CONFIGURAR PARTIDA (isConfiguring === true)
+  // =========================================================================
+  if (isConfiguring && !waitingForPlayer) {
+    return (
+      <div className="w-full max-w-[520px] mx-auto py-8 sm:py-12 px-4 text-left animate-in fade-in duration-150">
+        {/* Top Link */}
+        <div className="mb-4">
+          <button
+            type="button"
+            onClick={handleCancelConfiguring}
+            className="inline-flex items-center gap-1 text-xs text-[#6F655C] hover:text-[#2B2420] transition-colors cursor-pointer"
+          >
+            <span>← Voltar ao menu</span>
+          </button>
+        </div>
 
-          {/* Apresentação do Jogo e Identidade Visual (Hero Centerpiece) */}
-          <div className="text-center my-2 sm:my-3.5 flex flex-col items-center">
-            <div className="relative group inline-block">
-              <img
-                src="/logo-icon.svg"
-                alt="Tá na Cara!"
-                className="w-12 h-12 sm:w-16 sm:h-16 max-w-[48px] max-h-[48px] sm:max-w-[64px] sm:max-h-[64px] object-contain drop-shadow-sm transition-transform duration-300 group-hover:scale-105 group-hover:rotate-3 cursor-pointer"
-              />
-            </div>
+        {/* Título Fraunces */}
+        <h2 className="font-serif text-3xl font-normal text-[#2B2420] mb-1">
+          Configurar partida
+        </h2>
+        <p className="text-sm text-[#6F655C] font-sans mb-8">
+          Escolha o baralho e as regras. O código só será gerado após confirmar.
+        </p>
 
-            <p className="text-[11px] sm:text-xs text-slate-500 mt-1 max-w-[285px] sm:max-w-none sm:whitespace-nowrap text-center leading-snug">
-              O clássico jogo de adivinhação, feito para jogar a dois em tempo real
-            </p>
-          </div>
+        <div className="space-y-6">
+          {/* 1. Baralho da Partida */}
+          <div className="border-b border-[#E2DACD] pb-5">
+            <span className="text-xs font-medium text-[#6F655C] uppercase tracking-wider block mb-2">
+              Baralho da partida
+            </span>
 
-          {/* Alerta de Erro */}
-          {errorMessage && (
-            <div className="mb-3.5 p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-800 flex items-center gap-2 shadow-sm animate-shake">
-              <AlertCircle size={16} className="shrink-0 text-rose-500" />
-              <span>{errorMessage}</span>
-            </div>
-          )}
-
-          {/* Abas Alternadoras: Criar Sala vs Entrar com Código */}
-          <div className="grid grid-cols-2 p-1 bg-slate-100 rounded-xl sm:rounded-2xl mb-3 sm:mb-4 border border-slate-200/80">
-            <button
-              type="button"
-              onClick={() => {
-                sounds.playClick();
-                setActiveTab('create');
-              }}
-              className={`py-1.5 sm:py-2 px-2.5 sm:px-3 rounded-lg sm:rounded-xl text-[11px] sm:text-xs font-extrabold transition-all flex items-center justify-center gap-1.5 ${
-                activeTab === 'create'
-                  ? 'bg-white text-slate-900 shadow-sm border border-slate-200/60'
-                  : 'text-slate-500 hover:text-slate-800'
-              }`}
-            >
-              <Play size={13} className={activeTab === 'create' ? 'text-emerald-600' : ''} />
-              <span>Criar Nova Sala</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                sounds.playClick();
-                setActiveTab('join');
-              }}
-              className={`py-1.5 sm:py-2 px-2.5 sm:px-3 rounded-lg sm:rounded-xl text-[11px] sm:text-xs font-extrabold transition-all flex items-center justify-center gap-1.5 ${
-                activeTab === 'join'
-                  ? 'bg-white text-slate-900 shadow-sm border border-slate-200/60'
-                  : 'text-slate-500 hover:text-slate-800'
-              }`}
-            >
-              <KeyRound size={13} className={activeTab === 'join' ? 'text-sky-600' : ''} />
-              <span>Entrar com Código</span>
-            </button>
-          </div>
-
-          {/* Campo Nome do Jogador */}
-          <div className="mb-3">
-            <label className="block text-[10px] sm:text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-1">
-              Seu Nome ou Apelido:
-            </label>
-            <input
-              type="text"
-              placeholder="Ex: Miguel, Bia, etc."
-              value={name}
-              maxLength={20}
-              onChange={(e) => setName(e.target.value)}
-              className="w-full bg-slate-50 border-2 border-slate-200 text-slate-900 placeholder-slate-400 text-xs sm:text-sm font-semibold rounded-xl sm:rounded-2xl px-3.5 py-2.5 sm:py-3 focus:outline-none focus:bg-white focus:border-sky-400 focus:ring-4 focus:ring-sky-100 transition-all"
-            />
-          </div>
-
-          {/* Conteúdo da Aba 1: CRIAR LOBBY */}
-          {activeTab === 'create' && (
-            <div className="space-y-3 animate-in fade-in duration-150">
-              <div className="p-2.5 sm:p-3 rounded-xl sm:rounded-2xl bg-slate-50/80 border border-slate-200/80 text-[11px] sm:text-xs text-slate-600 flex items-center gap-2.5">
-                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0 shadow-xs">
-                  <Sparkles size={15} />
-                </div>
-                <span className="leading-snug">
-                  Configure as regras na próxima etapa, convide quem você quiser e descubra quem tem o melhor palpite!
+            <div className="flex items-baseline justify-between gap-4">
+              <div className="min-w-0">
+                <span className="font-serif text-xl text-[#2B2420] font-normal block truncate">
+                  {hostDeckName || 'Aleatório #1'}
+                </span>
+                <span className="text-xs text-[#6F655C] block mt-0.5">
+                  {hostCardCount} cartas no jogo
                 </span>
               </div>
 
-              {/* PONTO 3: Botões - Criar Lobby, Buscar Lobbies e Explorar Comunidade */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-0.5">
-                <button
-                  type="button"
-                  onClick={handleProceedToCreateLobby}
-                  disabled={!name.trim()}
-                  className="w-full flex items-center justify-center gap-2 py-3 sm:py-3.5 px-3 rounded-xl sm:rounded-2xl bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white font-black text-xs sm:text-sm uppercase tracking-wider shadow-[0_3px_0_#059669] sm:shadow-[0_4px_0_#059669] active:translate-y-1 active:shadow-none transition-all cursor-pointer"
-                >
-                  <PlusCircle size={16} />
-                  <span>Criar Lobby</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    sounds.playClick();
-                    onOpenPublicLobbies();
-                  }}
-                  className="w-full flex items-center justify-center gap-2 py-3 sm:py-3.5 px-3 rounded-xl sm:rounded-2xl bg-sky-500 hover:bg-sky-600 text-white font-black text-xs sm:text-sm uppercase tracking-wider shadow-[0_3px_0_#0284c7] sm:shadow-[0_4px_0_#0284c7] active:translate-y-1 active:shadow-none transition-all cursor-pointer"
-                >
-                  <Gamepad2 size={16} />
-                  <span>Buscar Lobbies</span>
-                </button>
-              </div>
-
-              {/* Botão Explorar Comunidade */}
               <button
                 type="button"
-                onClick={() => {
-                  sounds.playClick();
-                  onOpenCommunity();
-                }}
-                className="w-full flex items-center justify-center gap-2 py-3 px-3 rounded-xl sm:rounded-2xl bg-purple-50 hover:bg-purple-100 text-purple-800 hover:text-purple-900 border-2 border-purple-200 hover:border-purple-300 font-black text-xs sm:text-sm uppercase tracking-wider transition-all cursor-pointer shadow-xs active:translate-y-0.5"
+                onClick={() => setShowDeckPicker(!showDeckPicker)}
+                className="text-sm font-semibold text-[#B4532F] hover:text-[#984323] hover:underline underline-offset-4 transition-colors cursor-pointer shrink-0"
               >
-                <Globe2 size={16} className="text-purple-600" />
-                <span>Explorar Comunidade</span>
+                {showDeckPicker ? 'Fechar' : 'Trocar'}
               </button>
             </div>
-          )}
 
-          {/* Conteúdo da Aba 2: ENTRAR COM CÓDIGO */}
-          {activeTab === 'join' && (
-            <div className="space-y-3 animate-in fade-in duration-150">
-              <div>
-                <label className="block text-[10px] sm:text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-1">
-                  Código da Sala (6 números):
-                </label>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  maxLength={6}
-                  placeholder="Ex: 489201"
-                  value={inputCode}
-                  onChange={(e) => setInputCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                  onKeyDown={(e) => e.key === 'Enter' && handleJoinWithCode()}
-                  className="w-full bg-slate-50 border-2 border-slate-200 text-slate-900 font-mono font-black placeholder-slate-400 text-base sm:text-lg tracking-[0.25em] text-center rounded-xl sm:rounded-2xl px-4 py-2.5 sm:py-3 focus:outline-none focus:bg-white focus:border-sky-400 focus:ring-4 focus:ring-sky-100 transition-all"
-                />
+            {/* Menu expandido de escolha de baralho */}
+            {showDeckPicker && (
+              <div className="mt-4 pt-4 border-t border-[#E2DACD] space-y-3 animate-in fade-in duration-150">
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      sounds.playClick();
+                      onOpenCommunity();
+                    }}
+                    className="flex-1 p-3 text-left border border-[#E2DACD] rounded-[6px] bg-[#FBF8F3] hover:bg-white hover:border-[#2B2420] transition-colors cursor-pointer"
+                  >
+                    <div className="flex items-center gap-2 text-xs font-semibold text-[#2B2420] mb-0.5">
+                      <Compass size={14} className="text-[#B4532F]" />
+                      <span>Explorar na Comunidade</span>
+                    </div>
+                    <span className="text-[11px] text-[#6F655C]">Descubra dezenas de baralhos criados por jogadores</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      sounds.playClick();
+                      onOpenDeckBuilder?.(hostCardCount);
+                    }}
+                    className="flex-1 p-3 text-left border border-[#E2DACD] rounded-[6px] bg-[#FBF8F3] hover:bg-white hover:border-[#2B2420] transition-colors cursor-pointer"
+                  >
+                    <div className="flex items-center gap-2 text-xs font-semibold text-[#2B2420] mb-0.5">
+                      <Plus size={14} className="text-[#B4532F]" />
+                      <span>Criar Novo Baralho</span>
+                    </div>
+                    <span className="text-[11px] text-[#6F655C]">Monte um baralho próprio com fotos e nomes</span>
+                  </button>
+                </div>
+
+                {/* Baralhos salvos do usuário se houver */}
+                {mySavedDecks.length > 0 && (
+                  <div className="pt-2">
+                    <span className="text-[11px] font-medium text-[#6F655C] uppercase tracking-wider block mb-2">
+                      Seus baralhos salvos
+                    </span>
+                    <div className="space-y-1.5 max-h-40 overflow-y-auto">
+                      {mySavedDecks.map((deck) => (
+                        <div
+                          key={deck.id}
+                          onClick={() => {
+                            sounds.playClick();
+                            setHostDeckName(deck.name);
+                            setHostCardCount((deck.card_count as DifficultyCount) || 30);
+                            setHostCustomCards(deck.cards);
+                            setShowDeckPicker(false);
+                          }}
+                          className="p-2.5 rounded-[6px] border border-[#E2DACD] bg-[#FBF8F3] hover:bg-white flex items-center justify-between text-xs cursor-pointer transition-colors"
+                        >
+                          <span className="font-medium text-[#2B2420] truncate">{deck.name}</span>
+                          <span className="text-[#6F655C] shrink-0">{deck.card_count} cartas</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
+            )}
+          </div>
+
+          {/* 2. Quantidade de Cartas */}
+          <div className="border-b border-[#E2DACD] pb-5">
+            <span className="text-xs font-medium text-[#6F655C] uppercase tracking-wider block mb-2.5">
+              Quantidade de cartas
+            </span>
+            <SegmentedControl
+              className="w-full"
+              options={[
+                { value: 15, label: '15 cartas' },
+                { value: 30, label: '30 cartas' },
+                { value: 60, label: '60 cartas' },
+                { value: 90, label: '90 cartas' },
+              ]}
+              value={hostCardCount}
+              onChange={(count) => {
+                sounds.playClick();
+                setHostCardCount(count as DifficultyCount);
+                setHostCustomCards(MOCK_90_CHARACTERS.slice(0, count));
+              }}
+            />
+          </div>
+
+          {/* 3. Dinâmica da Rodada */}
+          <div className="border-b border-[#E2DACD] pb-5">
+            <span className="text-xs font-medium text-[#6F655C] uppercase tracking-wider block mb-3">
+              Dinâmica da rodada
+            </span>
+            <div className="space-y-3">
+              <Radio
+                id="mode-game"
+                name="dynamics"
+                checked={!hostIsCallMode}
+                onChange={() => {
+                  sounds.playClick();
+                  setHostIsCallMode(false);
+                }}
+                label="Perguntas no jogo"
+                description="Com digitação, botões Sim/Não e timer regressivo"
+              />
+              <Radio
+                id="mode-call"
+                name="dynamics"
+                checked={hostIsCallMode}
+                onChange={() => {
+                  sounds.playClick();
+                  setHostIsCallMode(true);
+                }}
+                label="Por voz ou chamada"
+                description="Falem diretamente por Discord ou ligação, sem timer no jogo"
+              />
+            </div>
+          </div>
+
+          {/* 4. Senha da Sala */}
+          <div className="border-b border-[#E2DACD] pb-5">
+            <Checkbox
+              id="protect-pwd"
+              checked={hostHasPassword}
+              onChange={(e) => {
+                sounds.playClick();
+                const checked = e.target.checked;
+                setHostHasPassword(checked);
+                if (!checked) {
+                  setHostPassword('');
+                  setHostPasswordError(null);
+                }
+              }}
+              label="Proteger sala com senha"
+              description="Exige senha para o seu amigo entrar na partida"
+            />
+
+            {hostHasPassword && (
+              <div className="mt-3 relative animate-in fade-in duration-150">
+                <Input
+                  type={showHostPassword ? 'text' : 'password'}
+                  value={hostPassword}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setHostPassword(val);
+                    if (val.trim().length > 0 && val.trim().length < 4) {
+                      setHostPasswordError('A senha precisa ter pelo menos 4 caracteres.');
+                    } else {
+                      setHostPasswordError(null);
+                    }
+                  }}
+                  placeholder="Mínimo de 4 caracteres"
+                  maxLength={30}
+                  error={Boolean(hostPasswordError)}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowHostPassword(!showHostPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#A39A90] hover:text-[#2B2420] cursor-pointer"
+                >
+                  {showHostPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
+            )}
+            {hostPasswordError && (
+              <p className="text-xs text-[#8C2E2A] mt-1">{hostPasswordError}</p>
+            )}
+          </div>
+        </div>
+
+        {/* Botão Primário Único */}
+        <div className="pt-6">
+          <Button
+            size="lg"
+            className="w-full mb-3"
+            disabled={isConnecting}
+            onClick={handleCreateAndLaunchRoom}
+          >
+            {isConnecting ? 'Criar sala...' : 'Criar sala'}
+          </Button>
+
+          <div className="text-center">
+            <Button
+              variant="text"
+              onClick={handleCancelConfiguring}
+            >
+              Cancelar
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // =========================================================================
+  // CENÁRIO D: SCREEN 5 - HERO / HOME PRINCIPAL (Mesa de Jogo)
+  // =========================================================================
+  return (
+    <div className="w-full flex flex-col items-center">
+      {/* Banner de Reconexão Rápida */}
+      {reconnectSession && reconnectSecondsLeft > 0 && onReconnectMatch && (
+        <div className="w-full max-w-5xl mx-auto px-4 mb-6">
+          <div className="bg-[#2B2420] text-white rounded-[8px] p-4 flex flex-col sm:flex-row items-center justify-between gap-3 border border-[#2B2420]">
+            <div className="flex items-center gap-3">
+              <RotateCcw size={18} className="text-[#B4532F] animate-spin-slow shrink-0" />
+              <div className="text-left text-xs">
+                <span className="font-semibold block text-white">
+                  Partida em andamento na Sala #{reconnectSession.roomCode}
+                </span>
+                <span className="text-[#A39A90]">
+                  Você tem {Math.floor(reconnectSecondsLeft / 60)}:{String(reconnectSecondsLeft % 60).padStart(2, '0')} para reconectar.
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant="primary"
+                onClick={() => onReconnectMatch(reconnectSession)}
+              >
+                Reconectar
+              </Button>
+              {onDismissReconnect && (
+                <button
+                  onClick={onDismissReconnect}
+                  className="p-1 text-[#A39A90] hover:text-white cursor-pointer"
+                  title="Dispensar"
+                >
+                  <X size={16} />
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Alerta de Erro */}
+      {errorMessage && (
+        <div className="w-full max-w-5xl mx-auto px-4 mb-6">
+          <div className="p-3 text-xs font-medium text-[#8C2E2A] bg-[#F8EBEA] border border-[#ECC7C5] rounded-[6px]">
+            {errorMessage}
+          </div>
+        </div>
+      )}
+
+      {/* PRIMEIRA DOBRA: HERO COM LEQUE FÍSICO DE CARTAS */}
+      <section className="w-full max-w-5xl mx-auto px-4 py-8 sm:py-16">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
+          {/* Coluna Esquerda: Tipografia Autoral e Ação Dominante */}
+          <div className="lg:col-span-6 flex flex-col items-center lg:items-start text-center lg:text-left">
+            <h1 className="font-serif text-4xl sm:text-5xl lg:text-6xl font-normal text-[#2B2420] tracking-tight leading-[1.08] mb-4">
+              Tá na cara! <span className="italic text-[#B4532F]">Mas de quem?!</span>
+            </h1>
+
+            {/* Frase em UMA linha só no desktop sem estourar no mobile (Requisito 1) */}
+            <p className="text-sm sm:text-base text-[#6F655C] font-sans mb-8 max-w-xl sm:whitespace-nowrap">
+              O clássico jogo de adivinhação, feito para jogar a dois em tempo real.
+            </p>
+
+            {/* Ação Primária */}
+            <div className="w-full max-w-xs flex flex-col items-center lg:items-start gap-2.5">
+              <Button
+                size="lg"
+                className="w-full"
+                onClick={handleStartConfiguring}
+              >
+                Jogar
+              </Button>
 
               <button
-                onClick={handleJoinWithCode}
-                disabled={!name.trim() || !inputCode.trim() || isConnecting}
-                className="w-full flex items-center justify-center gap-2 py-3 sm:py-3.5 px-4 rounded-xl sm:rounded-2xl bg-sky-500 hover:bg-sky-600 disabled:opacity-50 text-white font-extrabold text-xs sm:text-sm shadow-[0_3px_0_#0284c7] sm:shadow-[0_4px_0_#0284c7] active:translate-y-1 active:shadow-none transition-all cursor-pointer"
+                type="button"
+                onClick={() => setShowCodeDrawer(!showCodeDrawer)}
+                className="text-xs sm:text-sm text-[#6F655C] hover:text-[#2B2420] underline underline-offset-4 transition-colors cursor-pointer pt-1"
               >
-                {isConnecting ? <Loader2 size={16} className="animate-spin" /> : <Users size={16} />}
-                <span>{isConnecting ? 'Conectando...' : 'Entrar na Sala'}</span>
+                Tenho um código de sala
               </button>
+
+              {/* Drawer discreto de entrada por código */}
+              {showCodeDrawer && (
+                <div className="w-full mt-2 p-3 bg-[#FBF8F3] border border-[#E2DACD] rounded-[6px] animate-in fade-in duration-150">
+                  <form
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      handleJoinWithCode();
+                    }}
+                    className="flex items-center gap-2"
+                  >
+                    <input
+                      type="text"
+                      autoFocus
+                      maxLength={6}
+                      placeholder="CÓDIGO (6 DÍGITOS)"
+                      value={inputCode}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/[^a-zA-Z0-9]/g, '').slice(0, 6);
+                        setInputCode(val);
+                        if (val.length === 6) {
+                          handleJoinWithCode(val);
+                        }
+                      }}
+                      className="flex-1 h-9 px-3 bg-white border border-[#E2DACD] rounded-[4px] text-xs font-mono tracking-widest text-[#2B2420] uppercase tabular-nums focus:outline-none focus:border-[#2B2420]"
+                    />
+                    <Button
+                      type="submit"
+                      variant="secondary"
+                      size="sm"
+                      disabled={inputCode.length < 4 || isConnecting}
+                    >
+                      Entrar
+                    </Button>
+                  </form>
+                </div>
+              )}
             </div>
-          )}
-        </div>
-      </div>
+          </div>
 
-      {/* Mini-guia: Como Jogar em 3 Passos (Estilo Contexto / Notion) */}
-      <div className="max-w-xl w-full mt-5 sm:mt-8">
-        <div className="text-center mb-2.5 sm:mb-3">
-          <span className="text-[10px] sm:text-[11px] font-extrabold text-slate-400 uppercase tracking-wider flex items-center justify-center gap-1.5">
-            <HelpCircle size={13} />
-            Como Jogar em 3 Passos
-          </span>
+          {/* Coluna Direita: O Leque Físico de Cartas na Mesa */}
+          <div className="lg:col-span-6 w-full flex items-center justify-center py-6 sm:py-8">
+            <div className="relative flex items-center justify-center w-full max-w-[340px] sm:max-w-[400px] h-[210px] select-none">
+              {FAN_CARDS.map((card, index) => {
+                return (
+                  <div
+                    key={card.id}
+                    style={{
+                      transform: `rotate(${card.rotation})`,
+                      zIndex: index === 2 ? 10 : index === 1 || index === 3 ? 5 : 1,
+                    }}
+                    className={`absolute w-24 sm:w-28 aspect-[3/4] rounded-[8px] border border-[#E2DACD] bg-[#FBF8F3] shadow-md transition-transform duration-300 hover:scale-105 p-1.5 flex flex-col justify-between ${card.translate}`}
+                  >
+                    {card.isBack ? (
+                      /* Verso de papel com textura gráfica suave */
+                      <div className="w-full h-full rounded-[4px] border border-[#E2DACD]/80 bg-[#F6F2EA] flex flex-col items-center justify-center p-2 text-center relative overflow-hidden">
+                        <div className="w-8 h-8 rounded-full border border-[#E2DACD] flex items-center justify-center mb-1 bg-[#FBF8F3]">
+                          <span className="font-serif text-sm font-bold text-[#B4532F]">?</span>
+                        </div>
+                        <span className="font-serif text-[10px] text-[#6F655C]">Tá na Cara!</span>
+                      </div>
+                    ) : (
+                      /* Frente com retrato fotográfico e nome */
+                      <>
+                        <div className="w-full aspect-square rounded-[4px] overflow-hidden bg-white border border-[#E2DACD]/60">
+                          <img
+                            src={card.imageUrl}
+                            alt={card.name}
+                            loading="lazy"
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                        <span className="text-[11px] font-sans font-medium text-[#2B2420] text-center truncate block mt-1">
+                          {card.name}
+                        </span>
+                      </>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         </div>
+      </section>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3">
-          <div className="bg-white border-2 border-slate-200 rounded-xl sm:rounded-2xl p-2.5 sm:p-3.5 text-center shadow-sm">
-            <span className="w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-amber-100 text-amber-800 font-black text-[11px] sm:text-xs inline-flex items-center justify-center mb-1.5 sm:mb-2">
-              1
-            </span>
-            <h4 className="text-xs font-extrabold text-slate-900 mb-0.5">Escolha o Segredo</h4>
-            <p className="text-[10px] sm:text-[11px] text-slate-500 leading-snug">
-              Cada jogador escolhe seu personagem secreto que o outro terá que adivinhar.
+      {/* ABAIXO DA PRIMEIRA DOBRA: BARALHOS EM DESTAQUE (Editorial / Mesa de Jogo) */}
+      <section className="w-full max-w-5xl mx-auto px-4 pt-6 pb-16 border-t border-[#E2DACD]">
+        <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-2 mb-6">
+          <div>
+            <h2 className="font-serif text-2xl font-normal text-[#2B2420]">
+              Baralhos em destaque
+            </h2>
+            <p className="text-xs text-[#6F655C] font-sans">
+              Coleções prontas para jogar com seus amigos
             </p>
           </div>
 
-          <div className="bg-white border-2 border-slate-200 rounded-xl sm:rounded-2xl p-2.5 sm:p-3.5 text-center shadow-sm">
-            <span className="w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-sky-100 text-sky-800 font-black text-[11px] sm:text-xs inline-flex items-center justify-center mb-1.5 sm:mb-2">
-              2
-            </span>
-            <h4 className="text-xs font-extrabold text-slate-900 mb-0.5">Pergunte Sim ou Não</h4>
-            <p className="text-[10px] sm:text-[11px] text-slate-500 leading-snug">
-              "Usa óculos?", "Tem barba?". Abaixe as cartas que não batem com a resposta.
-            </p>
+          <button
+            type="button"
+            onClick={() => {
+              sounds.playClick();
+              onOpenCommunity();
+            }}
+            className="text-xs font-semibold text-[#B4532F] hover:underline underline-offset-4 cursor-pointer self-start sm:self-auto"
+          >
+            Explorar comunidade →
+          </button>
+        </div>
+
+        {/* Lista Editorial dos Baralhos */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {/* Baralho 1: Personalidades & Memes */}
+          <div
+            onClick={() => {
+              sounds.playClick();
+              setHostDeckName('Personalidades & Memes');
+              setHostCardCount(30);
+              setHostCustomCards(MOCK_90_CHARACTERS.slice(0, 30));
+              handleStartConfiguring();
+            }}
+            className="p-4 rounded-[8px] border border-[#E2DACD] bg-[#FBF8F3] hover:border-[#2B2420] transition-colors cursor-pointer group flex flex-col justify-between"
+          >
+            <div>
+              <span className="text-[10px] font-medium text-[#6F655C] uppercase tracking-wider block mb-1">
+                Oficial · 30 cartas
+              </span>
+              <h3 className="font-serif text-base text-[#2B2420] group-hover:text-[#B4532F] transition-colors mb-1">
+                Personalidades & Memes
+              </h3>
+              <p className="text-xs text-[#6F655C] leading-relaxed">
+                Famosos, criadores de conteúdo e figuras da cultura pop.
+              </p>
+            </div>
+
+            <div className="mt-4 pt-3 border-t border-[#E2DACD]/80 flex items-center justify-between">
+              <div className="flex items-center -space-x-1.5">
+                <img src="/standard-faces/Bruno.jpg" alt="Bruno" className="w-7 h-7 rounded-full border border-white object-cover" />
+                <img src="/standard-faces/Ana.jpg" alt="Ana" className="w-7 h-7 rounded-full border border-white object-cover" />
+                <img src="/standard-faces/Felipe.jpg" alt="Felipe" className="w-7 h-7 rounded-full border border-white object-cover" />
+              </div>
+              <span className="text-xs font-semibold text-[#B4532F] group-hover:underline">Jogar</span>
+            </div>
           </div>
 
-          <div className="bg-white border-2 border-slate-200 rounded-xl sm:rounded-2xl p-2.5 sm:p-3.5 text-center shadow-sm">
-            <span className="w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-emerald-100 text-emerald-800 font-black text-[11px] sm:text-xs inline-flex items-center justify-center mb-1.5 sm:mb-2">
-              3
-            </span>
-            <h4 className="text-xs font-extrabold text-slate-900 mb-0.5">Dê o Palpite</h4>
-            <p className="text-[10px] sm:text-[11px] text-slate-500 leading-snug">
-              Quando tiver certeza, arrisque o palpite final. Quem acertar primeiro vence!
-            </p>
+          {/* Baralho 2: Turma Clássica */}
+          <div
+            onClick={() => {
+              sounds.playClick();
+              setHostDeckName('Turma do Tabuleiro');
+              setHostCardCount(15);
+              setHostCustomCards(MOCK_90_CHARACTERS.slice(0, 15));
+              handleStartConfiguring();
+            }}
+            className="p-4 rounded-[8px] border border-[#E2DACD] bg-[#FBF8F3] hover:border-[#2B2420] transition-colors cursor-pointer group flex flex-col justify-between"
+          >
+            <div>
+              <span className="text-[10px] font-medium text-[#6F655C] uppercase tracking-wider block mb-1">
+                Clássico · 15 cartas
+              </span>
+              <h3 className="font-serif text-base text-[#2B2420] group-hover:text-[#B4532F] transition-colors mb-1">
+                Turma do Tabuleiro
+              </h3>
+              <p className="text-xs text-[#6F655C] leading-relaxed">
+                Personagens com traços distintos para rodadas rápidas e estratégicas.
+              </p>
+            </div>
+
+            <div className="mt-4 pt-3 border-t border-[#E2DACD]/80 flex items-center justify-between">
+              <div className="flex items-center -space-x-1.5">
+                <img src="/standard-faces/Carla.jpg" alt="Carla" className="w-7 h-7 rounded-full border border-white object-cover" />
+                <img src="/standard-faces/Davi.jpg" alt="Davi" className="w-7 h-7 rounded-full border border-white object-cover" />
+                <img src="/standard-faces/Hugo.jpg" alt="Hugo" className="w-7 h-7 rounded-full border border-white object-cover" />
+              </div>
+              <span className="text-xs font-semibold text-[#B4532F] group-hover:underline">Jogar</span>
+            </div>
+          </div>
+
+          {/* Baralho 3: Crie seu próprio baralho */}
+          <div
+            onClick={() => {
+              sounds.playClick();
+              if (onOpenDeckBuilder) {
+                onOpenDeckBuilder(30);
+              }
+            }}
+            className="p-4 rounded-[8px] border border-[#E2DACD] border-dashed bg-[#FBF8F3] hover:border-[#2B2420] transition-colors cursor-pointer group flex flex-col justify-between"
+          >
+            <div>
+              <span className="text-[10px] font-medium text-[#6F655C] uppercase tracking-wider block mb-1">
+                Personalizado
+              </span>
+              <h3 className="font-serif text-base text-[#2B2420] group-hover:text-[#B4532F] transition-colors mb-1">
+                Criar seu próprio baralho
+              </h3>
+              <p className="text-xs text-[#6F655C] leading-relaxed">
+                Suba fotos dos seus amigos, família ou ídolos favoritos.
+              </p>
+            </div>
+
+            <div className="mt-4 pt-3 border-t border-[#E2DACD]/80 flex items-center justify-between">
+              <span className="text-xs text-[#6F655C]">Até 90 cartas</span>
+              <span className="text-xs font-semibold text-[#B4532F] group-hover:underline">Criar →</span>
+            </div>
           </div>
         </div>
-      </div>
+      </section>
     </div>
   );
 };

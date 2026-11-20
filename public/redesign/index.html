@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tá na Cara! — Hub de Redesign de Produto (Propostas A, B, C e D)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #FAF7F2;
+      --surface: #FFFFFF;
+      --ink: #1C1917;
+      --ink-muted: #78716C;
+      --primary: #EA580C;
+      --border: #E7E5E4;
+      --font-body: 'Plus Jakarta Sans', system-ui, sans-serif;
+      --font-display: 'Space Grotesk', system-ui, sans-serif;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--ink);
+      font-family: var(--font-body);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* BARRA SUPERIOR DE CONTROLE */
+    .top-nav {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+    }
+
+    .nav-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .nav-brand img {
+      height: 32px;
+    }
+
+    .nav-brand-title {
+      font-family: var(--font-display);
+      font-size: 1.05rem;
+      font-weight: 700;
+    }
+
+    .nav-brand-tag {
+      background: #FEF3C7;
+      color: #92400E;
+      font-size: 0.72rem;
+      font-weight: 800;
+      padding: 3px 8px;
+      border-radius: 999px;
+    }
+
+    /* SEGMENTED CONTROL: PROPOSTAS */
+    .segmented-control {
+      display: flex;
+      background: #F4EFEA;
+      padding: 4px;
+      border-radius: 10px;
+      gap: 4px;
+    }
+
+    .segment-btn {
+      border: none;
+      background: transparent;
+      padding: 8px 16px;
+      border-radius: 7px;
+      font-size: 0.88rem;
+      font-weight: 700;
+      color: var(--ink-muted);
+      cursor: pointer;
+      transition: all 0.15s ease;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .segment-btn.active {
+      background: var(--surface);
+      color: var(--primary);
+      box-shadow: 0 2px 4px rgba(0,0,0,0.06);
+    }
+
+    /* VIEWPORT CONTROLS */
+    .viewport-controls {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .device-btn {
+      background: transparent;
+      border: 1px solid var(--border);
+      padding: 7px 12px;
+      border-radius: 8px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: var(--ink);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s ease;
+    }
+
+    .device-btn.active {
+      background: var(--ink);
+      color: #FFFFFF;
+      border-color: var(--ink);
+    }
+
+    .btn-external {
+      background: var(--primary);
+      color: #FFFFFF;
+      border: none;
+      padding: 7px 14px;
+      border-radius: 8px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* CANVAS DE VISUALIZAÇÃO */
+    .preview-stage {
+      flex: 1;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      padding: 24px;
+      background: #ECE6DD;
+      overflow-y: auto;
+    }
+
+    .iframe-wrapper {
+      background: #FFFFFF;
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.12);
+      border-radius: 16px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .iframe-wrapper.mobile {
+      width: 390px;
+      height: 844px;
+      border: 10px solid #1C1917;
+      border-radius: 44px;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.25);
+      position: relative;
+    }
+
+    .iframe-wrapper.mobile::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 120px;
+      height: 24px;
+      background: #1C1917;
+      border-bottom-left-radius: 12px;
+      border-bottom-right-radius: 12px;
+      z-index: 10;
+    }
+
+    .iframe-wrapper.desktop {
+      width: 100%;
+      max-width: 1380px;
+      height: 860px;
+      border: 1px solid var(--border);
+    }
+
+    .preview-iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+      display: block;
+      background: #FAF7F2;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- BARRA DE CONTROLE DO DESIGN REVIEW -->
+  <nav class="top-nav">
+    <div class="nav-brand">
+      <img src="../logo-icon.svg" alt="Logo">
+      <span class="nav-brand-title">Tá na Cara!</span>
+      <span class="nav-brand-tag">Design System 2.0</span>
+    </div>
+
+    <!-- SELETOR DE PROPOSTAS -->
+    <div class="segmented-control" role="tablist">
+      <button class="segment-btn active" data-url="./proposta-d/index.html" id="tab-d">
+        ⭐ Proposta D (Síntese)
+      </button>
+      <button class="segment-btn" data-url="./proposta-a/index.html" id="tab-a">
+        ⚡ Proposta A (Termo)
+      </button>
+      <button class="segment-btn" data-url="./proposta-b/index.html" id="tab-b">
+        🎉 Proposta B (Gartic)
+      </button>
+      <button class="segment-btn" data-url="./proposta-c/index.html" id="tab-c">
+        🃏 Proposta C (Personagens)
+      </button>
+    </div>
+
+    <!-- SELETOR DE DISPOSITIVOS -->
+    <div class="viewport-controls">
+      <button class="device-btn" id="btn-mode-mobile">
+        📱 Mobile (390px)
+      </button>
+      <button class="device-btn active" id="btn-mode-desktop">
+        💻 Desktop (1440px)
+      </button>
+      <a href="./proposta-d/index.html" target="_blank" class="btn-external" id="btn-open-tab">
+        Abrir Proposta ↗
+      </a>
+    </div>
+  </nav>
+
+  <!-- PALCO COM IFRAME RESPONSIVO -->
+  <div class="preview-stage">
+    <div class="iframe-wrapper desktop" id="frame-container">
+      <iframe src="./proposta-d/index.html" class="preview-iframe" id="preview-frame" title="Visualização do Redesign"></iframe>
+    </div>
+  </div>
+
+  <script>
+    const tabs = document.querySelectorAll('.segment-btn');
+    const iframe = document.getElementById('preview-frame');
+    const frameContainer = document.getElementById('frame-container');
+    const btnMobile = document.getElementById('btn-mode-mobile');
+    const btnDesktop = document.getElementById('btn-mode-desktop');
+    const btnOpenTab = document.getElementById('btn-open-tab');
+
+    let currentUrl = './proposta-d/index.html';
+
+    tabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        tabs.forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        currentUrl = tab.dataset.url;
+        iframe.src = currentUrl;
+        btnOpenTab.href = currentUrl;
+      });
+    });
+
+    btnMobile.addEventListener('click', () => {
+      btnMobile.classList.add('active');
+      btnDesktop.classList.remove('active');
+      frameContainer.className = 'iframe-wrapper mobile';
+    });
+
+    btnDesktop.addEventListener('click', () => {
+      btnDesktop.classList.add('active');
+      btnMobile.classList.remove('active');
+      frameContainer.className = 'iframe-wrapper desktop';
+    });
+  </script>
+</body>
+</html>

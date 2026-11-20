@@ -1,7 +1,7 @@
 import { useState, type FC } from 'react';
 import type { Character } from '../types/game';
 import { Avatar } from './Avatar';
-import { Eye, EyeOff, Shield } from 'lucide-react';
+import { Eye, EyeOff } from 'lucide-react';
 import { sounds } from '../utils/sound';
 
 interface SecretCardBadgeProps {
@@ -17,23 +17,22 @@ export const SecretCardBadge: FC<SecretCardBadgeProps> = ({ character }) => {
   };
 
   return (
-    <div className="bg-slate-50 border border-slate-200 rounded-xl sm:rounded-2xl p-1 sm:px-2.5 sm:py-1 flex items-center gap-1.5 sm:gap-2.5 max-w-fit">
+    <div className="bg-[#F6F2EA] border border-[#E2DACD] rounded-[6px] p-1 sm:px-2.5 sm:py-1 flex items-center gap-1.5 sm:gap-2.5 max-w-fit">
       <div className="relative shrink-0">
         {showSecret ? (
-          <Avatar character={character} className="w-7 h-7 sm:w-9 sm:h-9 ring-2 ring-sky-300 rounded-lg sm:rounded-xl" />
+          <Avatar character={character} className="w-7 h-7 sm:w-8 sm:h-8 rounded-[4px] border border-[#E2DACD] object-cover" />
         ) : (
-          <div className="w-7 h-7 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl bg-slate-200 border border-slate-300 flex items-center justify-center text-slate-500">
-            <Shield size={14} className="text-sky-600" />
+          <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-[4px] bg-[#E2DACD]/50 border border-[#E2DACD] flex items-center justify-center text-[#6F655C] text-xs font-serif font-bold">
+            ?
           </div>
         )}
       </div>
 
-      <div className="flex flex-col min-w-0 pr-0.5">
-        <span className="text-[9px] sm:text-[10px] text-sky-800 font-extrabold uppercase tracking-wider flex items-center gap-1 leading-none">
-          <Shield size={9} className="text-sky-600 shrink-0" />
-          <span>Você é:</span>
+      <div className="flex flex-col min-w-0 pr-0.5 text-left">
+        <span className="text-[10px] text-[#6F655C] font-medium leading-none">
+          Você é:
         </span>
-        <span className="text-xs sm:text-sm font-black text-slate-900 truncate max-w-[85px] sm:max-w-[130px] leading-tight mt-0.5">
+        <span className="text-xs sm:text-sm font-sans font-medium text-[#2B2420] truncate max-w-[90px] sm:max-w-[140px] leading-tight mt-0.5">
           {showSecret ? character.name : '••••••••'}
         </span>
       </div>
@@ -42,7 +41,7 @@ export const SecretCardBadge: FC<SecretCardBadgeProps> = ({ character }) => {
         onClick={togglePeek}
         type="button"
         title={showSecret ? 'Ocultar meu personagem' : 'Mostrar meu personagem'}
-        className="p-1 sm:p-1.5 hover:bg-slate-200 rounded-lg text-slate-500 hover:text-slate-800 transition-colors shrink-0 cursor-pointer"
+        className="p-1 text-[#6F655C] hover:text-[#2B2420] transition-colors shrink-0 cursor-pointer"
       >
         {showSecret ? <EyeOff size={13} /> : <Eye size={13} />}
       </button>

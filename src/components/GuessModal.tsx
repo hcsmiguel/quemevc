@@ -1,11 +1,13 @@
-import { useState, type FC } from 'react';
-import type { Character } from '../types/game';
+import { useState, useMemo, type FC } from 'react';
+import type { Character, CardStatus } from '../types/game';
 import { Avatar } from './Avatar';
-import { Trophy, X, AlertTriangle } from 'lucide-react';
+import { X } from 'lucide-react';
 import { sounds } from '../utils/sound';
+import { Button } from './ui/Button';
 
 interface GuessModalProps {
   cards: Character[];
+  cardStatuses?: Record<string, CardStatus>;
   opponentName: string;
   onConfirmGuess: (character: Character) => void;
   onClose: () => void;
@@ -13,11 +15,19 @@ interface GuessModalProps {
 
 export const GuessModal: FC<GuessModalProps> = ({
   cards,
+  cardStatuses,
   opponentName,
   onConfirmGuess,
   onClose,
 }) => {
   const [selectedChar, setSelectedChar] = useState<Character | null>(null);
+
+  // Exibir SOMENTE as cartas ativas no tabuleiro do jogador (requisito explícito do usuário)
+  const activeCards = useMemo(() => {
+    if (!cardStatuses) return cards;
+    const filtered = cards.filter((char) => cardStatuses[char.id] !== 'discard');
+    return filtered.length > 0 ? filtered : cards;
+  }, [cards, cardStatuses]);
 
   const handleSelect = (char: Character) => {
     sounds.playClick();
@@ -30,74 +40,90 @@ export const GuessModal: FC<GuessModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-2.5 sm:p-4 overflow-y-auto">
-      <div className="bg-white border-2 border-slate-200 rounded-3xl max-w-3xl w-full max-h-[90vh] flex flex-col p-3.5 sm:p-6 shadow-2xl animate-in zoom-in-95 duration-200 my-auto">
+    <div className="fixed inset-0 z-50 bg-[#2B2420]/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+      <div className="bg-[#FBF8F3] border border-[#E2DACD] rounded-[12px] max-w-2xl w-full max-h-[90vh] flex flex-col p-5 sm:p-7 shadow-xl animate-in zoom-in-95 duration-150 my-auto text-left">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-3">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center shadow-tactile-sm shrink-0">
-              <Trophy size={22} className="text-amber-700" />
-            </div>
-            <div>
-              <h2 className="text-base sm:text-lg font-black text-slate-900">Dar Palpite Final</h2>
-              <p className="text-xs text-slate-500">
-                Quem é o personagem secreto de <strong className="text-rose-600 font-extrabold">{opponentName}</strong>?
-              </p>
-            </div>
+        <div className="flex items-start justify-between border-b border-[#E2DACD] pb-3 mb-4">
+          <div>
+            <h2 className="font-serif text-2xl font-normal text-[#2B2420]">
+              Dar palpite final
+            </h2>
+            <p className="text-xs sm:text-sm text-[#6F655C] font-sans mt-0.5">
+              Quem você acha que é o personagem de <strong className="font-semibold text-[#2B2420]">{opponentName}</strong>?
+            </p>
           </div>
           <button
             onClick={onClose}
-            className="p-2 text-slate-400 hover:text-slate-700 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer"
+            className="p-1.5 text-[#6F655C] hover:text-[#2B2420] transition-colors cursor-pointer rounded-[4px]"
+            title="Fechar"
           >
-            <X size={20} />
+            <X size={18} />
           </button>
         </div>
 
         {/* Confirmação do Personagem Escolhido */}
         {selectedChar ? (
-          <div className="my-auto py-4 sm:py-6 flex flex-col items-center text-center">
-            <div className="relative mb-3">
-              <Avatar character={selectedChar} size={110} className="ring-4 ring-amber-400 shadow-xl" />
-            </div>
-            <h3 className="text-2xl font-black text-slate-900 mb-1">{selectedChar.name}</h3>
-            
-            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 my-4 max-w-md flex items-start gap-3 text-left">
-              <AlertTriangle size={22} className="text-amber-600 shrink-0 mt-0.5" />
-              <div className="text-xs text-amber-950 leading-relaxed font-medium">
-                Atenção: Se você <strong className="text-emerald-700 font-bold">acertar</strong>, você vence o jogo imediatamente!
-                Se você <strong className="text-rose-700 font-bold">errar</strong>, seu palpite será revelado e você perderá a vez.
-              </div>
+          <div className="py-6 flex flex-col items-center text-center my-auto">
+            <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-[8px] overflow-hidden border border-[#2B2420] shadow-sm mb-3 bg-white">
+              <Avatar character={selectedChar} size={112} className="w-full h-full object-cover" />
             </div>
 
-            <div className="flex items-center gap-3 w-full max-w-sm mt-2">
-              <button
+            <h3 className="font-serif text-2xl text-[#2B2420] font-normal mb-2">
+              {selectedChar.name}
+            </h3>
+
+            <div className="p-3 rounded-[6px] border border-[#E2DACD] bg-[#F6F2EA] max-w-md text-xs text-[#6F655C] leading-relaxed mb-6">
+              Se acertar, você vence a partida imediatamente. Se errar, sua tentativa será revelada e você passará a vez.
+            </div>
+
+            <div className="flex items-center gap-3 w-full max-w-xs">
+              <Button
+                variant="secondary"
+                size="md"
+                className="flex-1"
                 onClick={() => setSelectedChar(null)}
-                className="flex-1 py-3 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-xs uppercase tracking-wider border border-slate-200 transition-all cursor-pointer"
               >
-                Escolher Outro
-              </button>
-              <button
+                Voltar
+              </Button>
+              <Button
+                variant="primary"
+                size="md"
+                className="flex-1"
                 onClick={handleConfirm}
-                className="flex-1 py-3 px-4 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-xs uppercase tracking-wider shadow-[0_3px_0_#d97706] transition-all active:translate-y-0.5 cursor-pointer"
               >
-                Confirmar Chute!
-              </button>
+                Confirmar palpite
+              </Button>
             </div>
           </div>
         ) : (
-          <div className="flex-1 overflow-y-auto p-3 rounded-2xl bg-slate-50/70 border border-slate-200/80" style={{ WebkitOverflowScrolling: 'touch' }}>
-            <div className="grid grid-cols-3 sm:grid-cols-5 gap-2.5 sm:gap-3.5">
-              {cards.map((char) => (
-                <div
-                  key={char.id}
-                  onClick={() => handleSelect(char)}
-                  className="bg-white hover:bg-slate-50 border-2 border-slate-200 hover:border-amber-500 hover:ring-2 hover:ring-amber-200 rounded-2xl p-2 sm:p-2.5 flex flex-col items-center cursor-pointer transition-all active:scale-95 shadow-sm"
-                  style={{ touchAction: 'manipulation' }}
-                >
-                  <Avatar character={char} className="w-14 h-14 sm:w-18 sm:h-18 md:w-20 md:h-20 mb-1 rounded-xl" />
-                  <span className="text-xs sm:text-sm font-black text-slate-800 truncate w-full text-center">{char.name}</span>
-                </div>
-              ))}
+          <div className="flex flex-col flex-1 min-h-0">
+            {/* Status de cartas ativas */}
+            <div className="text-xs text-[#6F655C] font-sans mb-3">
+              Mostrando {activeCards.length} {activeCards.length === 1 ? 'carta ativa' : 'cartas ativas'} restantes no seu tabuleiro:
+            </div>
+
+            {/* Grid de Cartas Ativas */}
+            <div className="flex-1 overflow-y-auto pr-1" style={{ WebkitOverflowScrolling: 'touch' }}>
+              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2.5">
+                {activeCards.map((char) => (
+                  <button
+                    key={char.id}
+                    type="button"
+                    onClick={() => handleSelect(char)}
+                    className="p-2 rounded-[8px] border border-[#E2DACD] bg-[#F6F2EA] hover:bg-white hover:border-[#2B2420] transition-colors flex flex-col items-center text-center cursor-pointer group select-none"
+                  >
+                    <div className="w-full aspect-square rounded-[6px] overflow-hidden border border-[#E2DACD]/80 bg-white mb-1.5">
+                      <Avatar
+                        character={char}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                      />
+                    </div>
+                    <span className="text-xs font-sans font-medium text-[#2B2420] line-clamp-2 leading-tight">
+                      {char.name}
+                    </span>
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         )}

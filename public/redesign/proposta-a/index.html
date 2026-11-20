@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <title>Tá na Cara! — Proposta A: Minimalista Express</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  
+  <!-- Open Graph Tags (Compartilhamento Perfeito no WhatsApp e Discord) -->
+  <meta property="og:title" content="Tá na Cara! — Bora jogar?" />
+  <meta property="og:description" content="Eu escolhi um personagem secreto e você tem que adivinhar antes de mim! Clica pra entrar na sala." />
+  <meta property="og:type" content="game" />
+  <meta property="og:url" content="https://tanacara.online" />
+  <meta property="og:image" content="https://tanacara.online/logo-horizontal.svg" />
+  <meta name="theme-color" content="#FAF7F2" />
+
+  <style>
+    :root {
+      --bg-canvas: #FAF7F2;
+      --bg-card: #FFFFFF;
+      --text-main: #1C1917;
+      --text-muted: #78716C;
+      --text-faint: #A8A29E;
+      --border-subtle: #E7E5E4;
+      --border-strong: #D6D3D1;
+      
+      /* Cores da Identidade Visual (Paleta da Lupa Pêssego / Terracota) */
+      --primary: #EA580C;
+      --primary-hover: #C2410C;
+      --primary-active: #9A3412;
+      --primary-tint: #FFEDD5;
+      
+      --accent-sky: #0284C7;
+      --accent-sky-tint: #E0F2FE;
+      
+      --font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+      --radius-sm: 8px;
+      --radius-md: 14px;
+      --radius-lg: 20px;
+      --radius-pill: 9999px;
+      
+      --shadow-tactile: 0 3px 0 #D6D3D1;
+      --shadow-primary: 0 4px 0 #9A3412;
+      --shadow-card: 0 1px 3px rgba(0,0,0,0.03), 0 8px 24px -6px rgba(0,0,0,0.05);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      font-family: var(--font-family);
+      background-color: var(--bg-canvas);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      line-height: 1.45;
+      position: relative;
+      overflow-x: hidden;
+    }
+
+    /* Padrão de fundo suave estilo wallpaper */
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      background-image: radial-gradient(#D6D3D1 0.75px, transparent 0.75px);
+      background-size: 24px 24px;
+      opacity: 0.35;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    header {
+      position: relative;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 24px;
+      max-width: 900px;
+      width: 100%;
+      margin: 0 auto;
+    }
+
+    .brand-wrap {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+      color: var(--text-main);
+    }
+
+    .brand-icon {
+      width: 38px;
+      height: 38px;
+      transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    .brand-wrap:hover .brand-icon {
+      transform: scale(1.08) rotate(4deg);
+    }
+
+    .brand-title {
+      font-size: 19px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-header {
+      background: none;
+      border: 1px solid transparent;
+      padding: 8px 12px;
+      border-radius: var(--radius-pill);
+      color: var(--text-muted);
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .btn-header:hover {
+      background: #FFFFFF;
+      border-color: var(--border-subtle);
+      color: var(--text-main);
+    }
+
+    /* Conteúdo Principal Centralizado e Focado */
+    main {
+      position: relative;
+      z-index: 10;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px 16px 48px;
+      max-width: 540px;
+      width: 100%;
+      margin: 0 auto;
+      text-align: center;
+    }
+
+    /* Chip de diferencial viral animado */
+    .trend-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 14px;
+      background: var(--primary-tint);
+      border: 1px solid #FED7AA;
+      border-radius: var(--radius-pill);
+      color: var(--primary-active);
+      font-size: 12px;
+      font-weight: 700;
+      margin-bottom: 22px;
+      animation: fadeIn 0.6s ease;
+    }
+
+    .trend-indicator {
+      width: 7px;
+      height: 7px;
+      background-color: var(--primary);
+      border-radius: 50%;
+      animation: pulse 1.8s infinite;
+    }
+
+    .headline {
+      font-size: clamp(30px, 6vw, 42px);
+      font-weight: 900;
+      line-height: 1.15;
+      letter-spacing: -0.035em;
+      color: var(--text-main);
+      margin-bottom: 12px;
+    }
+
+    .headline span.highlight {
+      color: var(--primary);
+      position: relative;
+      display: inline-block;
+    }
+
+    .headline span.highlight::after {
+      content: "";
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 2px;
+      height: 6px;
+      background: #FED7AA;
+      border-radius: 4px;
+      z-index: -1;
+      transform: rotate(-1deg);
+    }
+
+    .subtitle {
+      font-size: clamp(14px, 3.5vw, 16px);
+      color: var(--text-muted);
+      max-width: 420px;
+      margin: 0 auto 32px;
+      line-height: 1.5;
+    }
+
+    /* Card Principal de Ação */
+    .action-card {
+      background: var(--bg-card);
+      border: 2px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 28px 24px;
+      width: 100%;
+      box-shadow: var(--shadow-card);
+      transition: border-color 0.2s ease;
+    }
+
+    /* Avatar e Nickname rápido (Sem atrito) */
+    .player-identity {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      margin-bottom: 20px;
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    .name-input-badge {
+      display: inline-flex;
+      align-items: center;
+      background: #F5F5F4;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-pill);
+      padding: 4px 12px;
+      position: relative;
+    }
+
+    .name-input-badge input {
+      border: none;
+      background: transparent;
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text-main);
+      width: 120px;
+      text-align: center;
+      outline: none;
+    }
+
+    .edit-pencil {
+      font-size: 11px;
+      color: var(--text-faint);
+      margin-left: 4px;
+      cursor: pointer;
+    }
+
+    /* O CTA MÁXIMO E DOMINANTE */
+    .btn-hero {
+      width: 100%;
+      height: 56px;
+      background: var(--primary);
+      color: #FFFFFF;
+      font-family: inherit;
+      font-size: 16px;
+      font-weight: 800;
+      letter-spacing: 0.02em;
+      border: 2px solid #C2410C;
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-primary);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      transition: all 0.12s ease;
+      user-select: none;
+    }
+
+    .btn-hero:hover {
+      background: var(--primary-hover);
+      transform: translateY(-1px);
+      box-shadow: 0 5px 0 #9A3412;
+    }
+
+    .btn-hero:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #9A3412;
+    }
+
+    /* Divisor "OU" Discreto */
+    .divider {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin: 22px 0 18px;
+      color: var(--text-faint);
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .divider::before,
+    .divider::after {
+      content: "";
+      flex: 1;
+      height: 1px;
+      background: var(--border-subtle);
+    }
+
+    /* Entrada de Código Integrada e Direta (sem abas) */
+    .code-box {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: #F5F5F4;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 6px 8px 6px 14px;
+      transition: all 0.2s ease;
+    }
+
+    .code-box:focus-within {
+      background: #FFFFFF;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(234, 88, 12, 0.15);
+    }
+
+    .code-box input {
+      flex: 1;
+      border: none;
+      background: transparent;
+      font-family: inherit;
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      color: var(--text-main);
+      outline: none;
+    }
+
+    .code-box input::placeholder {
+      letter-spacing: normal;
+      color: var(--text-faint);
+      font-weight: 500;
+    }
+
+    .btn-code-submit {
+      background: var(--text-main);
+      color: #FFFFFF;
+      border: none;
+      font-family: inherit;
+      font-size: 12px;
+      font-weight: 800;
+      padding: 10px 16px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: background 0.15s ease;
+      white-space: nowrap;
+    }
+
+    .btn-code-submit:hover {
+      background: #000000;
+    }
+
+    /* Ações Secundárias em Progressive Disclosure */
+    .secondary-options {
+      margin-top: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .btn-link {
+      background: none;
+      border: none;
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-muted);
+      cursor: pointer;
+      text-decoration: underline;
+      text-underline-offset: 3px;
+      transition: color 0.15s ease;
+    }
+
+    .btn-link:hover {
+      color: var(--text-main);
+    }
+
+    /* Micro-prova social sutil estilo Wordle */
+    .ritual-footer {
+      margin-top: 36px;
+      font-size: 12px;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .sample-faces-stack {
+      display: flex;
+      align-items: center;
+    }
+
+    .sample-faces-stack img {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      border: 2px solid var(--bg-canvas);
+      margin-left: -6px;
+      object-fit: cover;
+    }
+
+    .sample-faces-stack img:first-child {
+      margin-left: 0;
+    }
+
+    /* Modal / Drawer de Compartilhamento Rápido (1 clique) */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(28, 25, 23, 0.45);
+      backdrop-filter: blur(4px);
+      z-index: 100;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      animation: fadeIn 0.2s ease;
+    }
+
+    .modal-overlay.active {
+      display: flex;
+    }
+
+    .modal-sheet {
+      background: #FFFFFF;
+      border: 2px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 28px 24px;
+      max-width: 440px;
+      width: 100%;
+      box-shadow: 0 20px 40px -10px rgba(0,0,0,0.15);
+      text-align: center;
+      position: relative;
+    }
+
+    .modal-close {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      background: none;
+      border: none;
+      font-size: 18px;
+      color: var(--text-faint);
+      cursor: pointer;
+      padding: 4px;
+    }
+
+    .btn-whatsapp {
+      background: #25D366;
+      color: #FFFFFF;
+      border: 2px solid #1EBE5D;
+      box-shadow: 0 4px 0 #15803D;
+      border-radius: var(--radius-md);
+      font-family: inherit;
+      font-size: 15px;
+      font-weight: 800;
+      padding: 14px 20px;
+      width: 100%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      margin-top: 16px;
+      transition: all 0.15s ease;
+    }
+
+    .btn-whatsapp:active {
+      transform: translateY(2px);
+      box-shadow: 0 1px 0 #15803D;
+    }
+
+    .btn-copy-link {
+      background: #F5F5F4;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      color: var(--text-main);
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 700;
+      padding: 12px;
+      width: 100%;
+      cursor: pointer;
+      margin-top: 10px;
+      transition: background 0.15s ease;
+    }
+
+    .btn-copy-link:hover {
+      background: #E7E5E4;
+    }
+
+    /* Feedback Toast */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      background: var(--text-main);
+      color: #FFFFFF;
+      padding: 10px 18px;
+      border-radius: var(--radius-pill);
+      font-size: 13px;
+      font-weight: 700;
+      opacity: 0;
+      transform: translateY(12px);
+      transition: all 0.25s ease;
+      z-index: 200;
+      pointer-events: none;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(0.85); }
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, ::before, ::after {
+        animation: none !important;
+        transition: none !important;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Topo Minimalista -->
+  <header>
+    <a href="#" class="brand-wrap">
+      <img src="../../logo-icon.svg" alt="Lupa Tá na Cara" class="brand-icon" />
+      <span class="brand-title">tá na cara!</span>
+    </a>
+
+    <div class="header-actions">
+      <button class="btn-header" id="btnSound" title="Ligar/Desligar som">
+        <span>🔊</span> Som
+      </button>
+      <button class="btn-header" id="btnLogin" title="Entrar com Discord ou e-mail">
+        Entrar
+      </button>
+    </div>
+  </header>
+
+  <!-- Conteúdo Principal: 1 Ação Dominante -->
+  <main>
+    
+    <!-- Pílula de diferencial com troca de temas dinâmicos -->
+    <div class="trend-pill">
+      <span class="trend-indicator"></span>
+      <span id="trendText">Personalidades 2026: Lula, Cariani, Casimiro & mais</span>
+    </div>
+
+    <h1 class="headline">
+      Adivinhe quem é o <br><span class="highlight">personagem secreto</span>
+    </h1>
+
+    <p class="subtitle">
+      Pergunte sim ou não, abaixe as cartas e descubra o personagem do seu oponente antes dele acertar o seu.
+    </p>
+
+    <!-- Card de Ação Principal -->
+    <div class="action-card">
+      
+      <!-- Identidade rápida sem forçar login -->
+      <div class="player-identity">
+        <span>Você é:</span>
+        <div class="name-input-badge">
+          <input type="text" id="playerName" value="Detetive_07" maxlength="15" title="Clique para editar seu apelido" />
+          <span class="edit-pencil" title="Mudar nome">✏️</span>
+        </div>
+      </div>
+
+      <!-- ÚNICO CTA HERÓI -->
+      <button class="btn-hero" id="btnCreateRoom">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          <polygon points="10 8 16 12 10 16 10 8"></polygon>
+        </svg>
+        <span>DESAFIAR UM AMIGO</span>
+      </button>
+
+      <!-- Divisor elegante -->
+      <div class="divider">ou entre com código</div>
+
+      <!-- Campo de Código Rápido e Focado -->
+      <div class="code-box">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--text-faint)">
+          <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"></path>
+        </svg>
+        <input type="text" id="inputRoomCode" placeholder="Código de 6 números" maxlength="6" inputmode="numeric" />
+        <button class="btn-code-submit" id="btnJoinCode">ENTRAR</button>
+      </div>
+
+    </div>
+
+    <!-- Opções Secundárias em Progressive Disclosure -->
+    <div class="secondary-options">
+      <button class="btn-link" id="btnQuickMatch">⚡ Jogar com desconhecido online</button>
+      <span style="color: var(--border-strong)">•</span>
+      <button class="btn-link" id="btnCommunity">🎨 Criar meu próprio baralho</button>
+    </div>
+
+    <!-- Ritual Social Estilo Wordle / Contexto -->
+    <div class="ritual-footer">
+      <div class="sample-faces-stack">
+        <img src="../../standard-faces/Ana.jpg" alt="Personagem Ana" />
+        <img src="../../standard-faces/Bruno.jpg" alt="Personagem Bruno" />
+        <img src="../../standard-faces/Carla.jpg" alt="Personagem Carla" />
+        <img src="../../standard-faces/Davi.jpg" alt="Personagem Davi" />
+      </div>
+      <span>Mais de <strong>200+ caras</strong> prontas para adivinhar</span>
+    </div>
+
+  </main>
+
+  <!-- Modal de Compartilhamento Rápido em 1 Clique -->
+  <div class="modal-overlay" id="shareModal">
+    <div class="modal-sheet">
+      <button class="modal-close" id="btnCloseModal">✕</button>
+      
+      <div style="font-size: 36px; margin-bottom: 8px;">🎉</div>
+      <h3 style="font-size: 20px; font-weight: 800; margin-bottom: 6px;">Sua sala está pronta!</h3>
+      <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 20px;">
+        Código da sala: <strong style="font-size: 18px; color: var(--primary); letter-spacing: 0.1em;" id="displayRoomCode">589201</strong>
+      </p>
+
+      <button class="btn-whatsapp" id="btnShareWhatsapp">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+        </svg>
+        <span>Mandar Convite no WhatsApp</span>
+      </button>
+
+      <button class="btn-copy-link" id="btnCopyLink">
+        📋 Copiar Link Direto
+      </button>
+    </div>
+  </div>
+
+  <!-- Toast Notificação -->
+  <div class="toast" id="toastMessage">Link copiado com sucesso!</div>
+
+  <script>
+    const btnCreate = document.getElementById('btnCreateRoom');
+    const shareModal = document.getElementById('shareModal');
+    const btnCloseModal = document.getElementById('btnCloseModal');
+    const btnCopyLink = document.getElementById('btnCopyLink');
+    const btnShareWhatsapp = document.getElementById('btnShareWhatsapp');
+    const toast = document.getElementById('toastMessage');
+    const inputCode = document.getElementById('inputRoomCode');
+    const btnJoinCode = document.getElementById('btnJoinCode');
+    const playerName = document.getElementById('playerName');
+
+    // Nomes aleatórios para começar sem atrito
+    const randomNicknames = ['Detetive_Bia', 'Lula_Curioso', 'Cariani_Fit', 'Capivara_Gamer', 'Mestre_Palpite', 'Sherlock_BR'];
+    playerName.value = randomNicknames[Math.floor(Math.random() * randomNicknames.length)];
+
+    let currentRoomCode = '589201';
+
+    function showToast(msg) {
+      toast.textContent = msg;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 2200);
+    }
+
+    // 1 Clique para Desafiar
+    btnCreate.addEventListener('click', () => {
+      currentRoomCode = Math.floor(100000 + Math.random() * 900000).toString();
+      document.getElementById('displayRoomCode').textContent = currentRoomCode;
+      shareModal.classList.add('active');
+    });
+
+    btnCloseModal.addEventListener('click', () => {
+      shareModal.classList.remove('active');
+    });
+
+    btnCopyLink.addEventListener('click', () => {
+      const shareUrl = `${window.location.origin}/?sala=${currentRoomCode}`;
+      navigator.clipboard.writeText(shareUrl).then(() => {
+        showToast('✓ Link copiado! Mande pro seu amigo');
+      });
+    });
+
+    btnShareWhatsapp.addEventListener('click', () => {
+      const shareUrl = `${window.location.origin}/?sala=${currentRoomCode}`;
+      const msg = encodeURIComponent(`Bora jogar Tá na Cara! Eu já escolhi meu personagem secreto. Clica pra entrar: ${shareUrl}`);
+      window.open(`https://api.whatsapp.com/send?text=${msg}`, '_blank');
+    });
+
+    // Auto-submissão inteligente com 6 dígitos
+    inputCode.addEventListener('input', (e) => {
+      e.target.value = e.target.value.replace(/\D/g, '').slice(0, 6);
+      if (e.target.value.length === 6) {
+        showToast(`Entrando na sala #${e.target.value}...`);
+      }
+    });
+
+    btnJoinCode.addEventListener('click', () => {
+      if (inputCode.value.length === 6) {
+        showToast(`Conectando à sala #${inputCode.value}...`);
+      } else {
+        showToast('Digite os 6 números da sala');
+        inputCode.focus();
+      }
+    });
+
+    // Rotação de temas virais no chip
+    const trends = [
+      'Personalidades 2026: Lula, Cariani, Casimiro & mais',
+      'Craques do Brasileirão: Neymar, Vini Jr, Gabigol',
+      'Criadores do YouTube & Twitch',
+      'Amigos da Turma (Crie o seu baralho!)'
+    ];
+    let trendIdx = 0;
+    setInterval(() => {
+      trendIdx = (trendIdx + 1) % trends.length;
+      document.getElementById('trendText').textContent = trends[trendIdx];
+    }, 4000);
+  </script>
+</body>
+</html>

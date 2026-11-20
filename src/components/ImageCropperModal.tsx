@@ -294,28 +294,29 @@ export const ImageCropperModal: FC<ImageCropperModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
-      <div className="bg-white border-2 border-slate-200 rounded-3xl max-w-lg w-full p-4 sm:p-6 shadow-2xl flex flex-col gap-3.5 my-auto animate-in zoom-in-95">
-        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+    <div className="fixed inset-0 z-50 bg-[#382C26]/40 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+      <div className="bg-white border border-[#E8E0D8] rounded-3xl max-w-sm sm:max-w-md w-full p-5 sm:p-6 shadow-xl flex flex-col gap-4 animate-in zoom-in-95 my-auto">
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-[#E8E0D8] pb-3">
           <div className="flex items-center gap-2">
-            <div className="w-9 h-9 rounded-xl bg-sky-100 text-sky-800 flex items-center justify-center shadow-tactile-sm shrink-0">
-              <Scissors size={20} className="text-sky-700" />
+            <div className="w-9 h-9 rounded-xl bg-[#FFE8E0] text-[#C25E3E] flex items-center justify-center border border-[#FFB59A]/40 shadow-xs shrink-0">
+              <Scissors size={18} />
             </div>
             <div>
-              <h3 className="text-base font-extrabold text-slate-900">Personalizar Cara</h3>
-              <p className="text-xs text-slate-500">Recorte e ajuste o enquadramento</p>
+              <h3 className="text-base font-bold text-[#382C26]">Personalizar Cara</h3>
+              <p className="text-xs text-[#8C786E]">Recorte e ajuste o enquadramento</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 text-slate-400 hover:text-slate-700 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer"
+            className="p-1.5 text-[#8C786E] hover:text-[#382C26] rounded-xl hover:bg-[#FAF6F0] transition-colors cursor-pointer"
           >
             <X size={20} />
           </button>
         </div>
 
         {errorMsg && (
-          <div className="p-2.5 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-800 font-semibold">
+          <div className="p-2.5 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-800 font-bold">
             {errorMsg}
           </div>
         )}
@@ -325,15 +326,15 @@ export const ImageCropperModal: FC<ImageCropperModalProps> = ({
             <div
               onDragOver={(e) => e.preventDefault()}
               onDrop={handleDrop}
-              className="border-2 border-dashed border-sky-300 hover:border-sky-400 rounded-3xl p-6 sm:p-8 flex flex-col items-center justify-center text-center transition-all bg-sky-50/40 hover:bg-sky-50/70"
+              className="border-2 border-dashed border-[#D4C7BC] hover:border-[#C25E3E] rounded-3xl p-6 sm:p-8 flex flex-col items-center justify-center text-center transition-all bg-[#FAF6F0]/60 hover:bg-[#FAF6F0]"
             >
-              <div className="w-14 h-14 rounded-2xl bg-sky-100 text-sky-700 flex items-center justify-center mb-3 shadow-tactile-sm">
-                <Upload size={28} />
+              <div className="w-14 h-14 rounded-2xl bg-[#FFE8E0] text-[#C25E3E] flex items-center justify-center mb-3 border border-[#FFB59A]/40 shadow-xs">
+                <Upload size={26} />
               </div>
-              <h4 className="text-sm font-extrabold text-slate-900 mb-1">
+              <h4 className="text-sm font-bold text-[#382C26] mb-1">
                 Escolha uma foto ou cole da Área de Transferência
               </h4>
-              <p className="text-xs text-slate-500 mb-4 max-w-xs">
+              <p className="text-xs text-[#8C786E] mb-4 max-w-xs">
                 Tire uma foto, envie da galeria ou cole uma imagem copiada da internet!
               </p>
 
@@ -342,14 +343,14 @@ export const ImageCropperModal: FC<ImageCropperModalProps> = ({
                 <button
                   type="button"
                   onClick={handlePasteFromClipboard}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-extrabold text-xs uppercase tracking-wider shadow-[0_3px_0_#581c87] transition-all active:translate-y-0.5 cursor-pointer"
+                  className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-[#FAF6F0] hover:bg-[#E8E0D8] text-[#776156] font-bold text-xs uppercase tracking-wider border border-[#E8E0D8] transition-all cursor-pointer"
                 >
-                  <Clipboard size={16} />
+                  <Clipboard size={16} className="text-[#C25E3E]" />
                   <span>Colar Imagem</span>
                 </button>
 
                 {/* Botão Escolher Foto / Câmera */}
-                <label className="w-full flex items-center justify-center gap-2 cursor-pointer px-4 py-3 rounded-xl bg-sky-500 hover:bg-sky-600 text-white font-extrabold text-xs uppercase tracking-wider shadow-[0_3px_0_#0284c7] transition-all active:translate-y-0.5">
+                <label className="w-full flex items-center justify-center gap-2 cursor-pointer px-4 py-3 rounded-xl bg-[#C25E3E] hover:bg-[#A94E31] text-white font-bold text-xs uppercase tracking-wider transition-all shadow-none">
                   <ImageIcon size={16} />
                   <span>Escolher Foto</span>
                   <input type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
@@ -361,7 +362,7 @@ export const ImageCropperModal: FC<ImageCropperModalProps> = ({
           <div className="flex flex-col items-center gap-3">
             {/* Canvas Interativo com Suporte a Mouse e Touch */}
             <div
-              className="relative cursor-move select-none rounded-2xl overflow-hidden border-2 border-slate-200 bg-slate-900 shadow-inner flex items-center justify-center"
+              className="relative cursor-move select-none rounded-2xl overflow-hidden border border-[#E8E0D8] bg-[#382C26] shadow-inner flex items-center justify-center"
               style={{ touchAction: 'none' }}
               onMouseDown={handleMouseDown}
               onMouseMove={handleMouseMove}
@@ -373,15 +374,15 @@ export const ImageCropperModal: FC<ImageCropperModalProps> = ({
               onTouchCancel={handleTouchEnd}
             >
               <canvas ref={canvasRef} className="block w-[260px] h-[260px] sm:w-[280px] sm:h-[280px]" />
-              <div className="absolute top-2 left-2 bg-white/95 backdrop-blur-sm text-[10px] text-slate-700 font-extrabold px-2 py-0.5 rounded-lg border border-slate-200 pointer-events-none flex items-center gap-1 shadow-sm">
-                <Move size={12} className="text-sky-600" />
-                Arraste com o dedo ou mouse
+              <div className="absolute top-2 left-2 bg-white/95 backdrop-blur-xs text-[10px] text-[#776156] font-bold px-2 py-0.5 rounded-lg border border-[#E8E0D8] pointer-events-none flex items-center gap-1 shadow-xs">
+                <Move size={12} className="text-[#C25E3E]" />
+                Arraste para enquadrar
               </div>
             </div>
 
             {/* Controle de Zoom */}
-            <div className="w-full flex items-center justify-center gap-3 px-2 py-1 bg-slate-50 border border-slate-200 rounded-xl">
-              <ZoomOut size={16} className="text-slate-500" />
+            <div className="w-full flex items-center justify-center gap-3 px-2 py-1 bg-[#FAF6F0] border border-[#E8E0D8] rounded-xl">
+              <ZoomOut size={16} className="text-[#8C786E]" />
               <input
                 type="range"
                 min="0.6"
@@ -389,27 +390,32 @@ export const ImageCropperModal: FC<ImageCropperModalProps> = ({
                 step="0.05"
                 value={zoom}
                 onChange={(e) => setZoom(parseFloat(e.target.value))}
-                className="w-44 sm:w-56 accent-sky-500 cursor-pointer"
+                className="w-44 sm:w-56 accent-[#C25E3E] cursor-pointer"
               />
-              <ZoomIn size={16} className="text-slate-500" />
+              <ZoomIn size={16} className="text-[#8C786E]" />
             </div>
 
             {/* Nome do Personagem */}
             <div className="w-full">
-              <label className="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-1">
-                Nome ou Apelido <span className="text-rose-600">* (Obrigatório)</span>:
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-bold text-[#776156] uppercase tracking-wider">
+                  Nome do Personagem:
+                </label>
+                <span className="text-[10px] font-bold text-[#8C786E] tabular-nums">
+                  {characterName.length}/20
+                </span>
+              </div>
               <input
                 type="text"
                 required
-                maxLength={30}
+                maxLength={20}
                 placeholder="Ex: Tio Zé, Pelé, Neymar..."
                 value={characterName}
                 onChange={(e) => {
-                  setCharacterName(e.target.value);
+                  setCharacterName(e.target.value.slice(0, 20));
                   if (errorMsg) setErrorMsg(null);
                 }}
-                className="w-full bg-slate-50 border-2 border-slate-200 text-slate-900 placeholder-slate-400 text-xs font-semibold rounded-xl px-3.5 py-2.5 focus:outline-none focus:bg-white focus:border-sky-400 focus:ring-2 focus:ring-sky-100 transition-all"
+                className="w-full bg-[#FAF6F0] border border-[#E8E0D8] text-[#382C26] placeholder-[#8C786E] text-xs font-semibold rounded-xl px-3.5 py-2.5 focus:outline-none focus:bg-white focus:border-[#C25E3E] transition-all"
               />
             </div>
 
@@ -418,18 +424,18 @@ export const ImageCropperModal: FC<ImageCropperModalProps> = ({
               <button
                 type="button"
                 onClick={() => setImageSrc(null)}
-                className="flex-1 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-xs uppercase border border-slate-200 transition-all cursor-pointer"
+                className="flex-1 py-2.5 rounded-xl bg-[#FAF6F0] hover:bg-[#E8E0D8] text-[#776156] font-bold text-xs uppercase border border-[#E8E0D8] transition-all cursor-pointer"
               >
-                Trocar Imagem
+                Trocar Foto
               </button>
               <button
                 type="button"
                 onClick={handleSave}
                 disabled={isUploading || !characterName.trim()}
-                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white font-extrabold text-xs uppercase tracking-wider shadow-[0_3px_0_#059669] transition-all active:translate-y-0.5 cursor-pointer"
+                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-[#C25E3E] hover:bg-[#A94E31] disabled:opacity-40 text-white font-bold text-xs uppercase tracking-wider transition-all cursor-pointer shadow-none"
               >
                 <Check size={16} />
-                {isUploading ? 'Salvando...' : 'Salvar Cara'}
+                <span>{isUploading ? 'Salvando...' : 'Salvar Cara'}</span>
               </button>
             </div>
           </div>

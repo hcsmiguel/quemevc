@@ -8,9 +8,6 @@ import {
 } from '../services/auth';
 import type { Character } from '../types/game';
 import {
-  Trophy,
-  Swords,
-  Layers,
   Trash2,
   Share2,
   Edit3,
@@ -18,10 +15,6 @@ import {
   Plus,
   ArrowLeft,
   Check,
-  Smile,
-  KeyRound,
-  LogOut,
-  AlertTriangle,
   RotateCcw,
   Globe,
 } from 'lucide-react';
@@ -29,6 +22,9 @@ import { sounds } from '../utils/sound';
 import { network } from '../services/network';
 import { ImageCropperModal } from './ImageCropperModal';
 import { AccountLimitModal } from './AccountLimitModal';
+import { Button } from './ui/Button';
+import { Tabs } from './ui/Tabs';
+import { Input } from './ui/Input';
 
 interface ProfilePageProps {
   currentUser: AppUser;
@@ -53,7 +49,7 @@ export const ProfilePage: FC<ProfilePageProps> = ({
   const [savedFaces, setSavedFaces] = useState<SavedFace[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // PONTO 1.c: Reconectar à Partida em Andamento (Opção de 1 minuto no Perfil)
+  // Reconectar à Partida em Andamento
   const [reconnectSession, setReconnectSession] = useState<any>(null);
   const [reconnectSecondsLeft, setReconnectSecondsLeft] = useState<number>(0);
 
@@ -116,8 +112,97 @@ export const ProfilePage: FC<ProfilePageProps> = ({
   // Modal para adicionar nova cara avulsa no perfil
   const [isAddingFace, setIsAddingFace] = useState(false);
 
-  // Modal de aviso de limites da conta (10 baralhos / 200 caras)
+  // Modal de aviso de limites da conta
   const [limitModalType, setLimitModalType] = useState<'deck' | 'face' | null>(null);
+
+  // Modal de Trocar Senha
+  const [passwordModalOpen, setPasswordModalOpen] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [newPasswordConfirm, setNewPasswordConfirm] = useState('');
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [passwordSuccess, setPasswordSuccess] = useState(false);
+  const [isSavingPassword, setIsSavingPassword] = useState(false);
+
+  // Modal de Confirmação para Apagar Conta
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+
+  // Feedback de Cópia de Link de Baralho
+  const [copiedDeckId, setCopiedDeckId] = useState<string | null>(null);
+
+  const handleUpdatePassword = async () => {
+    if (newPassword.length < 6) {
+      setPasswordError('A nova senha precisa ter pelo menos 6 caracteres.');
+      sounds.playWrong();
+      return;
+    }
+    if (newPassword !== newPasswordConfirm) {
+      setPasswordError('As senhas digitadas não coincidem.');
+      sounds.playWrong();
+      return;
+    }
+
+    setIsSavingPassword(true);
+    setPasswordError(null);
+    try {
+      await auth.updatePassword(newPassword);
+      sounds.playWin();
+      setPasswordSuccess(true);
+      setTimeout(() => {
+        setPasswordModalOpen(false);
+        setPasswordSuccess(false);
+        setNewPassword('');
+        setNewPasswordConfirm('');
+      }, 1800);
+    } catch (err: any) {
+      setPasswordError(err?.message || 'Falha de conexão ao trocar senha.');
+      sounds.playWrong();
+    } finally {
+      setIsSavingPassword(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    setIsDeletingAccount(true);
+    sounds.playClick();
+    try {
+      await auth.deleteAccount(currentUser.id);
+      sounds.playWrong();
+      auth.logout();
+      onBackToLobby();
+    } catch (err: any) {
+      alert(err?.message || 'Não foi possível apagar a conta neste momento.');
+    } finally {
+      setIsDeletingAccount(false);
+      setDeleteConfirmOpen(false);
+    }
+  };
+
+  const handleToggleDeckPublic = async (deck: SavedDeck) => {
+    sounds.playClick();
+    const nextState = !deck.is_public;
+    try {
+      await auth.toggleDeckPublic(deck.id, currentUser.id, nextState);
+      setSavedDecks((prev) =>
+        prev.map((d) => (d.id === deck.id ? { ...d, is_public: nextState } : d))
+      );
+    } catch {
+      sounds.playWrong();
+    }
+  };
+
+  const handleToggleFacePublic = async (face: SavedFace) => {
+    sounds.playClick();
+    const nextState = !face.is_public;
+    try {
+      await auth.toggleFacePublic(face.id, currentUser.id, nextState);
+      setSavedFaces((prev) =>
+        prev.map((f) => (f.id === face.id ? { ...f, is_public: nextState } : f))
+      );
+    } catch {
+      sounds.playWrong();
+    }
+  };
 
   const handleCreateDeckClick = () => {
     sounds.playClick();
@@ -131,7 +216,7 @@ export const ProfilePage: FC<ProfilePageProps> = ({
 
   const handleAddFaceClick = () => {
     sounds.playClick();
-    if (savedFaces.length >= 200) {
+    if (savedFaces.length >= 100) {
       sounds.playWrong();
       setLimitModalType('face');
       return;
@@ -139,91 +224,9 @@ export const ProfilePage: FC<ProfilePageProps> = ({
     setIsAddingFace(true);
   };
 
-  const handleToggleDeckPublic = async (deck: SavedDeck) => {
-    sounds.playClick();
-    const nextVal = !deck.is_public;
-    setSavedDecks((prev) =>
-      prev.map((d) =>
-        d.id === deck.id
-          ? { ...d, is_public: nextVal, author_name: nextVal ? currentUser.username : d.author_name }
-          : d
-      )
-    );
-    await auth.toggleDeckPublic(deck.id, currentUser.id, nextVal, currentUser.username);
-  };
-
-  const handleToggleFacePublic = async (face: SavedFace) => {
-    sounds.playClick();
-    const nextVal = !face.is_public;
-    setSavedFaces((prev) =>
-      prev.map((f) =>
-        f.id === face.id
-          ? { ...f, is_public: nextVal, author_name: nextVal ? currentUser.username : f.author_name }
-          : f
-      )
-    );
-    await auth.toggleFacePublic(face.id, currentUser.id, nextVal, currentUser.username);
-  };
-
-  // Feedback de link copiado por ID do baralho
-  const [copiedDeckId, setCopiedDeckId] = useState<string | null>(null);
-
-  // Gerenciamento de Perfil (Ponto 3.a)
-  const [passwordModalOpen, setPasswordModalOpen] = useState(false);
-  const [newPassword, setNewPassword] = useState('');
-  const [newPasswordConfirm, setNewPasswordConfirm] = useState('');
-  const [passwordError, setPasswordError] = useState<string | null>(null);
-  const [passwordSuccess, setPasswordSuccess] = useState(false);
-  const [isSavingPassword, setIsSavingPassword] = useState(false);
-
-  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
-  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
-
-  const handleUpdatePassword = async () => {
-    setPasswordError(null);
-    if (!newPassword || newPassword.length < 6) {
-      setPasswordError('A senha deve conter no mínimo 6 caracteres.');
-      return;
-    }
-    if (newPassword !== newPasswordConfirm) {
-      setPasswordError('As senhas não coincidem. Verifique a digitação.');
-      return;
-    }
-    try {
-      setIsSavingPassword(true);
-      await auth.updatePassword(newPassword);
-      sounds.playWin();
-      setPasswordSuccess(true);
-      setTimeout(() => {
-        setPasswordModalOpen(false);
-        setPasswordSuccess(false);
-        setNewPassword('');
-        setNewPasswordConfirm('');
-      }, 1800);
-    } catch (err: any) {
-      setPasswordError(err.message || 'Falha ao alterar senha.');
-      sounds.playWrong();
-    } finally {
-      setIsSavingPassword(false);
-    }
-  };
-
-  const handleDeleteAccount = async () => {
-    try {
-      setIsDeletingAccount(true);
-      await auth.deleteAccount(currentUser.id);
-      sounds.playClick();
-      onBackToLobby();
-    } catch (err: any) {
-      alert('Erro ao apagar conta: ' + err.message);
-    } finally {
-      setIsDeletingAccount(false);
-    }
-  };
-
   useEffect(() => {
     loadUserData();
-  }, [currentUser.id]);
+  }, [currentUser]);
 
   const loadUserData = async () => {
     setLoading(true);
@@ -269,270 +272,205 @@ export const ProfilePage: FC<ProfilePageProps> = ({
   };
 
   return (
-    <div className="max-w-6xl mx-auto w-full py-4 sm:py-6 px-3 sm:px-4 animate-in fade-in duration-200">
+    <div className="max-w-4xl mx-auto w-full py-6 sm:py-10 px-4 text-left animate-in fade-in duration-150">
       {/* Botão de Retorno */}
-      <div className="mb-3 sm:mb-4">
+      <div className="mb-6">
         <button
           onClick={onBackToLobby}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl sm:rounded-2xl bg-white hover:bg-slate-50 border-2 border-slate-200 text-slate-700 font-extrabold text-[11px] sm:text-xs shadow-sm hover:border-slate-300 transition-all cursor-pointer"
+          className="inline-flex items-center gap-1.5 text-xs text-[#6F655C] hover:text-[#2B2420] transition-colors cursor-pointer"
         >
           <ArrowLeft size={14} />
-          <span>Voltar ao Menu Principal</span>
+          <span>Voltar ao menu principal</span>
         </button>
       </div>
 
-      {/* PONTO 1.c: Banner de Reconexão para Partida em Andamento (Opção de 1 minuto) */}
+      {/* Banner de Reconexão para Partida em Andamento */}
       {reconnectSession && reconnectSecondsLeft > 0 && (
-        <div className="bg-gradient-to-r from-purple-50 via-sky-50 to-amber-50 border-2 border-purple-300 rounded-2xl sm:rounded-3xl p-4 sm:p-5 shadow-md mb-4 sm:mb-6 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 animate-in fade-in slide-in-from-top-2 duration-300">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-purple-600 text-white flex items-center justify-center font-black shadow-tactile-sm shrink-0">
-              <RotateCcw size={22} className="animate-spin" style={{ animationDuration: '6s' }} />
-            </div>
-            <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <span className="text-xs sm:text-sm font-black text-purple-900 uppercase tracking-wider">
-                  Partida em Andamento
-                </span>
-                <span className="text-[10px] sm:text-[11px] bg-purple-100 text-purple-800 font-extrabold px-2 py-0.5 rounded-full border border-purple-200 shrink-0">
-                  Sala #{reconnectSession.roomCode}
-                </span>
-              </div>
-              <p className="text-xs text-slate-600 font-medium mt-0.5 truncate">
-                Partida contra <strong className="text-purple-700">{reconnectSession.opponentName || 'Oponente'}</strong>. Tempo para reconectar: <span className="font-mono font-black text-rose-600 tabular-nums">{reconnectSecondsLeft}s</span>
-              </p>
+        <div className="bg-[#2B2420] text-white rounded-[8px] p-4 mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border border-[#2B2420]">
+          <div className="flex items-center gap-3">
+            <RotateCcw size={16} className="text-[#B4532F] animate-spin-slow shrink-0" />
+            <div className="text-xs">
+              <span className="font-semibold block text-white">
+                Partida em andamento na Sala #{reconnectSession.roomCode}
+              </span>
+              <span className="text-[#A39A90]">
+                Contra {reconnectSession.opponentName || 'Oponente'}. Tempo restante: {reconnectSecondsLeft}s
+              </span>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
-            <button
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant="primary"
               onClick={() => {
                 sounds.playClick();
-                if (onReconnectMatch) {
-                  onReconnectMatch(reconnectSession);
-                }
+                if (onReconnectMatch) onReconnectMatch(reconnectSession);
               }}
-              className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-extrabold text-xs uppercase tracking-wider shadow-[0_2px_0_#6b21a8] transition-all cursor-pointer active:translate-y-0.5"
             >
-              <RotateCcw size={14} />
-              <span>Reconectar à Partida</span>
-            </button>
-            <button
+              Reconectar
+            </Button>
+            <Button
+              size="sm"
+              variant="secondary"
+              className="text-white border-white/40 hover:bg-white/10"
               onClick={handleDismissReconnect}
-              className="px-3 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 font-bold text-xs transition-colors cursor-pointer"
-              title="Desistir da partida"
             >
               Desistir
-            </button>
+            </Button>
           </div>
         </div>
       )}
 
-      {/* Banner de Identificação do Usuário */}
-      <div className="bg-white border-2 border-slate-200 rounded-2xl sm:rounded-3xl p-3.5 sm:p-7 shadow-md mb-3.5 sm:mb-6 relative overflow-hidden">
-        <div className="flex flex-col sm:flex-row items-center sm:items-start justify-between gap-3 sm:gap-6 relative z-10">
-          <div className="flex flex-col sm:flex-row items-center gap-3 sm:gap-4 text-center sm:text-left">
+      {/* Cabeçalho do Perfil: Direto na Mesa de Jogo (Sem cartões empilhados) */}
+      <div className="border-b border-[#E2DACD] pb-6 mb-6">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3.5">
             {currentUser.avatarUrl ? (
               <img
                 src={currentUser.avatarUrl}
                 alt={currentUser.username}
-                className="w-12 h-12 sm:w-20 sm:h-20 rounded-xl sm:rounded-3xl object-cover ring-2 sm:ring-3 ring-indigo-500/20 shadow-md shrink-0"
+                className="w-14 h-14 sm:w-16 sm:h-16 rounded-[8px] object-cover border border-[#E2DACD] shadow-2xs shrink-0"
               />
             ) : (
-              <div className="w-12 h-12 sm:w-20 sm:h-20 rounded-xl sm:rounded-3xl bg-indigo-600 flex items-center justify-center text-white font-black text-xl sm:text-3xl shadow-md shrink-0">
+              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-[8px] bg-[#E2DACD]/50 border border-[#E2DACD] text-[#2B2420] font-serif font-bold text-2xl flex items-center justify-center shrink-0">
                 {currentUser.username.charAt(0).toUpperCase()}
               </div>
             )}
 
             <div>
-              <div className="flex items-center justify-center sm:justify-start gap-1.5 sm:gap-2 mb-0.5">
-                <h1 className="text-lg sm:text-2xl font-black text-slate-900 tracking-tight">
+              <div className="flex items-baseline gap-2 flex-wrap">
+                <h1 className="font-serif text-2xl sm:text-3xl font-normal text-[#2B2420] leading-tight">
                   {currentUser.username}
                 </h1>
                 {currentUser.provider && currentUser.provider !== 'email' && (
-                  <span className="text-[9px] sm:text-[10px] font-black px-2 py-0.5 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-700 uppercase">
+                  <span className="text-xs text-[#6F655C] font-sans">
                     via {currentUser.provider}
                   </span>
                 )}
               </div>
-              <p className="text-[11px] sm:text-xs text-slate-500 font-medium">
-                Gerencie seu perfil, baralhos e caras
-              </p>
 
-              {/* Opções Sutis de Gerência de Perfil */}
-              <div className="flex flex-wrap items-center justify-center sm:justify-start gap-1.5 mt-1.5 sm:mt-2 pt-0.5">
-                <button
-                  type="button"
-                  onClick={() => setPasswordModalOpen(true)}
-                  className="flex items-center gap-1 text-[10px] sm:text-[11px] font-extrabold text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-lg sm:rounded-xl border border-slate-200 shadow-sm transition-all cursor-pointer"
-                >
-                  <KeyRound size={11} className="text-slate-500" />
-                  <span>Trocar Senha</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    sounds.playClick();
-                    auth.logout();
-                    onBackToLobby();
-                  }}
-                  className="flex items-center gap-1 text-[10px] sm:text-[11px] font-extrabold text-slate-600 hover:text-rose-700 bg-slate-100 hover:bg-rose-50 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-lg sm:rounded-xl border border-slate-200 hover:border-rose-200 shadow-sm transition-all cursor-pointer"
-                >
-                  <LogOut size={11} className="text-slate-500" />
-                  <span>Sair</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setDeleteConfirmOpen(true)}
-                  className="flex items-center gap-1 text-[10px] sm:text-[11px] font-bold text-slate-400 hover:text-rose-600 px-1.5 py-0.5 transition-colors cursor-pointer"
-                  title="Apagar minha conta"
-                >
-                  <Trash2 size={11} />
-                  <span>Apagar</span>
-                </button>
+              {/* Estatísticas em UMA ÚNICA LINHA com números em Fraunces (Requisito 2 / Screen 6) */}
+              <div className="text-xs sm:text-sm text-[#6F655C] font-sans mt-1.5 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                <span>
+                  <strong className="font-serif text-base sm:text-lg font-normal text-[#2B2420]">{stats?.totalMatches || 0}</strong> partidas
+                </span>
+                <span>·</span>
+                <span>
+                  <strong className="font-serif text-base sm:text-lg font-normal text-[#2E7D32]">{stats?.wins || 0}</strong> vitórias
+                </span>
+                <span>·</span>
+                <span>
+                  <strong className="font-serif text-base sm:text-lg font-normal text-[#8C2E2A]">{stats?.losses || 0}</strong> derrotas
+                </span>
+                <span>·</span>
+                <span>
+                  <strong className="font-serif text-base sm:text-lg font-normal text-[#B4532F]">{stats?.winRate || 0}%</strong> de aproveitamento
+                </span>
               </div>
             </div>
           </div>
 
-          {/* Resumo Rápido das Estatísticas */}
-          <div className="grid grid-cols-4 gap-1 sm:gap-2 w-full sm:w-auto mt-1 sm:mt-0">
-            <div className="bg-slate-50 border border-slate-200 rounded-xl sm:rounded-2xl p-1.5 sm:p-3 text-center min-w-0 sm:min-w-[72px]">
-              <span className="text-[9px] sm:text-[10px] text-slate-400 font-bold block">Partidas</span>
-              <span className="text-sm sm:text-lg font-black text-slate-900">{stats?.totalMatches || 0}</span>
-            </div>
-            <div className="bg-emerald-50 border border-emerald-200 rounded-xl sm:rounded-2xl p-1.5 sm:p-3 text-center min-w-0 sm:min-w-[72px]">
-              <span className="text-[9px] sm:text-[10px] text-emerald-600 font-bold block">Vitórias</span>
-              <span className="text-sm sm:text-lg font-black text-emerald-700">{stats?.wins || 0}</span>
-            </div>
-            <div className="bg-rose-50 border border-rose-200 rounded-xl sm:rounded-2xl p-1.5 sm:p-3 text-center min-w-0 sm:min-w-[72px]">
-              <span className="text-[9px] sm:text-[10px] text-rose-600 font-bold block">Derrotas</span>
-              <span className="text-sm sm:text-lg font-black text-rose-700">{stats?.losses || 0}</span>
-            </div>
-            <div className="bg-amber-50 border border-amber-200 rounded-xl sm:rounded-2xl p-1.5 sm:p-3 text-center min-w-0 sm:min-w-[72px]">
-              <span className="text-[9px] sm:text-[10px] text-amber-700 font-bold block">Winrate</span>
-              <span className="text-sm sm:text-lg font-black text-amber-800">{stats?.winRate || 0}%</span>
-            </div>
+          {/* Ações em links de texto discretos */}
+          <div className="flex items-center gap-3 text-xs pt-1 sm:pt-0">
+            <button
+              type="button"
+              onClick={() => setPasswordModalOpen(true)}
+              className="text-[#6F655C] hover:text-[#2B2420] underline transition-colors cursor-pointer"
+            >
+              Trocar senha
+            </button>
+            <span className="text-[#E2DACD]">·</span>
+            <button
+              type="button"
+              onClick={() => {
+                sounds.playClick();
+                auth.logout();
+                onBackToLobby();
+              }}
+              className="text-[#6F655C] hover:text-[#2B2420] underline transition-colors cursor-pointer"
+            >
+              Sair
+            </button>
+            <span className="text-[#E2DACD]">·</span>
+            <button
+              type="button"
+              onClick={() => setDeleteConfirmOpen(true)}
+              className="text-[#A39A90] hover:text-[#8C2E2A] underline transition-colors cursor-pointer"
+            >
+              Apagar conta
+            </button>
           </div>
         </div>
       </div>
 
-      {/* Navegação por Abas Exclusivas (Otimizada para Mobile sem Truncar) */}
-      <div className="grid grid-cols-3 sm:inline-flex w-full sm:w-auto bg-slate-200/70 p-1 sm:p-1.5 rounded-xl sm:rounded-2xl mb-3.5 sm:mb-6 border border-slate-200 text-xs font-bold gap-1 sm:gap-1.5">
-        <button
-          type="button"
-          onClick={() => setActiveTab('decks')}
-          className={`px-1.5 sm:px-4 py-1.5 sm:py-2.5 rounded-lg sm:rounded-xl transition-all flex items-center justify-center gap-1 sm:gap-1.5 cursor-pointer whitespace-nowrap ${
-            activeTab === 'decks'
-              ? 'bg-white text-slate-900 shadow-sm border border-slate-200/80 font-black'
-              : 'text-slate-600 hover:text-slate-900'
-          }`}
-        >
-          <Layers size={13} className="text-indigo-600 shrink-0 hidden xs:inline" />
-          <span className="text-[11px] sm:text-xs">Baralhos</span>
-          <span className="text-[10px] font-extrabold opacity-60">
-            ({savedDecks.length})
-          </span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveTab('faces')}
-          className={`px-1.5 sm:px-4 py-1.5 sm:py-2.5 rounded-lg sm:rounded-xl transition-all flex items-center justify-center gap-1 sm:gap-1.5 cursor-pointer whitespace-nowrap ${
-            activeTab === 'faces'
-              ? 'bg-white text-slate-900 shadow-sm border border-slate-200/80 font-black'
-              : 'text-slate-600 hover:text-slate-900'
-          }`}
-        >
-          <Smile size={13} className="text-amber-600 shrink-0 hidden xs:inline" />
-          <span className="text-[11px] sm:text-xs">Caras</span>
-          <span className="text-[10px] font-extrabold opacity-60">
-            ({savedFaces.length})
-          </span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveTab('stats')}
-          className={`px-1.5 sm:px-4 py-1.5 sm:py-2.5 rounded-lg sm:rounded-xl transition-all flex items-center justify-center gap-1 sm:gap-1.5 cursor-pointer whitespace-nowrap ${
-            activeTab === 'stats'
-              ? 'bg-white text-slate-900 shadow-sm border border-slate-200/80 font-black'
-              : 'text-slate-600 hover:text-slate-900'
-          }`}
-        >
-          <Trophy size={13} className="text-sky-600 shrink-0 hidden xs:inline" />
-          <span className="text-[11px] sm:text-xs">Histórico</span>
-        </button>
+      {/* Navegação por Abas em Texto com Sublinhado Ativo (Sem corte mobile "Baral...") */}
+      <div className="mb-6">
+        <Tabs
+          tabs={[
+            { id: 'decks', label: 'Baralhos', count: savedDecks.length },
+            { id: 'faces', label: 'Caras', count: savedFaces.length },
+            { id: 'stats', label: 'Histórico' },
+          ]}
+          activeTab={activeTab}
+          onChange={setActiveTab}
+        />
       </div>
 
-      {/* Conteúdo da Aba 1: MEUS BARALHOS */}
+      {/* Aba 1: BARALHOS SALVOS */}
       {activeTab === 'decks' && (
-        <div className="space-y-3 sm:space-y-4 animate-in fade-in duration-150">
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2">
-            <div>
-              <h2 className="text-base sm:text-lg font-black text-slate-900">Baralhos Salvos</h2>
-              <p className="text-[11px] sm:text-xs text-slate-500">
-                Seus baralhos personalizados salvos para jogar, editar ou compartilhar
-              </p>
-            </div>
-            <button
+        <div className="space-y-4 animate-in fade-in duration-150">
+          <div className="flex items-center justify-between pb-2">
+            <span className="text-xs text-[#6F655C]">
+              {savedDecks.length} {savedDecks.length === 1 ? 'baralho salvo' : 'baralhos salvos'} (limite de 10)
+            </span>
+            <Button
+              size="sm"
+              variant="primary"
               onClick={handleCreateDeckClick}
-              className="flex items-center justify-center gap-1.5 px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-xl sm:rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-[11px] sm:text-xs shadow-tactile-sm transition-all active:translate-y-0.5 cursor-pointer"
             >
-              <Plus size={15} />
-              <span>Criar Novo Baralho</span>
-            </button>
+              <Plus size={13} className="mr-1" />
+              <span>Criar baralho</span>
+            </Button>
           </div>
 
           {loading ? (
-            <div className="py-16 text-center text-xs text-slate-400 font-bold animate-pulse">
+            <div className="py-12 text-center text-xs text-[#6F655C]">
               Carregando seus baralhos...
             </div>
           ) : savedDecks.length === 0 ? (
-            <div className="bg-white border-2 border-dashed border-slate-200 rounded-2xl sm:rounded-3xl p-6 sm:p-12 text-center">
-              <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-xl sm:rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto mb-2.5 sm:mb-3 shadow-tactile-sm">
-                <Layers size={22} className="sm:w-7 sm:h-7" />
-              </div>
-              <h3 className="text-sm sm:text-base font-black text-slate-800 mb-1">Nenhum baralho salvo ainda</h3>
-              <p className="text-[11px] sm:text-xs text-slate-500 max-w-sm mx-auto mb-4 sm:mb-5 leading-relaxed">
-                Crie baralhos personalizados com 30, 60 ou 90 cartas usando fotos de seus amigos, familiares ou personagens favoritos!
+            <div className="py-12 text-center border border-[#E2DACD] rounded-[8px] bg-[#FBF8F3] p-6">
+              <h3 className="font-serif text-lg text-[#2B2420] mb-1">Nenhum baralho salvo ainda</h3>
+              <p className="text-xs text-[#6F655C] max-w-sm mx-auto mb-4">
+                Monte baralhos com 15, 30, 60 ou 90 cartas usando fotos de quem você quiser.
               </p>
-              <button
-                onClick={handleCreateDeckClick}
-                className="px-4 py-2 sm:px-5 sm:py-2.5 rounded-xl sm:rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs shadow-tactile-sm transition-all cursor-pointer"
-              >
-                Começar Meu Primeiro Baralho
-              </button>
+              <Button size="sm" onClick={handleCreateDeckClick}>
+                Começar primeiro baralho
+              </Button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
               {savedDecks.map((deck) => (
                 <div
                   key={deck.id}
-                  className="bg-white border-2 border-slate-200 rounded-3xl p-5 shadow-sm hover:shadow-md hover:border-indigo-400 transition-all flex flex-col justify-between"
+                  className="p-4 rounded-[8px] border border-[#E2DACD] bg-[#FBF8F3] hover:border-[#2B2420] transition-colors flex flex-col justify-between"
                 >
                   <div>
                     <div className="flex items-start justify-between gap-2 mb-2">
-                      <div>
-                        <h3 className="font-black text-base text-slate-900 leading-tight">
+                      <div className="min-w-0">
+                        <h3 className="font-serif text-lg text-[#2B2420] font-normal truncate">
                           {deck.name}
                         </h3>
-                        <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                          <span className="inline-block text-[11px] font-extrabold px-2.5 py-0.5 rounded-full bg-purple-100 text-purple-800 border border-purple-200">
-                            {deck.card_count} Caras
-                          </span>
+                        <div className="flex items-center gap-2 text-xs text-[#6F655C] mt-0.5">
+                          <span>{deck.card_count} cartas</span>
+                          <span>·</span>
                           <button
                             type="button"
                             onClick={() => handleToggleDeckPublic(deck)}
-                            title={deck.is_public ? 'Clique para tornar privado' : 'Clique para publicar na Comunidade'}
-                            className={`inline-flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-full border transition-all cursor-pointer ${
-                              deck.is_public
-                                ? 'bg-indigo-100 text-indigo-800 border-indigo-300 shadow-xs'
-                                : 'bg-slate-100 text-slate-500 border-slate-200 hover:border-slate-300'
-                            }`}
+                            className="inline-flex items-center gap-1 text-[#6F655C] hover:text-[#2B2420] underline cursor-pointer"
                           >
-                            <Globe size={10} />
-                            <span>{deck.is_public ? 'Público na Comunidade' : 'Privado'}</span>
+                            <Globe size={11} />
+                            <span>{deck.is_public ? 'Público na comunidade' : 'Privado'}</span>
                           </button>
                         </div>
                       </div>
@@ -540,74 +478,64 @@ export const ProfilePage: FC<ProfilePageProps> = ({
                       <button
                         onClick={() => handleDeleteDeck(deck.id)}
                         title="Excluir baralho"
-                        className="p-1.5 rounded-xl bg-slate-100 hover:bg-rose-50 hover:text-rose-600 text-slate-400 transition-colors"
+                        className="p-1 text-[#A39A90] hover:text-[#8C2E2A] cursor-pointer"
                       >
-                        <Trash2 size={16} />
+                        <Trash2 size={14} />
                       </button>
                     </div>
 
-                    {/* Mini-preview das Caras do Baralho (Ampliado no Computador) */}
-                    <div className="flex items-center -space-x-2 my-4 overflow-hidden py-1">
+                    {/* Faixa de Fotos das Cartas */}
+                    <div className="flex items-center -space-x-1.5 my-3 overflow-hidden py-0.5">
                       {deck.cards.slice(0, 6).map((c, i) => (
                         <div
                           key={c.id || i}
-                          className="w-11 h-11 sm:w-13 sm:h-13 rounded-2xl border-2 border-white shadow-sm overflow-hidden bg-slate-100 shrink-0"
+                          className="w-9 h-9 rounded-[4px] border border-white overflow-hidden bg-white shrink-0 shadow-2xs"
                         >
                           {c.imageUrl ? (
                             <img src={c.imageUrl} alt={c.name} className="w-full h-full object-cover" />
                           ) : (
-                            <div className="w-full h-full flex items-center justify-center text-xs font-bold bg-amber-200 text-amber-900">
+                            <div className="w-full h-full flex items-center justify-center text-xs font-serif text-[#2B2420] bg-[#E2DACD]/40">
                               {c.name.charAt(0)}
                             </div>
                           )}
                         </div>
                       ))}
                       {deck.cards.length > 6 && (
-                        <div className="w-11 h-11 sm:w-13 sm:h-13 rounded-2xl border-2 border-white shadow-sm bg-slate-200 flex items-center justify-center text-xs font-black text-slate-700 shrink-0">
+                        <div className="w-9 h-9 rounded-[4px] border border-white bg-[#E2DACD]/50 text-[#2B2420] flex items-center justify-center text-xs font-mono font-medium shrink-0">
                           +{deck.cards.length - 6}
                         </div>
                       )}
                     </div>
                   </div>
 
-                  {/* Ações: Jogar, Editar e Compartilhar */}
-                  <div className="space-y-2 pt-2 border-t border-slate-100">
+                  {/* Ações Editoriais */}
+                  <div className="pt-3 border-t border-[#E2DACD]/70 flex items-center justify-between text-xs">
                     <button
+                      type="button"
                       onClick={() => onPlayDeck(deck)}
-                      className="w-full flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-extrabold text-xs shadow-tactile-sm transition-all active:translate-y-0.5 cursor-pointer"
+                      className="font-medium text-[#B4532F] hover:text-[#984323] hover:underline cursor-pointer flex items-center gap-1"
                     >
-                      <Play size={14} />
-                      <span>Jogar com este Baralho</span>
+                      <Play size={12} className="fill-[#B4532F]" />
+                      <span>Jogar</span>
                     </button>
 
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="flex items-center gap-3">
                       <button
+                        type="button"
                         onClick={() => onEditDeck(deck)}
-                        className="flex items-center justify-center gap-1 py-2 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-xs transition-colors cursor-pointer"
+                        className="text-[#6F655C] hover:text-[#2B2420] underline cursor-pointer flex items-center gap-1"
                       >
-                        <Edit3 size={13} />
+                        <Edit3 size={12} />
                         <span>Editar</span>
                       </button>
 
                       <button
+                        type="button"
                         onClick={() => handleShareDeck(deck)}
-                        className={`flex items-center justify-center gap-1 py-2 px-3 rounded-xl font-extrabold text-xs transition-colors cursor-pointer ${
-                          copiedDeckId === deck.id
-                            ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
-                            : 'bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200'
-                        }`}
+                        className="text-[#6F655C] hover:text-[#2B2420] underline cursor-pointer flex items-center gap-1"
                       >
-                        {copiedDeckId === deck.id ? (
-                          <>
-                            <Check size={13} className="text-emerald-600" />
-                            <span>Copiado!</span>
-                          </>
-                        ) : (
-                          <>
-                            <Share2 size={13} />
-                            <span>Compartilhar</span>
-                          </>
-                        )}
+                        {copiedDeckId === deck.id ? <Check size={12} className="text-[#2E7D32]" /> : <Share2 size={12} />}
+                        <span>{copiedDeckId === deck.id ? 'Copiado!' : 'Compartilhar'}</span>
                       </button>
                     </div>
                   </div>
@@ -618,82 +546,69 @@ export const ProfilePage: FC<ProfilePageProps> = ({
         </div>
       )}
 
-      {/* Conteúdo da Aba 2: MINHAS CARAS */}
+      {/* Aba 2: BANCO DE CARAS */}
       {activeTab === 'faces' && (
         <div className="space-y-4 animate-in fade-in duration-150">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-lg font-black text-slate-900">Banco de Caras Salvas</h2>
-              <p className="text-xs text-slate-500">
-                Cadastre fotos de pessoas para selecionar facilmente ao montar qualquer baralho
-              </p>
-            </div>
-            <button
+          <div className="flex items-center justify-between pb-2">
+            <span className="text-xs text-[#6F655C]">
+              {savedFaces.length} {savedFaces.length === 1 ? 'cara salva' : 'caras salvas'} (limite de 100)
+            </span>
+            <Button
+              size="sm"
+              variant="primary"
               onClick={handleAddFaceClick}
-              className="flex items-center justify-center gap-1.5 px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-xl sm:rounded-2xl bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-[11px] sm:text-xs shadow-tactile-sm transition-all active:translate-y-0.5 cursor-pointer shrink-0"
             >
-              <Plus size={14} />
-              <span>Adicionar Nova Cara</span>
-            </button>
+              <Plus size={13} className="mr-1" />
+              <span>Adicionar cara</span>
+            </Button>
           </div>
 
           {loading ? (
-            <div className="py-16 text-center text-xs text-slate-400 font-bold animate-pulse">
+            <div className="py-12 text-center text-xs text-[#6F655C]">
               Carregando suas caras...
             </div>
           ) : savedFaces.length === 0 ? (
-            <div className="bg-white border-2 border-dashed border-slate-200 rounded-2xl sm:rounded-3xl p-6 sm:p-12 text-center">
-              <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-xl sm:rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto mb-2.5 sm:mb-3 shadow-tactile-sm">
-                <Smile size={22} className="sm:w-7 sm:h-7" />
-              </div>
-              <h3 className="text-sm sm:text-base font-black text-slate-800 mb-1">Nenhuma cara salva ainda</h3>
-              <p className="text-[11px] sm:text-xs text-slate-500 max-w-sm mx-auto mb-4 sm:mb-5 leading-relaxed">
-                Cadastre e recorte fotos de amigos ou personagens aqui. Elas ficarão prontas no seu perfil para você usar em qualquer baralho!
+            <div className="py-12 text-center border border-[#E2DACD] rounded-[8px] bg-[#FBF8F3] p-6">
+              <h3 className="font-serif text-lg text-[#2B2420] mb-1">Nenhuma cara salva ainda</h3>
+              <p className="text-xs text-[#6F655C] max-w-sm mx-auto mb-4">
+                Cadastre e recorte fotos de pessoas ou personagens para reutilizar ao montar baralhos.
               </p>
-              <button
-                onClick={handleAddFaceClick}
-                className="px-4 py-2 sm:px-5 sm:py-2.5 rounded-xl sm:rounded-2xl bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-xs shadow-tactile-sm transition-all cursor-pointer"
-              >
-                Cadastrar Minha Primeira Cara
-              </button>
+              <Button size="sm" onClick={handleAddFaceClick}>
+                Cadastrar primeira cara
+              </Button>
             </div>
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3.5 sm:gap-4 md:gap-5">
+            <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-3">
               {savedFaces.map((face) => (
                 <div
                   key={face.id}
-                  className="bg-white border-2 border-slate-200 rounded-3xl p-3 shadow-sm hover:border-amber-400 hover:shadow-md transition-all flex flex-col items-center text-center group relative"
+                  className="p-2.5 rounded-[8px] border border-[#E2DACD] bg-[#FBF8F3] hover:border-[#2B2420] transition-colors flex flex-col items-center text-center group select-none"
                 >
-                  <div className="w-24 h-24 sm:w-28 sm:h-28 md:w-32 md:h-32 rounded-2xl overflow-hidden mb-2 bg-slate-100 border border-slate-200 shadow-inner">
+                  <div className="w-full aspect-square rounded-[6px] overflow-hidden bg-white border border-[#E2DACD]/80 mb-2">
                     <img
                       src={face.image_url}
                       alt={face.name}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                      className="w-full h-full object-cover"
                     />
                   </div>
-                  <span className="font-black text-xs sm:text-sm text-slate-900 truncate w-full px-1 mb-1">
+
+                  <span className="font-sans font-medium text-xs text-[#2B2420] truncate w-full px-1 mb-1.5">
                     {face.name}
                   </span>
 
-                  <div className="flex items-center gap-1.5 mt-auto pt-1 w-full justify-between">
+                  <div className="flex items-center justify-between w-full pt-1.5 border-t border-[#E2DACD]/60 text-[11px]">
                     <button
                       type="button"
                       onClick={() => handleToggleFacePublic(face)}
-                      title={face.is_public ? 'Visível na comunidade' : 'Privado no seu perfil'}
-                      className={`inline-flex items-center gap-0.5 text-[9px] font-black px-1.5 py-0.5 rounded-full border transition-all cursor-pointer ${
-                        face.is_public
-                          ? 'bg-amber-100 text-amber-900 border-amber-300'
-                          : 'bg-slate-100 text-slate-500 border-slate-200 hover:border-slate-300'
-                      }`}
+                      className="text-[#6F655C] hover:text-[#2B2420] underline text-[10px] cursor-pointer"
                     >
-                      <Globe size={9} />
-                      <span>{face.is_public ? 'Público' : 'Privado'}</span>
+                      {face.is_public ? 'Público' : 'Privado'}
                     </button>
-
                     <button
+                      type="button"
                       onClick={() => handleDeleteFace(face.id)}
-                      title="Excluir cara"
-                      className="p-1 rounded-lg bg-slate-100 hover:bg-rose-50 text-slate-400 hover:text-rose-600 transition-colors cursor-pointer"
+                      title="Excluir"
+                      className="text-[#A39A90] hover:text-[#8C2E2A] cursor-pointer p-0.5"
                     >
                       <Trash2 size={12} />
                     </button>
@@ -705,61 +620,48 @@ export const ProfilePage: FC<ProfilePageProps> = ({
         </div>
       )}
 
-      {/* Conteúdo da Aba 3: ESTATÍSTICAS & HISTÓRICO */}
+      {/* Aba 3: HISTÓRICO */}
       {activeTab === 'stats' && (
         <div className="space-y-4 animate-in fade-in duration-150">
-          <div>
-            <h2 className="text-lg font-black text-slate-900">Histórico de Oponentes</h2>
-            <p className="text-xs text-slate-500">
-              Registro independente e permanente das suas últimas partidas disputadas
-            </p>
-          </div>
+          <span className="text-xs text-[#6F655C] block pb-2">
+            Registro das últimas partidas disputadas
+          </span>
 
-          <div className="bg-white border-2 border-slate-200 rounded-3xl p-6 shadow-sm">
-            <div className="flex items-center gap-2 text-xs font-black text-slate-700 uppercase tracking-wider mb-4">
-              <Swords size={16} className="text-indigo-600" />
-              <span>Últimas Partidas Disputadas</span>
+          {!stats || stats.lastMatches.length === 0 ? (
+            <div className="py-12 text-center text-xs text-[#6F655C] italic border border-[#E2DACD] rounded-[8px] bg-[#FBF8F3]">
+              Nenhuma partida registrada ainda. Jogue uma rodada para ver seu histórico aqui.
             </div>
-
-            {stats?.lastMatches.length === 0 ? (
-              <div className="text-center py-12 text-xs text-slate-400 italic">
-                Nenhuma partida registrada ainda. Jogue uma rodada para ver seu histórico gravado aqui!
-              </div>
-            ) : (
-              <div className="space-y-2.5">
-                {stats?.lastMatches.map((m, idx) => (
-                  <div
-                    key={m.id || idx}
-                    className="p-3 rounded-2xl border flex items-center justify-between text-xs transition-colors bg-slate-50 border-slate-200 hover:bg-slate-100/80"
-                  >
-                    <div>
-                      <div className="font-black text-sm text-slate-900 flex items-center gap-1.5">
-                        <span className="text-slate-400 font-medium">vs</span>
-                        <span>{m.opponent_name}</span>
-                      </div>
-                      <span className="text-[11px] text-slate-500 font-medium block mt-0.5">
-                        {m.deck_mode === 'custom'
-                          ? `Modo Personalizado (${m.card_count} Caras)`
-                          : 'Modo Padrão (15 Caras)'}
-                      </span>
-                    </div>
-
-                    <div className="text-right">
-                      <span
-                        className={`font-black text-xs px-3 py-1 rounded-xl uppercase tracking-wider shadow-sm border ${
-                          m.result === 'win'
-                            ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
-                            : 'bg-rose-100 text-rose-800 border-rose-300'
-                        }`}
-                      >
-                        {m.result === 'win' ? 'Vitória' : 'Derrota'}
-                      </span>
-                    </div>
+          ) : (
+            <div className="divide-y divide-[#E2DACD] border border-[#E2DACD] rounded-[8px] bg-[#FBF8F3]">
+              {stats.lastMatches.map((m, idx) => (
+                <div
+                  key={m.id || idx}
+                  className="p-3.5 flex items-center justify-between text-xs"
+                >
+                  <div>
+                    <span className="font-medium text-sm text-[#2B2420]">
+                      vs {m.opponent_name}
+                    </span>
+                    <span className="text-[#6F655C] block text-[11px] mt-0.5">
+                      {m.deck_mode === 'custom'
+                        ? `Baralho personalizado (${m.card_count} cartas)`
+                        : 'Modo clássico (15 cartas)'}
+                    </span>
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
+
+                  <span
+                    className={`font-sans font-semibold text-xs px-2.5 py-0.5 rounded-[4px] uppercase tracking-wider ${
+                      m.result === 'win'
+                        ? 'bg-[#E8F5E9] text-[#2E7D32]'
+                        : 'bg-[#F8EBEA] text-[#8C2E2A]'
+                    }`}
+                  >
+                    {m.result === 'win' ? 'Vitória' : 'Derrota'}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -772,117 +674,112 @@ export const ProfilePage: FC<ProfilePageProps> = ({
         />
       )}
 
-      {/* Modal de Troca de Senha (Ponto 3.a) */}
+      {/* Modal de Troca de Senha */}
       {passwordModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white border-2 border-slate-200 rounded-3xl max-w-sm w-full p-6 shadow-2xl animate-in zoom-in-95">
-            <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-tactile-sm">
-              <KeyRound size={24} />
-            </div>
-
-            <h3 className="text-lg font-black text-slate-900 text-center mb-1">
-              Alterar Senha
+        <div className="fixed inset-0 z-50 bg-[#2B2420]/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-[#FBF8F3] border border-[#E2DACD] rounded-[10px] max-w-sm w-full p-6 shadow-xl animate-in zoom-in-95 text-left">
+            <h3 className="font-serif text-xl font-normal text-[#2B2420] mb-1">
+              Alterar senha
             </h3>
-            <p className="text-xs text-slate-500 text-center mb-5">
+            <p className="text-xs text-[#6F655C] mb-4">
               Digite e confirme sua nova senha de acesso:
             </p>
 
             {passwordError && (
-              <div className="mb-4 p-2.5 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-700 font-bold text-center">
+              <div className="mb-3 p-2 rounded-[4px] bg-[#F8EBEA] border border-[#ECC7C5] text-xs text-[#8C2E2A]">
                 {passwordError}
               </div>
             )}
 
             {passwordSuccess && (
-              <div className="mb-4 p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-800 font-bold text-center">
-                ✅ Senha alterada com sucesso!
+              <div className="mb-3 p-2 rounded-[4px] bg-[#E8F5E9] border border-[#A5D6A7] text-xs text-[#2E7D32]">
+                Senha alterada com sucesso!
               </div>
             )}
 
             <div className="space-y-3 mb-5">
               <div>
-                <label className="block text-[11px] font-extrabold text-slate-700 uppercase mb-1">
-                  Nova Senha (mínimo 6 dígitos):
+                <label className="block text-xs font-medium text-[#6F655C] mb-1">
+                  Nova Senha (mínimo 6 dígitos)
                 </label>
-                <input
+                <Input
                   type="password"
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full bg-slate-50 border-2 border-slate-200 text-slate-900 text-sm font-semibold rounded-xl px-3 py-2 focus:outline-none focus:border-indigo-500"
                 />
               </div>
 
               <div>
-                <label className="block text-[11px] font-extrabold text-slate-700 uppercase mb-1">
-                  Confirmar Nova Senha:
+                <label className="block text-xs font-medium text-[#6F655C] mb-1">
+                  Confirmar Nova Senha
                 </label>
-                <input
+                <Input
                   type="password"
                   value={newPasswordConfirm}
                   onChange={(e) => setNewPasswordConfirm(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full bg-slate-50 border-2 border-slate-200 text-slate-900 text-sm font-semibold rounded-xl px-3 py-2 focus:outline-none focus:border-indigo-500"
                 />
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-2.5">
-              <button
-                type="button"
+            <div className="flex items-center gap-2">
+              <Button
+                variant="secondary"
+                size="md"
+                className="flex-1"
                 onClick={() => setPasswordModalOpen(false)}
-                className="py-2.5 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-xs transition-colors cursor-pointer"
               >
                 Cancelar
-              </button>
-              <button
-                type="button"
-                onClick={handleUpdatePassword}
+              </Button>
+              <Button
+                variant="primary"
+                size="md"
+                className="flex-1"
                 disabled={isSavingPassword || passwordSuccess}
-                className="py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-extrabold text-xs shadow-tactile-sm transition-all cursor-pointer"
+                onClick={handleUpdatePassword}
               >
-                {isSavingPassword ? 'Salvando...' : 'Salvar Senha'}
-              </button>
+                {isSavingPassword ? 'Salvando...' : 'Salvar'}
+              </Button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Modal de Confirmação para Apagar Conta (Ponto 3.a) */}
+      {/* Modal de Confirmação para Apagar Conta */}
       {deleteConfirmOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white border-2 border-rose-300 rounded-3xl max-w-sm w-full p-6 shadow-2xl text-center animate-in zoom-in-95">
-            <div className="w-14 h-14 bg-rose-100 text-rose-600 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-tactile-sm">
-              <AlertTriangle size={28} />
-            </div>
-
-            <h3 className="text-lg font-black text-slate-900 mb-1">
-              Apagar Sua Conta?
+        <div className="fixed inset-0 z-50 bg-[#2B2420]/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-[#FBF8F3] border border-[#E2DACD] rounded-[10px] max-w-sm w-full p-6 shadow-xl text-left animate-in zoom-in-95">
+            <h3 className="font-serif text-xl font-normal text-[#8C2E2A] mb-1">
+              Apagar sua conta?
             </h3>
-            <p className="text-xs text-slate-500 mb-6 leading-relaxed">
-              Esta ação é <strong>irreversível</strong>. Todos os seus baralhos personalizados, caras salvas e estatísticas de vitórias e derrotas serão excluídos permanentemente.
+            <p className="text-xs text-[#6F655C] mb-6 leading-relaxed">
+              Esta ação é permanente e não pode ser desfeita. Todos os seus baralhos, caras salvas e estatísticas serão apagados.
             </p>
 
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                type="button"
+            <div className="flex items-center gap-2">
+              <Button
+                variant="secondary"
+                size="md"
+                className="flex-1"
                 onClick={() => setDeleteConfirmOpen(false)}
-                className="py-2.5 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-xs uppercase tracking-wider transition-colors cursor-pointer"
               >
                 Cancelar
-              </button>
-              <button
-                type="button"
-                onClick={handleDeleteAccount}
+              </Button>
+              <Button
+                variant="danger"
+                size="md"
+                className="flex-1"
                 disabled={isDeletingAccount}
-                className="py-2.5 px-4 rounded-xl bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white font-extrabold text-xs uppercase tracking-wider shadow-tactile-sm transition-all cursor-pointer"
+                onClick={handleDeleteAccount}
               >
-                {isDeletingAccount ? 'Apagando...' : 'Sim, Apagar'}
-              </button>
+                {isDeletingAccount ? 'Apagando...' : 'Sim, apagar'}
+              </Button>
             </div>
           </div>
         </div>
       )}
+
       {/* Modal de Limites da Conta */}
       <AccountLimitModal
         isOpen={limitModalType !== null}

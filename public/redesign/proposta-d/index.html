@@ -1,0 +1,1250 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tá na Cara! — O Jogo de Adivinhar Rostos</title>
+  
+  <!-- Open Graph -->
+  <meta property="og:title" content="Tá na Cara! — Adivinha quem é antes que ele adivinhe você">
+  <meta property="og:description" content="O clássico jogo de adivinhação com personagens personalizados. Jogue grátis direto no navegador sem login.">
+  <meta property="og:image" content="../../logo-horizontal.svg">
+  <meta property="og:type" content="website">
+  <meta name="theme-color" content="#FBF9F5">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+
+  <style>
+    /* DESIGN TOKENS ESTRITAMENTE DERIVADOS DO LOGO */
+    :root {
+      /* Base de Papel e Superfícies */
+      --bg-canvas: #FBF9F5;
+      --surface-card: #FFFFFF;
+      --surface-subtle: #F3ECE6;
+      --surface-muted: #EBE3DC;
+
+      /* Tintas e Tipografia (Derivadas do #776156 do logo) */
+      --ink-primary: #382C26;       /* Alto contraste para leitura WCAG AAA */
+      --ink-brand: #776156;         /* Cor exata do texto do logo */
+      --ink-muted: #8C786E;         /* Cinza-amarronzado suave */
+      --ink-faint: #B5A59D;         /* Elementos discretos */
+      --border-subtle: #E8E0D8;
+      --border-hover: #D4C7BC;
+
+      /* Tom Único de Destaque (Derivado do pêssego #FFB59A da lupa) */
+      --peach-soft: #FFE8E0;        /* Fundo pastel suave */
+      --peach-lupa: #FFB59A;        /* Pêssego oficial da lupa */
+      --accent-primary: #C25E3E;    /* Terracota pêssego escurecido para contraste WCAG AA 4.6:1 */
+      --accent-hover: #A94E31;
+      --accent-active: #944228;
+
+      /* Status */
+      --status-success-bg: #E8F5E9;
+      --status-success-text: #2E7D32;
+
+      /* Geometria e Tipografia */
+      --radius-sm: 8px;
+      --radius-md: 12px;
+      --radius-lg: 18px;
+      --font-body: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+      --font-display: 'Space Grotesk', system-ui, sans-serif;
+    }
+
+    html, body {
+      overflow-x: hidden;
+      max-width: 100%;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      background-color: var(--bg-canvas);
+      color: var(--ink-primary);
+      font-family: var(--font-body);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      overflow-x: hidden;
+      line-height: 1.45;
+    }
+
+    /* PADRÃO SUTIL ESTILO WALLPAPER DO WHATSAPP (ÍCONES DO JOGO A 3.5% DE OPACIDADE) */
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      background-repeat: repeat;
+      background-size: 160px 160px;
+      opacity: 0.04;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160'%3E%3Cg fill='none' stroke='%23776156' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3C!-- Lupa --%3E%3Ccircle cx='30' cy='30' r='12'/%3E%3Cline x1='39' y1='39' x2='48' y2='48'/%3E%3C!-- Oculos --%3E%3Ccircle cx='110' cy='32' r='8'/%3E%3Ccircle cx='132' cy='32' r='8'/%3E%3Cline x1='118' y1='32' x2='124' y2='32'/%3E%3C!-- Bigode --%3E%3Cpath d='M25,120 Q35,110 45,120 Q55,110 65,120 Q45,130 25,120 Z'/%3E%3C!-- Ponto Interrogacao --%3E%3Cpath d='M120,110 C120,103 130,103 130,110 C130,116 125,118 125,123'/%3E%3Ccircle cx='125' cy='129' r='1' fill='%23776156'/%3E%3C/g%3E%3C/svg%3E");
+    }
+
+    header, main, section, footer, div {
+      box-sizing: border-box;
+    }
+
+    /* HEADER MINIMALISTA */
+    header {
+      position: relative;
+      z-index: 10;
+      max-width: 1200px;
+      margin: 0 auto;
+      width: 100%;
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .brand-link {
+      display: inline-flex;
+      align-items: center;
+      text-decoration: none;
+    }
+
+    .brand-logo {
+      height: 38px;
+      width: auto;
+      display: block;
+    }
+
+    .header-nav {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    /* Botão chapado de traço fino */
+    .btn-nav-flat {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 8px 14px;
+      background: transparent;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      font-size: 0.86rem;
+      font-weight: 600;
+      color: var(--ink-brand);
+      cursor: pointer;
+      text-decoration: none;
+      min-height: 40px;
+      transition: background 0.15s ease, border-color 0.15s ease;
+    }
+
+    .btn-nav-flat:hover {
+      background: var(--surface-subtle);
+      border-color: var(--border-hover);
+      color: var(--ink-primary);
+    }
+
+    /* PRIMEIRA DOBRA: RIGOROSAMENTE CONTIDA */
+    .hero-fold {
+      position: relative;
+      z-index: 1;
+      max-width: 1100px;
+      margin: 0 auto;
+      width: 100%;
+      padding: 16px 24px 32px;
+      min-height: calc(100vh - 72px);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    .hero-content {
+      display: grid;
+      grid-template-columns: 1fr 1.15fr;
+      grid-template-areas:
+        "title board"
+        "cta board";
+      gap: 20px 48px;
+      align-items: center;
+    }
+
+    .hero-title-area {
+      grid-area: title;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .hero-title {
+      font-family: var(--font-display);
+      font-size: clamp(2rem, 3.8vw, 3rem);
+      font-weight: 700;
+      line-height: 1.15;
+      letter-spacing: -0.025em;
+      color: var(--ink-primary);
+    }
+
+    .hero-title .highlight {
+      color: var(--accent-primary);
+    }
+
+    .mobile-break {
+      display: none;
+    }
+
+    /* AÇÃO DOMINANTE: 1 ÚNICO BOTÃO CHAPADO */
+    .hero-cta-area {
+      grid-area: cta;
+      align-self: start;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 12px;
+    }
+
+    /* Botão Chapado, sem falsa borda 3D */
+    .btn-play-hero {
+      width: 100%;
+      max-width: 340px;
+      height: 54px;
+      background: var(--accent-primary);
+      color: #FFFFFF;
+      border: none;
+      border-radius: var(--radius-md);
+      font-family: var(--font-display);
+      font-size: 1.15rem;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      cursor: pointer;
+      text-decoration: none;
+      box-shadow: none; /* Estritamente chapado */
+      transition: background 0.15s ease, transform 0.1s ease;
+    }
+
+    .btn-play-hero:hover {
+      background: var(--accent-hover);
+    }
+
+    .btn-play-hero:active {
+      background: var(--accent-active);
+      transform: scale(0.99);
+    }
+
+    /* Link Discreto "Tenho um código" */
+    .btn-code-link {
+      background: transparent;
+      border: none;
+      color: var(--ink-brand);
+      font-size: 0.92rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 6px;
+      border-radius: var(--radius-sm);
+      text-decoration: underline;
+      text-underline-offset: 3px;
+      transition: color 0.15s ease;
+    }
+
+    .btn-code-link:hover {
+      color: var(--ink-primary);
+    }
+
+    /* COLUNA DIREITA: O TABULEIRO INTERATIVO (SHOW, DON'T TELL) */
+    .hero-board-showcase {
+      grid-area: board;
+      background: var(--surface-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 20px;
+      box-shadow: 0 4px 20px rgba(56, 44, 38, 0.04);
+      position: relative;
+      width: 100%;
+      max-width: 100%;
+    }
+
+    /* Simulação de Pergunta da Rodada */
+    .board-dialog-bubble {
+      background: var(--surface-subtle);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 12px 16px;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .dialog-query {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.94rem;
+      font-weight: 600;
+      color: var(--ink-primary);
+    }
+
+    .dialog-badge {
+      background: var(--peach-soft);
+      color: var(--accent-primary);
+      font-size: 0.8rem;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: var(--radius-sm);
+      border: 1px solid rgba(194, 94, 62, 0.2);
+      letter-spacing: 0.04em;
+    }
+
+    /* Grid do Tabuleiro: 6 cartas ilustradas autênticas */
+    .board-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      perspective: 800px;
+      width: 100%;
+      max-width: 100%;
+    }
+
+    .board-card {
+      background: var(--surface-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 8px;
+      text-align: center;
+      cursor: pointer;
+      position: relative;
+      transform-style: preserve-3d;
+      user-select: none;
+      width: 100%;
+      max-width: 100%;
+      min-width: 0;
+      transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.25s ease, border-color 0.15s ease;
+    }
+
+    .board-card:hover {
+      border-color: var(--border-hover);
+      transform: translateY(-2px);
+    }
+
+    .board-card-photo {
+      width: 100%;
+      aspect-ratio: 1;
+      border-radius: 8px;
+      overflow: hidden;
+      background: var(--surface-subtle);
+      margin-bottom: 6px;
+    }
+
+    .board-card-photo img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .board-card-name {
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: var(--ink-primary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .board-card-feature {
+      font-size: 0.7rem;
+      font-weight: 600;
+      color: var(--ink-muted);
+    }
+
+    /* Estado Abaixado / Eliminado (Física do Cara a Cara) */
+    .board-card.down {
+      transform: rotateX(72deg) translateY(10px) scale(0.92);
+      opacity: 0.32;
+      filter: grayscale(70%);
+    }
+
+    .board-card.down .board-card-name {
+      text-decoration: line-through;
+    }
+
+    .board-footer-hint {
+      margin-top: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 0.78rem;
+      color: var(--ink-muted);
+    }
+
+    .board-footer-hint button {
+      background: transparent;
+      border: none;
+      color: var(--ink-brand);
+      font-size: 0.78rem;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: underline;
+    }
+
+    /* DRAWER / MODAL DISCRETO PARA CÓDIGO */
+    .code-popover {
+      display: none;
+      background: var(--surface-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 14px;
+      margin-top: 6px;
+      width: 100%;
+      max-width: 340px;
+      box-shadow: 0 4px 14px rgba(56, 44, 38, 0.08);
+      animation: fadeIn 0.15s ease;
+    }
+
+    .code-popover.active {
+      display: block;
+    }
+
+    .code-input-row {
+      display: flex;
+      gap: 8px;
+    }
+
+    .code-input-field {
+      flex: 1;
+      height: 42px;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      padding: 0 12px;
+      font-family: var(--font-display);
+      font-size: 1rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      outline: none;
+      color: var(--ink-primary);
+    }
+
+    .code-input-field:focus {
+      border-color: var(--accent-primary);
+    }
+
+    .btn-submit-code {
+      height: 42px;
+      padding: 0 16px;
+      background: var(--surface-subtle);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      font-size: 0.86rem;
+      font-weight: 700;
+      color: var(--ink-primary);
+      cursor: pointer;
+      transition: background 0.15s ease;
+    }
+
+    .btn-submit-code:hover {
+      background: var(--border-subtle);
+    }
+
+    /* SEÇÃO ABAIXO DA PRIMEIRA DOBRA (SCROLL) */
+    .below-fold-section {
+      position: relative;
+      z-index: 1;
+      max-width: 1100px;
+      margin: 40px auto 60px;
+      width: 100%;
+      padding: 0 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 28px;
+    }
+
+    .section-divider {
+      height: 1px;
+      background: var(--border-subtle);
+      width: 100%;
+      margin-bottom: 8px;
+    }
+
+    .section-heading-row {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .section-title {
+      font-family: var(--font-display);
+      font-size: 1.35rem;
+      font-weight: 700;
+      color: var(--ink-primary);
+    }
+
+    .backend-tag {
+      font-size: 0.74rem;
+      font-weight: 600;
+      color: var(--ink-muted);
+      background: var(--surface-subtle);
+      padding: 3px 8px;
+      border-radius: 4px;
+      border: 1px solid var(--border-subtle);
+    }
+
+    .decks-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 18px;
+    }
+
+    .deck-card-flat {
+      background: var(--surface-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      text-decoration: none;
+      color: inherit;
+      transition: border-color 0.15s ease, transform 0.15s ease;
+    }
+
+    .deck-card-flat:hover {
+      border-color: var(--border-hover);
+      transform: translateY(-2px);
+    }
+
+    .deck-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .deck-name {
+      font-size: 1.02rem;
+      font-weight: 700;
+      color: var(--ink-primary);
+    }
+
+    .deck-tag-pill {
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 999px;
+      background: var(--surface-subtle);
+      color: var(--ink-brand);
+    }
+
+    .deck-stack-faces {
+      display: flex;
+      align-items: center;
+    }
+
+    .deck-stack-faces img {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      border: 2px solid #FFFFFF;
+      margin-left: -8px;
+      object-fit: cover;
+    }
+
+    .deck-stack-faces img:first-child {
+      margin-left: 0;
+    }
+
+    .deck-desc {
+      font-size: 0.84rem;
+      color: var(--ink-muted);
+      line-height: 1.4;
+    }
+
+    /* OVERLAY DE MATCHMAKING INSTANTÂNEO COM FALLBACK */
+    .match-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(56, 44, 38, 0.6);
+      backdrop-filter: blur(3px);
+      z-index: 100;
+      display: none;
+      place-items: center;
+      padding: 20px;
+    }
+
+    .match-overlay.active {
+      display: grid;
+    }
+
+    .match-dialog {
+      background: var(--surface-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 32px;
+      max-width: 420px;
+      width: 100%;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+      animation: popIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .spinner-radar {
+      width: 48px;
+      height: 48px;
+      border: 3px solid var(--surface-subtle);
+      border-top-color: var(--accent-primary);
+      border-radius: 50%;
+      animation: spin 0.9s linear infinite;
+    }
+
+    .match-status-title {
+      font-family: var(--font-display);
+      font-size: 1.25rem;
+      font-weight: 700;
+    }
+
+    .match-status-subtitle {
+      font-size: 0.88rem;
+      color: var(--ink-muted);
+    }
+
+    .assigned-nickname-box {
+      background: var(--surface-subtle);
+      padding: 6px 14px;
+      border-radius: var(--radius-sm);
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--ink-brand);
+    }
+
+    /* Fallback Box quando a fila rápida está vazia */
+    .fallback-box {
+      display: none;
+      flex-direction: column;
+      gap: 10px;
+      width: 100%;
+      margin-top: 8px;
+      border-top: 1px solid var(--border-subtle);
+      padding-top: 16px;
+    }
+
+    .btn-fallback-bot {
+      width: 100%;
+      height: 46px;
+      background: var(--accent-primary);
+      color: #FFFFFF;
+      border: none;
+      border-radius: var(--radius-sm);
+      font-weight: 700;
+      font-size: 0.94rem;
+      cursor: pointer;
+    }
+
+    .btn-fallback-invite {
+      width: 100%;
+      height: 44px;
+      background: transparent;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      font-weight: 600;
+      font-size: 0.88rem;
+      color: var(--ink-primary);
+      cursor: pointer;
+    }
+
+    .btn-cancel-match {
+      background: transparent;
+      border: none;
+      font-size: 0.82rem;
+      color: var(--ink-muted);
+      cursor: pointer;
+      text-decoration: underline;
+      margin-top: 6px;
+    }
+
+    /* RODAPÉ DISCRETO */
+    footer {
+      border-top: 1px solid var(--border-subtle);
+      padding: 24px;
+      font-size: 0.82rem;
+      color: var(--ink-muted);
+      text-align: center;
+      margin-top: auto;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes popIn {
+      from { opacity: 0; transform: scale(0.96); }
+      to { opacity: 1; transform: scale(1); }
+    }
+
+    /* RESPONSIVIDADE MOBILE (390px) */
+    @media (max-width: 860px) {
+      header {
+        padding: 10px 12px;
+        width: 100%;
+        max-width: 370px;
+        margin: 0 auto;
+        box-sizing: border-box;
+      }
+
+      .brand-logo {
+        height: 26px;
+        max-width: 110px;
+      }
+
+      .header-nav {
+        gap: 6px;
+        flex-shrink: 0;
+      }
+
+      .btn-nav-flat span {
+        display: none;
+      }
+
+      .btn-nav-flat {
+        padding: 5px 6px;
+        width: 32px;
+        height: 32px;
+        justify-content: center;
+      }
+
+      .btn-nav-flat.login-btn span {
+        display: inline;
+      }
+
+      .btn-nav-flat.login-btn {
+        width: auto;
+        padding: 4px 8px;
+        font-size: 0.76rem;
+      }
+
+      .hero-fold {
+        min-height: auto;
+        padding: 6px 10px 16px;
+        width: 100%;
+        max-width: 370px;
+        margin: 0 auto;
+        box-sizing: border-box;
+      }
+
+      .hero-content {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 12px;
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+      }
+
+      .hero-title-area {
+        order: 1;
+        text-align: center;
+        padding: 0 4px;
+        width: 100%;
+        max-width: 100%;
+      }
+
+      .mobile-break {
+        display: block;
+      }
+
+      .hero-title {
+        font-size: 1.25rem;
+        line-height: 1.25;
+        overflow-wrap: break-word;
+        word-break: normal;
+      }
+
+      .hero-board-showcase {
+        order: 2;
+        padding: 10px 8px;
+        width: 100%;
+        max-width: 350px;
+        margin: 0 auto;
+        box-sizing: border-box;
+      }
+
+      .board-dialog-bubble {
+        padding: 6px 10px;
+        margin-bottom: 8px;
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+      }
+
+      .dialog-query {
+        font-size: 0.8rem;
+        gap: 6px;
+      }
+
+      .dialog-badge {
+        font-size: 0.7rem;
+        padding: 2px 6px;
+      }
+
+      /* 4 cartas em mobile (2x2) para perfeita respiração e toque */
+      .board-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+      }
+
+      .board-card:nth-child(n+5) {
+        display: none;
+      }
+
+      .board-card {
+        padding: 6px 4px;
+        min-width: 0;
+        max-width: 100%;
+        box-sizing: border-box;
+      }
+
+      .board-card-name {
+        font-size: 0.8rem;
+      }
+
+      .board-card-feature {
+        font-size: 0.68rem;
+      }
+
+      .board-footer-hint {
+        flex-direction: column;
+        gap: 4px;
+        text-align: center;
+        font-size: 0.72rem;
+      }
+
+      .hero-cta-area {
+        order: 3;
+        align-items: center;
+        width: 100%;
+        max-width: 350px;
+        margin: 0 auto;
+        gap: 8px;
+      }
+
+      .btn-play-hero {
+        max-width: 100%;
+        height: 48px;
+        font-size: 1.08rem;
+      }
+
+      .code-popover {
+        max-width: 100%;
+      }
+
+      .below-fold-section {
+        padding: 0 12px;
+        margin: 20px auto 36px;
+        width: 100%;
+        max-width: 370px;
+      }
+
+      .section-heading-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 6px;
+      }
+
+      .backend-tag {
+        white-space: normal;
+        font-size: 0.68rem;
+        line-height: 1.3;
+      }
+
+      .decks-row {
+        grid-template-columns: 1fr;
+        gap: 10px;
+      }
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .board-card, .btn-play-hero, .spinner-radar {
+        transition: none !important;
+        animation: none !important;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- TOPO MINIMALISTA -->
+  <header>
+    <a href="./index.html" class="brand-link" title="Tá na Cara!">
+      <img src="../../logo-horizontal.svg" alt="Tá na Cara!" class="brand-logo" onerror="this.onerror=null; this.src='../../logo-icon.svg'">
+    </a>
+
+    <nav class="header-nav" aria-label="Navegação secundária">
+      <button class="btn-nav-flat" id="btnSound" aria-label="Alternar som">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+          <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+          <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+        </svg>
+        <span>Som</span>
+      </button>
+
+      <a href="/login" class="btn-nav-flat login-btn">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+          <circle cx="12" cy="7" r="4"></circle>
+        </svg>
+        <span>Entrar</span>
+      </a>
+    </nav>
+  </header>
+
+  <!-- PRIMEIRA DOBRA: RIGOROSAMENTE CONTIDA -->
+  <main class="hero-fold">
+    <section class="hero-content">
+
+      <!-- TÍTULO ÚNICO -->
+      <div class="hero-title-area">
+        <h1 class="hero-title">
+          Adivinha quem é <br class="mobile-break"><span class="highlight">antes que ele adivinhe você.</span>
+        </h1>
+      </div>
+
+      <!-- AÇÃO DOMINANTE: BOTÃO CHAPADO + LINK DE CÓDIGO -->
+      <div class="hero-cta-area">
+        <button class="btn-play-hero" id="btnPlayInstant">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="5 3 19 12 5 21 5 3"></polygon>
+          </svg>
+          JOGAR
+        </button>
+
+        <button class="btn-code-link" id="btnToggleCode">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+          </svg>
+          Tenho um código
+        </button>
+
+        <!-- Drawer Discreto para Entrada do Código -->
+        <div class="code-popover" id="codePopover">
+          <form id="codeForm" class="code-input-row" onsubmit="event.preventDefault(); submitRoomCode();">
+            <input type="text" id="codeField" class="code-input-field" placeholder="CÓDIGO (6 LETRAS)" maxlength="6" autocomplete="off">
+            <button type="submit" class="btn-submit-code">Entrar</button>
+          </form>
+        </div>
+      </div>
+
+      <!-- COLUNA DA DIREITA: TABULEIRO INTERATIVO (SHOW, DON'T TELL) -->
+      <div class="hero-board-showcase" aria-label="Demonstração do jogo">
+        <div class="board-dialog-bubble">
+          <div class="dialog-query">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#776156" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+              <line x1="12" y1="17" x2="12.01" y2="17"></line>
+            </svg>
+            <span>"Ele usa óculos?"</span>
+          </div>
+          <span class="dialog-badge">NÃO</span>
+        </div>
+
+        <!-- 6 Cartas Demonstrativas Ilustradas à Mão -->
+        <div class="board-grid" id="boardGrid">
+          
+          <!-- Hugo: usa óculos (abaixa) -->
+          <div class="board-card" data-has-glasses="true">
+            <div class="board-card-photo">
+              <img src="../../standard-faces/Hugo.jpg" alt="Hugo">
+            </div>
+            <div class="board-card-name">Hugo</div>
+            <div class="board-card-feature">Usa óculos</div>
+          </div>
+
+          <!-- Ana: não usa óculos (fica em pé) -->
+          <div class="board-card" data-has-glasses="false">
+            <div class="board-card-photo">
+              <img src="../../standard-faces/Ana.jpg" alt="Ana">
+            </div>
+            <div class="board-card-name">Ana</div>
+            <div class="board-card-feature">Sem óculos</div>
+          </div>
+
+          <!-- Bruno: usa óculos (abaixa) -->
+          <div class="board-card" data-has-glasses="true">
+            <div class="board-card-photo">
+              <img src="../../standard-faces/Bruno.jpg" alt="Bruno">
+            </div>
+            <div class="board-card-name">Bruno</div>
+            <div class="board-card-feature">Usa óculos</div>
+          </div>
+
+          <!-- Carla: não usa óculos (fica em pé) -->
+          <div class="board-card" data-has-glasses="false">
+            <div class="board-card-photo">
+              <img src="../../standard-faces/Carla.jpg" alt="Carla">
+            </div>
+            <div class="board-card-name">Carla</div>
+            <div class="board-card-feature">Sem óculos</div>
+          </div>
+
+          <!-- Davi: não usa óculos (fica em pé) -->
+          <div class="board-card" data-has-glasses="false">
+            <div class="board-card-photo">
+              <img src="../../standard-faces/Davi.jpg" alt="Davi">
+            </div>
+            <div class="board-card-name">Davi</div>
+            <div class="board-card-feature">Sem óculos</div>
+          </div>
+
+          <!-- Felipe: usa óculos (abaixa) -->
+          <div class="board-card" data-has-glasses="true">
+            <div class="board-card-photo">
+              <img src="../../standard-faces/Felipe.jpg" alt="Felipe">
+            </div>
+            <div class="board-card-name">Felipe</div>
+            <div class="board-card-feature">Usa óculos</div>
+          </div>
+
+        </div>
+
+        <div class="board-footer-hint">
+          <span>Toque nas cartas para abaixar ou levantar</span>
+          <button id="btnResetBoard">Restaurar</button>
+        </div>
+      </div>
+
+    </section>
+  </main>
+
+  <!-- ABAIXO DA PRIMEIRA DOBRA: BARALHOS & PROVA SOCIAL -->
+  <section class="below-fold-section">
+    <div class="section-divider"></div>
+
+    <div class="section-heading-row">
+      <h2 class="section-title">Baralhos em Destaque</h2>
+      <span class="backend-tag">Partidas ao vivo disponíveis com backend conectado</span>
+    </div>
+
+    <div class="decks-row">
+      
+      <div class="deck-card-flat">
+        <div class="deck-header">
+          <div class="deck-name">Políticos & Eleições</div>
+          <span class="deck-tag-pill">Popular</span>
+        </div>
+        <div class="deck-stack-faces">
+          <img src="../../standard-faces/Bruno.jpg" alt="Político 1">
+          <img src="../../standard-faces/Hugo.jpg" alt="Político 2">
+          <img src="../../standard-faces/Davi.jpg" alt="Político 3">
+        </div>
+        <div class="deck-desc">Lula, Bolsonaro, Alckmin e figuras públicas. Quem é o personagem do adversário?</div>
+      </div>
+
+      <div class="deck-card-flat">
+        <div class="deck-header">
+          <div class="deck-name">Maromba & Fitness</div>
+          <span class="deck-tag-pill">Viral</span>
+        </div>
+        <div class="deck-stack-faces">
+          <img src="../../standard-faces/Felipe.jpg" alt="Maromba 1">
+          <img src="../../standard-faces/Ana.jpg" alt="Maromba 2">
+          <img src="../../standard-faces/Carla.jpg" alt="Maromba 3">
+        </div>
+        <div class="deck-desc">Renato Cariani, Paulo Muzy, Rodrigo Goes e atletas. Treina há quanto tempo?</div>
+      </div>
+
+      <div class="deck-card-flat">
+        <div class="deck-header">
+          <div class="deck-name">Streamers & Youtubers</div>
+          <span class="deck-tag-pill">Pop</span>
+        </div>
+        <div class="deck-stack-faces">
+          <img src="../../standard-faces/Elisa.jpg" alt="Streamer 1">
+          <img src="../../standard-faces/Ana.jpg" alt="Streamer 2">
+          <img src="../../standard-faces/Hugo.jpg" alt="Streamer 3">
+        </div>
+        <div class="deck-desc">Casimiro, Gaules, Alanzoka e criadores de conteúdo do Brasil.</div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- RODAPÉ DISCRETO -->
+  <footer>
+    <p>Tá na Cara! © 2026 — O jogo casual de adivinhação online para dois jogadores.</p>
+  </footer>
+
+  <!-- MODAL DE MATCHMAKING INSTANTÂNEO COM FALLBACK AUTOMÁTICO -->
+  <div class="match-overlay" id="matchOverlay" role="dialog" aria-modal="true">
+    <div class="match-dialog">
+      <div class="spinner-radar" id="matchSpinner"></div>
+
+      <h3 class="match-status-title" id="matchTitle">Buscando oponente...</h3>
+      <p class="match-status-subtitle" id="matchSubtitle">Conectando você a uma partida rápida.</p>
+
+      <div class="assigned-nickname-box" id="nicknameBadge">
+        Você: <strong id="assignedNickname">Detetive Pipoca</strong>
+      </div>
+
+      <!-- Caixa de Fallback acionada após 3.5s se a fila pública estiver vazia -->
+      <div class="fallback-box" id="fallbackBox">
+        <p style="font-size: 0.82rem; color: var(--ink-muted); margin-bottom: 4px;">
+          Fila tranquila no momento. Escolha como quer jogar:
+        </p>
+        <button class="btn-fallback-bot" id="btnPlayBot">
+          Jogar contra Detetive IA (Treino)
+        </button>
+        <button class="btn-fallback-invite" id="btnInviteFriend">
+          Convidar amigo no WhatsApp
+        </button>
+      </div>
+
+      <button class="btn-cancel-match" id="btnCancelMatch">Cancelar busca</button>
+    </div>
+  </div>
+
+  <script>
+    // 1. Interatividade do Tabuleiro (Demo Físico 3D)
+    const cards = document.querySelectorAll('.board-card');
+    cards.forEach(card => {
+      card.addEventListener('click', () => {
+        card.classList.toggle('down');
+      });
+    });
+
+    const resetBtn = document.getElementById('btnResetBoard');
+    if (resetBtn) {
+      resetBtn.addEventListener('click', () => {
+        cards.forEach(c => c.classList.remove('down'));
+      });
+    }
+
+    // Auto-demo educativa: abaixa as cartas com óculos após 1.4s
+    setTimeout(() => {
+      document.querySelectorAll('.board-card[data-has-glasses="true"]').forEach((card, idx) => {
+        setTimeout(() => {
+          card.classList.add('down');
+        }, idx * 220);
+      });
+    }, 1400);
+
+    // 2. Acesso Rápido com Código (Drawer Discreto)
+    const toggleCodeBtn = document.getElementById('btnToggleCode');
+    const codePopover = document.getElementById('codePopover');
+    const codeField = document.getElementById('codeField');
+
+    toggleCodeBtn.addEventListener('click', () => {
+      codePopover.classList.toggle('active');
+      if (codePopover.classList.contains('active')) {
+        codeField.focus();
+      }
+    });
+
+    function submitRoomCode() {
+      const code = codeField.value.trim().toUpperCase();
+      if (code.length === 6) {
+        window.location.href = `/?room=${code}`;
+      } else {
+        codeField.focus();
+      }
+    }
+
+    codeField.addEventListener('input', (e) => {
+      if (e.target.value.length === 6) {
+        submitRoomCode();
+      }
+    });
+
+    // 3. Matchmaking Instantâneo com Fallback Inteligente (Estilo Proposta B)
+    const btnPlay = document.getElementById('btnPlayInstant');
+    const overlay = document.getElementById('matchOverlay');
+    const cancelBtn = document.getElementById('btnCancelMatch');
+    const fallbackBox = document.getElementById('fallbackBox');
+    const matchTitle = document.getElementById('matchTitle');
+    const matchSubtitle = document.getElementById('matchSubtitle');
+    const assignedNickname = document.getElementById('assignedNickname');
+
+    const funNames = [
+      'Detetive Pipoca',
+      'Detetive Farofa',
+      'Detetive Sherlock',
+      'Detetive Curioso',
+      'Detetive Raposa',
+      'Detetive Malandro'
+    ];
+
+    let fallbackTimeout = null;
+
+    btnPlay.addEventListener('click', () => {
+      // 0 cliques para configurar nome: gera instantaneamente
+      const randomName = funNames[Math.floor(Math.random() * funNames.length)];
+      assignedNickname.textContent = randomName;
+
+      // Reseta estado do diálogo
+      matchTitle.textContent = 'Buscando oponente...';
+      matchSubtitle.textContent = 'Conectando você a uma partida rápida.';
+      fallbackBox.style.display = 'none';
+      overlay.classList.add('active');
+
+      // Fallback Inteligente: se ninguém entrar em 3.5 segundos, apresenta opções sem travar
+      fallbackTimeout = setTimeout(() => {
+        matchTitle.textContent = 'Nenhum jogador na fila';
+        matchSubtitle.textContent = 'Você não precisa esperar!';
+        fallbackBox.style.display = 'flex';
+      }, 3500);
+    });
+
+    cancelBtn.addEventListener('click', () => {
+      clearTimeout(fallbackTimeout);
+      overlay.classList.remove('active');
+    });
+
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) {
+        clearTimeout(fallbackTimeout);
+        overlay.classList.remove('active');
+      }
+    });
+
+    // Botão Fallback 1: Jogar contra IA
+    document.getElementById('btnPlayBot').addEventListener('click', () => {
+      window.location.href = '/?mode=practice&bot=true';
+    });
+
+    // Botão Fallback 2: Convidar amigo por WhatsApp
+    document.getElementById('btnInviteFriend').addEventListener('click', () => {
+      const roomCode = 'CARA' + Math.floor(10 + Math.random() * 90);
+      const inviteUrl = `${window.location.origin}/?room=${roomCode}`;
+      const msg = encodeURIComponent(`Bora jogar Tá na Cara! Adivinha quem é meu personagem: ${inviteUrl}`);
+      window.open(`https://api.whatsapp.com/send?text=${msg}`, '_blank');
+      window.location.href = `/?room=${roomCode}`;
+    });
+  </script>
+</body>
+</html>

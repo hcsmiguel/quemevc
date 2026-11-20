@@ -1,7 +1,8 @@
 import { useState, type FC } from 'react';
 import type { Question } from '../types/game';
-import { Send, Trophy, ArrowRight, Clock, MessageSquareQuote, Headphones } from 'lucide-react';
+import { Send, Trophy, ArrowRight, PhoneCall, X } from 'lucide-react';
 import { sounds } from '../utils/sound';
+import { TurnTimer } from './TurnTimer';
 
 interface QuestionControlProps {
   isMyTurn: boolean;
@@ -14,42 +15,6 @@ interface QuestionControlProps {
   onPassTurn: () => void;
   onOpenGuessModal: () => void;
 }
-
-const TurnTimerBadge: FC<{ timeLeft: number; totalTime?: number; isOpponent?: boolean }> = ({
-  timeLeft,
-  totalTime = 60,
-  isOpponent = false,
-}) => {
-  const isUrgent = timeLeft <= 10;
-  const minutes = Math.floor(timeLeft / 60);
-  const seconds = timeLeft % 60;
-  const formatted = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-  const pct = Math.min(100, Math.max(0, (timeLeft / totalTime) * 100));
-
-  return (
-    <div
-      className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-xs font-sans font-black tabular-nums tracking-tight transition-all shrink-0 shadow-sm ${
-        isUrgent
-          ? 'bg-rose-100 text-rose-700 border-rose-300 animate-pulse ring-2 ring-rose-200'
-          : isOpponent
-          ? 'bg-slate-100 text-slate-700 border-slate-200'
-          : 'bg-sky-50 text-sky-800 border-sky-200'
-      }`}
-      title={isUrgent ? 'Tempo quase esgotado!' : 'Tempo restante deste turno'}
-    >
-      <Clock size={14} className={isUrgent ? 'text-rose-600 animate-spin' : isOpponent ? 'text-slate-500' : 'text-sky-600'} />
-      <span className="font-black tracking-tight">{formatted}</span>
-      <div className="w-8 h-1.5 bg-slate-200 rounded-full overflow-hidden hidden md:block">
-        <div
-          className={`h-full transition-all duration-1000 ${
-            isUrgent ? 'bg-rose-500' : isOpponent ? 'bg-slate-500' : 'bg-sky-500'
-          }`}
-          style={{ width: `${pct}%` }}
-        />
-      </div>
-    </div>
-  );
-};
 
 export const QuestionControl: FC<QuestionControlProps> = ({
   isMyTurn,
@@ -64,79 +29,6 @@ export const QuestionControl: FC<QuestionControlProps> = ({
 }) => {
   const [customText, setCustomText] = useState<string>('');
 
-  // 1. MODO CALL (Chamada de Voz / Presencial)
-  if (isCallMode) {
-    if (!isMyTurn) {
-      return (
-        <div className="bg-white border-2 border-slate-200 rounded-2xl p-2.5 sm:p-3.5 flex items-center justify-between gap-2.5 shadow-sm">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-purple-100 flex items-center justify-center text-purple-700 shrink-0">
-              <Headphones size={18} />
-            </div>
-            <div className="min-w-0">
-              <div className="text-[10px] uppercase font-black text-purple-600 tracking-wider">
-                Vez de {opponentName} • Modo Call (Voz)
-              </div>
-              <div className="text-xs sm:text-sm font-extrabold text-slate-900 truncate">
-                É a vez de <strong className="text-purple-700">{opponentName}</strong> fazer uma pergunta a você!
-              </div>
-              <div className="text-[10px] sm:text-[11px] text-slate-500 font-medium">
-                Responda SIM ou NÃO.
-              </div>
-            </div>
-          </div>
-        </div>
-      );
-    }
-
-    return (
-      <div className="bg-purple-50/90 border-2 border-purple-300 rounded-2xl p-2.5 sm:p-3.5 shadow-sm flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
-        <div className="flex items-center gap-2.5 min-w-0">
-          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-purple-600 text-white flex items-center justify-center font-black shadow-tactile-sm shrink-0">
-            <Headphones size={18} />
-          </div>
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <span className="relative flex h-2.5 w-2.5 shrink-0 ml-0.5">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
-              </span>
-              <span className="text-[10px] font-black text-purple-900 uppercase tracking-wider">
-                Seu Turno • Modo Call (Voz)
-              </span>
-            </div>
-            <div className="text-xs sm:text-sm font-extrabold text-slate-900 truncate">
-              É a sua vez de fazer uma pergunta para <strong className="text-purple-700">{opponentName}</strong>!
-            </div>
-            <div className="text-[10px] sm:text-[11px] text-purple-700 font-semibold">
-              Lembre-se que deve ser uma pergunta de SIM ou NÃO.
-            </div>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
-          <button
-            type="button"
-            onClick={onOpenGuessModal}
-            className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 h-9 sm:h-10 px-3 sm:px-4 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-xs uppercase tracking-wider shadow-[0_2px_0_#d97706] transition-all active:translate-y-0.5 cursor-pointer"
-          >
-            <Trophy size={14} />
-            <span>Palpite</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={onPassTurn}
-            className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 h-9 sm:h-10 px-3.5 sm:px-4 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-extrabold text-xs uppercase tracking-wider shadow-[0_2px_0_#059669] transition-all active:translate-y-0.5 cursor-pointer"
-          >
-            <span>Passar Vez</span>
-            <ArrowRight size={14} />
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   const handleSend = () => {
     const questionText = customText.trim();
     if (!questionText) return;
@@ -146,107 +38,51 @@ export const QuestionControl: FC<QuestionControlProps> = ({
     setCustomText('');
   };
 
-  // 2. MODO TRADICIONAL - Vez do Oponente
-  if (!isMyTurn) {
+  // 1. MODO CALL (Chamada de Voz / Presencial)
+  if (isCallMode) {
+    if (!isMyTurn) {
+      return (
+        <div className="bg-white border border-[#E8E0D8] rounded-2xl p-2.5 sm:px-3.5 sm:py-2.5 flex items-center justify-between gap-2 shadow-xs">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="w-8 h-8 rounded-xl bg-[#FAF6F0] text-[#8C786E] border border-[#E8E0D8] flex items-center justify-center shrink-0">
+              <PhoneCall size={15} />
+            </div>
+            <div className="min-w-0">
+              <div className="text-xs sm:text-sm font-bold text-[#382C26] truncate">
+                Vez de <strong className="text-[#C25E3E] font-bold">{opponentName}</strong> perguntar por voz
+              </div>
+              <div className="text-[10px] sm:text-[11px] text-[#8C786E] truncate">
+                Modo Call ativo • Responda apenas com sim ou não
+              </div>
+            </div>
+          </div>
+          <TurnTimer timeLeft={timeLeft} totalTime={totalTime} isOpponent={true} />
+        </div>
+      );
+    }
+
     return (
-      <div className="bg-white border-2 border-slate-200 rounded-2xl p-2.5 sm:p-3.5 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 shadow-sm">
-        <div className="flex items-center gap-2.5 min-w-0">
-          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-500 shrink-0">
-            <Clock size={18} />
+      <div className="bg-white border border-[#E8E0D8] rounded-2xl p-2.5 sm:px-3.5 sm:py-2.5 shadow-xs flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="w-8 h-8 rounded-xl bg-[#FFE8E0] text-[#C25E3E] border border-[#FFB59A] flex items-center justify-center shrink-0">
+            <PhoneCall size={15} />
           </div>
           <div className="min-w-0">
-            <div className="text-[10px] uppercase font-black text-slate-400 tracking-wider">
-              Vez do Oponente
+            <div className="text-xs sm:text-sm font-bold text-[#382C26] truncate">
+              Sua vez de perguntar para <strong className="text-[#C25E3E] font-bold">{opponentName}</strong>
             </div>
-            <div className="text-xs sm:text-sm font-bold text-slate-900 truncate">
-              É a vez de <strong className="text-rose-600">{opponentName}</strong> fazer uma pergunta a você!
-            </div>
-            <div className="text-[10px] sm:text-[11px] text-slate-500 font-medium">
-              Responda SIM ou NÃO.
+            <div className="text-[10px] sm:text-[11px] text-[#8C786E] truncate">
+              Faça sua pergunta por voz e passe a vez
             </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-2 self-end sm:self-center">
-          {currentQuestion && currentQuestion.answer !== null && currentQuestion.answer !== undefined && (
-            <div className="text-[11px] bg-slate-50 px-2.5 py-1 rounded-xl border border-slate-200 text-slate-700 flex items-center gap-1.5">
-              <span>Última:</span>
-              <span className="font-bold text-slate-900 truncate max-w-[100px]">"{currentQuestion.text}"</span>
-              <span
-                className={`font-black px-1.5 py-0.5 rounded text-[10px] ${
-                  currentQuestion.answer
-                    ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
-                    : 'bg-rose-100 text-rose-800 border border-rose-300'
-                }`}
-              >
-                {currentQuestion.answer ? 'SIM' : 'NÃO'}
-              </span>
-            </div>
-          )}
-          <TurnTimerBadge timeLeft={timeLeft} totalTime={totalTime} isOpponent={true} />
-        </div>
-      </div>
-    );
-  }
-
-  // 3. MODO TRADICIONAL - É meu turno e aguardo resposta
-  if (currentQuestion && (currentQuestion.answer === null || currentQuestion.answer === undefined)) {
-    return (
-      <div className="bg-amber-50/90 border-2 border-amber-300 rounded-2xl p-2.5 sm:p-3.5 flex items-center justify-between shadow-sm animate-pulse gap-2.5">
-        <div className="flex items-center gap-2.5 min-w-0">
-          <MessageSquareQuote size={22} className="text-amber-700 shrink-0" />
-          <div className="min-w-0">
-            <span className="text-[10px] font-black text-amber-900 uppercase tracking-wide block">
-              Pergunta Enviada!
-            </span>
-            <span className="text-xs sm:text-sm font-extrabold text-slate-900 truncate block">
-              "{currentQuestion.text}"
-            </span>
-            <span className="text-[10px] sm:text-[11px] text-amber-800 font-semibold">
-              Aguardando {opponentName} responder...
-            </span>
-          </div>
-        </div>
-        <TurnTimerBadge timeLeft={timeLeft} totalTime={totalTime} isOpponent={false} />
-      </div>
-    );
-  }
-
-  // 4. MODO TRADICIONAL - Pergunta acabou de ser respondida
-  if (currentQuestion && currentQuestion.answer !== null && currentQuestion.answer !== undefined) {
-    return (
-      <div className="bg-white border-2 border-slate-200 rounded-2xl p-2.5 sm:p-3.5 shadow-sm flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
-        <div className="flex items-center gap-2.5 min-w-0">
-          <div
-            className={`w-9 h-9 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center font-black text-base sm:text-lg shadow-tactile-sm shrink-0 ${
-              currentQuestion.answer
-                ? 'bg-emerald-500 text-white'
-                : 'bg-rose-500 text-white'
-            }`}
-          >
-            {currentQuestion.answer ? 'SIM' : 'NÃO'}
-          </div>
-          <div className="min-w-0">
-            <div className="text-[10px] sm:text-xs text-slate-500 truncate">
-              {opponentName} respondeu para "{currentQuestion.text}":
-            </div>
-            <div className="text-xs sm:text-sm font-black text-slate-900">
-              {currentQuestion.answer
-                ? '✅ SIM! O personagem TEM essa característica.'
-                : '❌ NÃO! O personagem NÃO tem essa característica.'}
-            </div>
-            <div className="text-[10px] sm:text-[11px] text-amber-700 font-bold">
-              Descarte as cartas no tabuleiro e finalize seu turno.
-            </div>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
-          <TurnTimerBadge timeLeft={timeLeft} totalTime={totalTime} isOpponent={false} />
+        <div className="flex items-center gap-2 shrink-0">
+          <TurnTimer timeLeft={timeLeft} totalTime={totalTime} isOpponent={false} />
           <button
             type="button"
             onClick={onOpenGuessModal}
-            className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 h-9 sm:h-10 px-3 sm:px-4 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-xs uppercase tracking-wider shadow-[0_2px_0_#d97706] transition-all active:translate-y-0.5 cursor-pointer"
+            className="h-10 px-3.5 rounded-xl bg-[#FFE8E0] hover:bg-[#FFD2C4] text-[#C25E3E] border border-[#FFB59A] font-bold text-xs uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5"
           >
             <Trophy size={14} />
             <span>Palpite</span>
@@ -254,7 +90,7 @@ export const QuestionControl: FC<QuestionControlProps> = ({
           <button
             type="button"
             onClick={onPassTurn}
-            className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 h-9 sm:h-10 px-3.5 sm:px-4 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-extrabold text-xs uppercase tracking-wider shadow-[0_2px_0_#059669] transition-all active:translate-y-0.5 cursor-pointer"
+            className="h-10 px-3.5 rounded-xl bg-[#382C26] hover:bg-[#2A211C] text-white font-bold text-xs uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5"
           >
             <span>Passar Vez</span>
             <ArrowRight size={14} />
@@ -264,63 +100,177 @@ export const QuestionControl: FC<QuestionControlProps> = ({
     );
   }
 
-  // 5. MODO TRADICIONAL - Fazer uma nova pergunta
-  return (
-    <div className="bg-white border-2 border-slate-200 rounded-2xl p-2.5 sm:p-3.5 shadow-sm flex flex-col gap-2.5">
-      <div className="flex items-center justify-between gap-2">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2 text-xs sm:text-sm font-extrabold text-slate-900 truncate">
-            <span className="relative flex h-2.5 w-2.5 shrink-0 ml-0.5">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
-            </span>
-            <span className="truncate">Sua vez de perguntar para <strong className="text-sky-700">{opponentName}</strong>!</span>
-          </div>
-          <div className="text-[10px] sm:text-[11px] text-slate-500 font-medium">
-            Lembre-se que deve ser uma pergunta de SIM ou NÃO.
+  // 2. MODO TRADICIONAL - Vez do Oponente Perguntar
+  if (!isMyTurn) {
+    return (
+      <div className="bg-white border border-[#E8E0D8] rounded-2xl p-2.5 sm:px-3.5 sm:py-2.5 flex items-center justify-between gap-2 shadow-xs">
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="w-2 h-2 rounded-full bg-[#8C786E] shrink-0 animate-pulse" />
+          <div className="min-w-0">
+            <div className="text-xs sm:text-sm font-bold text-[#382C26] truncate">
+              Vez de <strong className="text-[#C25E3E] font-bold">{opponentName}</strong> perguntar
+            </div>
+            <div className="text-[10px] sm:text-[11px] text-[#8C786E] truncate">
+              Aguarde a pergunta para responder com SIM ou NÃO
+            </div>
           </div>
         </div>
+
         <div className="flex items-center gap-2 shrink-0">
-          <TurnTimerBadge timeLeft={timeLeft} totalTime={totalTime} isOpponent={false} />
+          {currentQuestion && currentQuestion.answer !== null && currentQuestion.answer !== undefined && (
+            <div className="hidden sm:flex text-[11px] bg-[#FAF6F0] px-2.5 py-1 rounded-xl border border-[#E8E0D8] text-[#776156] items-center gap-1.5">
+              <span>Última:</span>
+              <span className="font-bold text-[#382C26] truncate max-w-[120px]">"{currentQuestion.text}"</span>
+              <span
+                className={`font-bold px-1.5 py-0.5 rounded text-[10px] ${
+                  currentQuestion.answer
+                    ? 'bg-[#E8F5E9] text-[#2E7D32] border border-[#A5D6A7]'
+                    : 'bg-[#FFE8E0] text-[#C25E3E] border border-[#FFB59A]'
+                }`}
+              >
+                {currentQuestion.answer ? 'SIM' : 'NÃO'}
+              </span>
+            </div>
+          )}
+          <TurnTimer timeLeft={timeLeft} totalTime={totalTime} isOpponent={true} />
+        </div>
+      </div>
+    );
+  }
+
+  // 3. MODO TRADICIONAL - É meu turno e aguardo resposta do oponente
+  if (currentQuestion && (currentQuestion.answer === null || currentQuestion.answer === undefined)) {
+    return (
+      <div className="bg-white border border-[#E8E0D8] rounded-2xl p-2.5 sm:px-3.5 sm:py-2.5 flex items-center justify-between gap-2 shadow-xs">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="w-2 h-2 rounded-full bg-[#C25E3E] shrink-0 animate-ping" />
+          <div className="min-w-0">
+            <div className="text-xs sm:text-sm font-bold text-[#382C26] truncate">
+              "{currentQuestion.text}"
+            </div>
+            <div className="text-[10px] sm:text-[11px] text-[#8C786E] truncate">
+              Aguardando resposta de <strong className="text-[#382C26]">{opponentName}</strong>...
+            </div>
+          </div>
+        </div>
+        <TurnTimer timeLeft={timeLeft} totalTime={totalTime} isOpponent={false} />
+      </div>
+    );
+  }
+
+  // 4. MODO TRADICIONAL - Pergunta acabou de ser respondida (SIM / NÃO)
+  if (currentQuestion && currentQuestion.answer !== null && currentQuestion.answer !== undefined) {
+    return (
+      <div className="bg-white border border-[#E8E0D8] rounded-2xl p-2 sm:px-3.5 sm:py-2 shadow-xs flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <span
+            className={`px-2.5 py-1 rounded-xl font-bold text-xs shrink-0 uppercase tracking-wider ${
+              currentQuestion.answer
+                ? 'bg-[#E8F5E9] text-[#2E7D32] border border-[#A5D6A7]'
+                : 'bg-[#FFE8E0] text-[#C25E3E] border border-[#FFB59A]'
+            }`}
+          >
+            {currentQuestion.answer ? 'SIM' : 'NÃO'}
+          </span>
+          <div className="min-w-0">
+            <div className="text-xs sm:text-sm font-bold text-[#382C26] truncate">
+              {currentQuestion.answer
+                ? `${opponentName} confirmou para "${currentQuestion.text}"`
+                : `${opponentName} negou para "${currentQuestion.text}"`}
+            </div>
+            <div className="text-[10px] sm:text-[11px] text-[#8C786E] truncate">
+              Descarte as cartas que não batem e passe a vez
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 shrink-0">
+          <TurnTimer timeLeft={timeLeft} totalTime={totalTime} isOpponent={false} />
           <button
             type="button"
             onClick={onOpenGuessModal}
-            className="flex items-center gap-1 h-8 sm:h-9 px-2.5 sm:px-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-[11px] sm:text-xs uppercase tracking-wider shadow-[0_2px_0_#d97706] transition-all active:translate-y-0.5 cursor-pointer"
+            className="h-10 px-3.5 rounded-xl bg-[#FFE8E0] hover:bg-[#FFD2C4] text-[#C25E3E] border border-[#FFB59A] font-bold text-xs uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5"
           >
-            <Trophy size={13} />
-            <span className="hidden sm:inline">Palpite</span>
+            <Trophy size={14} />
+            <span>Palpite</span>
+          </button>
+          <button
+            type="button"
+            onClick={onPassTurn}
+            className="h-10 px-3.5 rounded-xl bg-[#382C26] hover:bg-[#2A211C] text-white font-bold text-xs uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5"
+          >
+            <span>Passar Vez</span>
+            <ArrowRight size={14} />
           </button>
         </div>
       </div>
+    );
+  }
 
-      <div className="flex gap-2 items-center">
-        <div className="relative flex-1">
+  // 5. MODO TRADICIONAL - Minha vez de fazer uma pergunta
+  return (
+    <div className="bg-white border border-[#E8E0D8] rounded-2xl p-2 sm:px-3 sm:py-2.5 shadow-xs flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2">
+      {/* Título conciso + Timer */}
+      <div className="flex items-center justify-between sm:justify-start gap-2 min-w-0">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="w-2 h-2 rounded-full bg-[#C25E3E] shrink-0" />
+          <div className="text-xs sm:text-sm font-bold text-[#382C26] truncate">
+            Sua vez de perguntar para <strong className="text-[#C25E3E] font-bold">{opponentName}</strong>
+          </div>
+        </div>
+        <div className="sm:hidden">
+          <TurnTimer timeLeft={timeLeft} totalTime={totalTime} isOpponent={false} />
+        </div>
+      </div>
+
+      {/* Formulário de Pergunta: Campo com Enviar Integrado + Botão Palpite */}
+      <div className="flex items-center gap-2 flex-1 sm:max-w-xl">
+        <div className="relative flex-1 flex items-center bg-[#FAF6F0] border border-[#E8E0D8] rounded-xl focus-within:border-[#C25E3E] focus-within:bg-white focus-within:ring-2 focus-within:ring-[#C25E3E]/10 transition-all h-10 pl-3 pr-1.5 shadow-2xs">
           <input
             type="text"
-            placeholder="Digite sua pergunta (ex: 'Tem barba?', 'Usa chapéu?')..."
+            placeholder="Pergunte algo de sim ou não..."
             value={customText}
             onChange={(e) => setCustomText(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-            className="w-full bg-slate-50 border-2 border-slate-200 text-slate-900 placeholder-slate-400 text-xs font-semibold rounded-xl pl-3 pr-7 py-2.5 focus:outline-none focus:bg-white focus:border-sky-400 transition-all"
+            className="flex-1 h-full bg-transparent text-[#382C26] placeholder-[#8C786E] text-xs font-medium focus:outline-none pr-1.5"
           />
           {customText && (
             <button
+              type="button"
               onClick={() => setCustomText('')}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 text-xs cursor-pointer"
+              aria-label="Limpar texto"
+              className="p-1 mr-1 text-[#8C786E] hover:text-[#382C26] text-xs cursor-pointer rounded hover:bg-black/5 transition-colors"
             >
-              ✕
+              <X size={13} />
             </button>
           )}
+          <button
+            type="button"
+            onClick={handleSend}
+            disabled={!customText.trim()}
+            title={customText.trim() ? 'Enviar pergunta (Enter)' : 'Digite uma pergunta para enviar'}
+            aria-label="Enviar pergunta"
+            className={`h-7 w-7 rounded-lg flex items-center justify-center transition-all cursor-pointer shrink-0 ${
+              customText.trim()
+                ? 'bg-[#C25E3E] hover:bg-[#A94E31] active:scale-95 text-white shadow-xs'
+                : 'bg-transparent text-[#B5A59D] cursor-not-allowed opacity-40'
+            }`}
+          >
+            <Send size={13} className={customText.trim() ? 'translate-x-0.5 -translate-y-0.5' : ''} />
+          </button>
+        </div>
+
+        <div className="hidden sm:block">
+          <TurnTimer timeLeft={timeLeft} totalTime={totalTime} isOpponent={false} />
         </div>
 
         <button
           type="button"
-          onClick={handleSend}
-          disabled={!customText.trim()}
-          className="shrink-0 flex items-center justify-center gap-1.5 bg-sky-500 hover:bg-sky-600 disabled:opacity-50 text-white font-extrabold text-xs uppercase tracking-wider py-2.5 px-4 rounded-xl shadow-[0_2px_0_#0284c7] transition-all active:translate-y-0.5 cursor-pointer"
+          onClick={onOpenGuessModal}
+          className="h-10 px-3 rounded-xl bg-[#FFE8E0] hover:bg-[#FFD2C4] text-[#C25E3E] border border-[#FFB59A] font-bold text-xs uppercase tracking-wider transition-all cursor-pointer shrink-0 flex items-center gap-1.5"
         >
-          <Send size={13} />
-          <span>Enviar</span>
+          <Trophy size={14} />
+          <span className="hidden md:inline">Palpite</span>
         </button>
       </div>
     </div>

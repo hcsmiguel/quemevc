@@ -111,31 +111,31 @@ export const ImportSharedDeckModal: FC<ImportSharedDeckModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-white border-2 border-slate-200 rounded-3xl max-w-lg w-full p-6 shadow-2xl animate-in zoom-in-95 flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-50 bg-[#382C26]/40 backdrop-blur-xs flex items-center justify-center p-4">
+      <div className="bg-white border border-[#E8E0D8] rounded-3xl max-w-lg w-full p-5 sm:p-6 shadow-xl animate-in zoom-in-95 flex flex-col max-h-[90vh]">
         {/* Header */}
-        <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+        <div className="flex items-center justify-between pb-3 border-b border-[#E8E0D8] mb-4">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-xl bg-[#FFE8E0] text-[#C25E3E] flex items-center justify-center border border-[#FFB59A]/40 shadow-xs">
               <Share2 size={16} />
             </div>
             <div>
-              <h3 className="text-base font-black text-slate-900">Baralho Compartilhado</h3>
-              <p className="text-[11px] text-slate-500">Um jogador compartilhou este baralho com você!</p>
+              <h3 className="text-base font-bold text-[#382C26]">Baralho Compartilhado</h3>
+              <p className="text-[11px] text-[#8C786E]">Um jogador compartilhou este baralho com você!</p>
             </div>
           </div>
 
           <button
             onClick={onClose}
-            className="p-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-500 transition-colors cursor-pointer"
+            className="p-1.5 rounded-xl bg-[#FAF6F0] hover:bg-[#E8E0D8] text-[#8C786E] transition-colors cursor-pointer"
           >
             <X size={16} />
           </button>
         </div>
 
         {loading ? (
-          <div className="py-12 text-center text-xs text-slate-400 font-bold flex flex-col items-center gap-2">
-            <Loader2 size={24} className="animate-spin text-purple-600" />
+          <div className="py-12 text-center text-xs text-[#8C786E] font-bold flex flex-col items-center gap-2">
+            <Loader2 size={24} className="animate-spin text-[#C25E3E]" />
             <span>Carregando baralho compartilhado...</span>
           </div>
         ) : error ? (
@@ -143,43 +143,43 @@ export const ImportSharedDeckModal: FC<ImportSharedDeckModalProps> = ({
             <p className="text-xs text-rose-600 font-bold mb-4">{error}</p>
             <button
               onClick={onClose}
-              className="px-4 py-2 bg-slate-100 text-slate-700 rounded-xl font-bold text-xs"
+              className="px-4 py-2 bg-[#FAF6F0] text-[#776156] rounded-xl font-bold text-xs border border-[#E8E0D8]"
             >
               Fechar
             </button>
           </div>
         ) : deck ? (
           <div className="space-y-4 overflow-y-auto pr-1">
-            <div className="bg-purple-50/70 border border-purple-200 rounded-2xl p-4">
+            <div className="bg-[#FAF6F0] border border-[#E8E0D8] rounded-2xl p-4">
               <div className="flex items-center justify-between mb-1">
-                <h4 className="text-base font-black text-purple-950">{deck.name}</h4>
-                <span className="text-xs font-black px-2.5 py-0.5 rounded-full bg-purple-200 text-purple-900">
+                <h4 className="text-base font-bold text-[#382C26]">{deck.name}</h4>
+                <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-[#FFE8E0] text-[#C25E3E]">
                   {deck.card_count} Caras
                 </span>
               </div>
-              <p className="text-xs text-purple-700 font-medium">
+              <p className="text-xs text-[#8C786E] font-medium">
                 Contém {deck.cards.length} cartas personalizadas prontas para jogar.
               </p>
             </div>
 
             {/* Grid de Previews das Cartas */}
             <div>
-              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-2">
+              <span className="text-[11px] font-bold text-[#8C786E] uppercase tracking-wider block mb-2">
                 Cartas deste baralho:
               </span>
-              <div className="grid grid-cols-4 sm:grid-cols-6 gap-2 max-h-48 overflow-y-auto p-1 bg-slate-50 rounded-2xl border border-slate-200">
+              <div className="grid grid-cols-4 sm:grid-cols-6 gap-2 max-h-48 overflow-y-auto p-2 bg-[#FAF6F0] rounded-2xl border border-[#E8E0D8]">
                 {deck.cards.map((c, i) => (
                   <div key={c.id || i} className="flex flex-col items-center text-center">
-                    <div className="w-12 h-12 rounded-xl overflow-hidden bg-white border border-slate-200 shadow-sm mb-1">
+                    <div className="w-12 h-12 rounded-xl overflow-hidden bg-white border border-[#E8E0D8] shadow-xs mb-1">
                       {c.imageUrl ? (
                         <img src={c.imageUrl} alt={c.name} className="w-full h-full object-cover" />
                       ) : (
-                        <div className="w-full h-full flex items-center justify-center font-bold text-xs bg-amber-100 text-amber-800">
+                        <div className="w-full h-full flex items-center justify-center font-bold text-xs bg-[#FFE8E0] text-[#C25E3E]">
                           {c.name.charAt(0)}
                         </div>
                       )}
                     </div>
-                    <span className="text-[10px] font-extrabold text-slate-700 truncate w-full px-0.5">
+                    <span className="text-[10px] font-bold text-[#382C26] truncate w-full px-0.5">
                       {c.name}
                     </span>
                   </div>
@@ -189,12 +189,12 @@ export const ImportSharedDeckModal: FC<ImportSharedDeckModalProps> = ({
 
             {/* Aviso de Login se o usuário for visitante */}
             {!currentUser && (
-              <div className="p-3 bg-amber-50 border border-amber-200 rounded-2xl flex items-center justify-between gap-2 text-xs text-amber-950 font-medium">
+              <div className="p-3 bg-[#FFF8F4] border border-[#FFB59A] rounded-2xl flex items-center justify-between gap-2 text-xs text-[#776156]">
                 <span className="text-[11px]">Faça login para salvar este baralho no seu perfil.</span>
                 <button
                   type="button"
                   onClick={onOpenLogin}
-                  className="shrink-0 px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white font-black rounded-xl text-xs flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
+                  className="shrink-0 px-3 py-1.5 bg-[#C25E3E] hover:bg-[#A94E31] text-white font-bold rounded-xl text-xs flex items-center gap-1.5 transition-all cursor-pointer shadow-none"
                 >
                   <LogIn size={13} />
                   <span>Entrar / Cadastrar</span>
@@ -204,9 +204,9 @@ export const ImportSharedDeckModal: FC<ImportSharedDeckModalProps> = ({
 
             {/* Sucesso ao Salvar */}
             {savedSuccess && (
-              <div className="p-3 rounded-2xl bg-emerald-50 border-2 border-emerald-300 text-emerald-800 text-xs font-black flex items-center justify-between gap-2 animate-in fade-in">
+              <div className="p-3 rounded-2xl bg-[#E8F5E9] border border-[#A5D6A7] text-[#2E7D32] text-xs font-bold flex items-center justify-between gap-2 animate-in fade-in">
                 <div className="flex items-center gap-2">
-                  <Check size={18} className="text-emerald-600 shrink-0" />
+                  <Check size={18} className="text-[#2E7D32] shrink-0" />
                   <span>{savedSuccess}</span>
                 </div>
                 {onGoToProfile && (
@@ -216,7 +216,7 @@ export const ImportSharedDeckModal: FC<ImportSharedDeckModalProps> = ({
                       onClose();
                       onGoToProfile();
                     }}
-                    className="shrink-0 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black uppercase transition-all shadow-sm cursor-pointer"
+                    className="shrink-0 px-3 py-1.5 bg-[#2E7D32] hover:bg-[#1B5E20] text-white rounded-xl text-xs font-bold uppercase transition-all shadow-none cursor-pointer"
                   >
                     Ver no Perfil
                   </button>
@@ -224,13 +224,13 @@ export const ImportSharedDeckModal: FC<ImportSharedDeckModalProps> = ({
               </div>
             )}
 
-            {/* Ações (Ponto 1: Importar Baralho vs Importar Baralho e Caras) */}
+            {/* Ações */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1">
               <button
                 type="button"
                 onClick={() => handleSaveToProfile(false)}
                 disabled={saving}
-                className="py-3 px-3 rounded-2xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-extrabold text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-sm text-center"
+                className="py-3 px-3 rounded-xl bg-[#FAF6F0] hover:bg-[#E8E0D8] text-[#776156] border border-[#E8E0D8] font-bold text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-none text-center"
               >
                 {saving ? (
                   <Loader2 size={15} className="animate-spin" />
@@ -244,7 +244,7 @@ export const ImportSharedDeckModal: FC<ImportSharedDeckModalProps> = ({
                 type="button"
                 onClick={() => handleSaveToProfile(true)}
                 disabled={saving}
-                className="py-3 px-3 rounded-2xl bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white font-extrabold text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-sm text-center"
+                className="py-3 px-3 rounded-xl bg-[#FFE8E0] hover:bg-[#FFD2C4] text-[#C25E3E] border border-[#FFB59A] font-bold text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-none text-center"
               >
                 {saving ? (
                   <Loader2 size={15} className="animate-spin" />
@@ -260,7 +260,7 @@ export const ImportSharedDeckModal: FC<ImportSharedDeckModalProps> = ({
                   onPlayDeck(deck);
                   onClose();
                 }}
-                className="py-3 px-3 rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-white font-extrabold text-xs shadow-tactile-sm transition-all flex items-center justify-center gap-1.5 cursor-pointer active:translate-y-0.5 text-center"
+                className="py-3 px-3 rounded-xl bg-[#C25E3E] hover:bg-[#A94E31] text-white font-bold text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer text-center shadow-none"
               >
                 <Play size={15} />
                 <span>Jogar Agora</span>

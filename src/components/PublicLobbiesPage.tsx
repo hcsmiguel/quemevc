@@ -60,27 +60,27 @@ export const PublicLobbiesPage: FC<PublicLobbiesPageProps> = ({
   };
 
   return (
-    <div className="min-h-[80vh] max-w-4xl mx-auto w-full p-4 sm:p-6 animate-in fade-in duration-200">
+    <div className="min-h-[80vh] max-w-4xl mx-auto w-full px-4 sm:px-6 py-6 sm:py-8 animate-in fade-in duration-200">
       {/* Top Header */}
-      <div className="flex items-center justify-between mb-6 pb-4 border-b border-slate-200">
+      <div className="flex items-center justify-between mb-6 pb-4 border-b border-[#E8E0D8]">
         <div className="flex items-center gap-3">
           <button
             onClick={() => {
               sounds.playClick();
               onBackToLobby();
             }}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white hover:bg-slate-100 text-slate-700 font-bold text-xs border border-slate-200 shadow-sm transition-all cursor-pointer"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white hover:bg-[#FAF6F0] text-[#776156] hover:text-[#382C26] font-bold text-xs border border-[#E8E0D8] transition-all cursor-pointer"
           >
             <ArrowLeft size={16} />
             <span>Voltar ao Menu</span>
           </button>
           <div>
-            <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
-              <Gamepad2 className="text-sky-600" size={24} />
-              <span>Lobbies Públicos</span>
+            <h1 className="text-xl sm:text-2xl font-bold text-[#382C26] tracking-tight flex items-center gap-2">
+              <Gamepad2 className="text-[#C25E3E]" size={24} />
+              <span>Salas Públicas</span>
             </h1>
-            <p className="text-xs text-slate-500">
-              Salas abertas aguardando um adversário para jogar em tempo real
+            <p className="text-xs sm:text-sm text-[#8C786E]">
+              Partidas abertas aguardando um oponente em tempo real
             </p>
           </div>
         </div>
@@ -88,38 +88,38 @@ export const PublicLobbiesPage: FC<PublicLobbiesPageProps> = ({
         <button
           onClick={handleManualRefresh}
           disabled={isRefreshing}
-          className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-700 font-extrabold text-xs border border-slate-200 shadow-sm transition-all cursor-pointer active:scale-95"
+          className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white hover:bg-[#FAF6F0] text-[#776156] hover:text-[#382C26] font-bold text-xs border border-[#E8E0D8] transition-all cursor-pointer active:scale-95"
           title="Atualizar lista de salas"
         >
-          <RefreshCw size={14} className={isRefreshing ? 'animate-spin text-sky-600' : ''} />
+          <RefreshCw size={14} className={isRefreshing ? 'animate-spin text-[#C25E3E]' : ''} />
           <span className="hidden sm:inline">Atualizar</span>
         </button>
       </div>
 
       {/* Lista de Salas */}
       {loading ? (
-        <div className="py-20 text-center text-xs text-slate-400 font-bold animate-pulse">
+        <div className="py-20 text-center text-xs font-bold text-[#8C786E] animate-pulse">
           Buscando salas abertas disponíveis...
         </div>
       ) : lobbies.length === 0 ? (
-        <div className="bg-white border-2 border-dashed border-slate-200 rounded-3xl p-12 text-center max-w-lg mx-auto shadow-sm">
-          <div className="w-16 h-16 rounded-2xl bg-sky-50 text-sky-600 flex items-center justify-center mx-auto mb-3 shadow-tactile-sm">
+        <div className="bg-white border-2 border-dashed border-[#D4C7BC] rounded-3xl p-8 sm:p-12 text-center max-w-lg mx-auto shadow-xs">
+          <div className="w-16 h-16 rounded-2xl bg-[#FFE8E0] text-[#C25E3E] flex items-center justify-center mx-auto mb-3">
             <Users size={30} />
           </div>
-          <h2 className="text-lg font-black text-slate-800 mb-1">
-            Nenhuma Sala Pública Aberta
+          <h2 className="text-lg font-bold text-[#382C26] mb-1">
+            Nenhuma Sala Aberta no Momento
           </h2>
-          <p className="text-xs text-slate-500 max-w-sm mx-auto mb-6 leading-relaxed">
-            Não há salas públicas abertas no momento. Seja o primeiro a criar uma sala pública para que outros jogadores entrem!
+          <p className="text-xs text-[#8C786E] max-w-sm mx-auto mb-6 leading-relaxed">
+            Todas as salas já iniciaram ou foram preenchidas. Crie sua própria sala pública para jogar agora!
           </p>
           <button
             onClick={() => {
               sounds.playClick();
               onCreateRoomDirectly();
             }}
-            className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-white font-extrabold text-xs uppercase tracking-wider shadow-tactile-sm transition-all active:translate-y-0.5 cursor-pointer"
+            className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-[#C25E3E] hover:bg-[#A94E31] text-white font-bold text-xs uppercase tracking-wider transition-all cursor-pointer shadow-none"
           >
-            <Play size={16} />
+            <Play size={16} className="fill-white" />
             <span>Criar Minha Sala Pública</span>
           </button>
         </div>
@@ -128,35 +128,35 @@ export const PublicLobbiesPage: FC<PublicLobbiesPageProps> = ({
           {lobbies.map((room) => {
             const cardCount = room.config?.cardCount || 15;
             const isCustom = room.config?.mode === 'custom';
-            const deckTitle = room.config?.deckName || (isCustom ? 'Baralho Personalizado' : 'Modo Clássico');
+            const deckTitle = room.config?.deckName || (isCustom ? 'Baralho Personalizado' : 'Turma do Clássico');
 
             return (
               <div
                 key={room.room_code}
-                className="bg-white border-2 border-slate-200 hover:border-sky-300 rounded-3xl p-5 shadow-sm hover:shadow-md transition-all flex flex-col justify-between gap-4 group"
+                className="bg-white border border-[#E8E0D8] hover:border-[#C25E3E] rounded-2xl p-5 shadow-xs hover:-translate-y-1 transition-all flex flex-col justify-between gap-4 group"
               >
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200 flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                    <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-[#E8F5E9] text-[#2E7D32] flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-[#2E7D32] animate-pulse" />
                       Aberta
                     </span>
-                    <span className="text-[11px] font-mono font-bold text-slate-400 flex items-center gap-1">
+                    <span className="text-[11px] font-mono text-[#8C786E] flex items-center gap-1">
                       <Clock size={12} />
                       {getTimeAgo(room.created_at)}
                     </span>
                   </div>
 
                   <div className="flex items-center gap-3 my-2">
-                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-sky-400 to-indigo-500 text-white flex items-center justify-center font-black text-lg shadow-sm">
+                    <div className="w-12 h-12 rounded-xl bg-[#FFE8E0] text-[#C25E3E] flex items-center justify-center font-bold text-lg">
                       {room.host_name.charAt(0).toUpperCase()}
                     </div>
                     <div className="truncate">
-                      <h3 className="font-black text-base text-slate-900 truncate">
+                      <h3 className="font-bold text-base text-[#382C26] truncate">
                         Sala de {room.host_name}
                       </h3>
-                      <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 mt-0.5">
-                        <span className="font-mono text-amber-800 bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-200">
+                      <div className="flex items-center gap-2 text-xs font-semibold text-[#8C786E] mt-0.5">
+                        <span className="font-mono text-[#776156] bg-[#FAF6F0] px-2 py-0.5 rounded-lg border border-[#E8E0D8]">
                           #{room.room_code}
                         </span>
                         <span>•</span>
@@ -166,10 +166,10 @@ export const PublicLobbiesPage: FC<PublicLobbiesPageProps> = ({
                   </div>
                 </div>
 
-                <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
-                  <div className="text-xs font-bold text-slate-600 flex items-center gap-1.5">
-                    <Sparkles size={14} className="text-amber-500" />
-                    <span>{cardCount} Caras</span>
+                <div className="pt-3 border-t border-[#E8E0D8] flex items-center justify-between">
+                  <div className="text-xs font-semibold text-[#776156] flex items-center gap-1.5">
+                    <Sparkles size={14} className="text-[#C25E3E]" />
+                    <span>{cardCount} Cartas</span>
                   </div>
 
                   <button
@@ -177,9 +177,9 @@ export const PublicLobbiesPage: FC<PublicLobbiesPageProps> = ({
                       sounds.playClick();
                       onJoinLobby(room.room_code);
                     }}
-                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-sky-500 hover:bg-sky-600 text-white font-black text-xs uppercase tracking-wider shadow-tactile-sm transition-all active:translate-y-0.5 cursor-pointer"
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#C25E3E] hover:bg-[#A94E31] text-white font-bold text-xs uppercase tracking-wider transition-all cursor-pointer shadow-none"
                   >
-                    <Play size={13} />
+                    <Play size={13} className="fill-white" />
                     <span>Entrar na Partida</span>
                   </button>
                 </div>

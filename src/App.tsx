@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { getDeckByDifficulty, STANDARD_60_CHARACTERS } from './utils/characters';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { getDeckByDifficulty } from './utils/characters';
 import type {
   Character,
   GamePhase,
@@ -14,10 +14,6 @@ import { network } from './services/network';
 import { supabase } from './services/supabase';
 import { auth, type AppUser } from './services/auth';
 import { sounds } from './utils/sound';
-import { Card } from './components/Card';
-import { CardActionModal } from './components/CardActionModal';
-import { SecretCardBadge } from './components/SecretCardBadge';
-import { QuestionControl } from './components/QuestionControl';
 import { QuestionAnswerModal } from './components/QuestionAnswerModal';
 import { GuessModal } from './components/GuessModal';
 import { GameOverModal } from './components/GameOverModal';
@@ -29,14 +25,16 @@ import { ProfilePage } from './components/ProfilePage';
 import { ImportSharedDeckModal } from './components/ImportSharedDeckModal';
 import { CustomDeckBuilder } from './components/CustomDeckBuilder';
 import { PublicLobbiesPage } from './components/PublicLobbiesPage';
-import { CreateLobbyPage } from './components/CreateLobbyPage';
 import { CommunityExplorerPage } from './components/CommunityExplorerPage';
 import { OpponentLeftModal } from './components/OpponentLeftModal';
 import { PasswordPromptModal } from './components/PasswordPromptModal';
 import { Footer } from './components/Footer';
 import { LegalModal, type LegalTab } from './components/LegalModal';
-import { Volume2, VolumeX, User as UserIcon, LogOut, AlertTriangle, Trophy, RotateCcw, History, Clock } from 'lucide-react';
+import { Volume2, VolumeX, User as UserIcon, LogOut, AlertTriangle, RotateCcw, Clock, Sparkles } from 'lucide-react';
 import type { SavedDeck } from './services/auth';
+import { MatchDesignSandbox } from './components/redesign/MatchDesignSandbox';
+import { MatchDesignB } from './components/redesign/MatchDesignB';
+import { AdminLayout } from './components/admin/AdminLayout';
 
 export function App() {
   // Autenticação
@@ -77,11 +75,24 @@ export function App() {
     setLegalModalOpen(true);
   };
 
-  // Fases e Configuração do Jogo (com suporte a rotas dinâmicas /perfil, /criar-lobby, /lobbies)
+  // Fases e Configuração do Jogo (com suporte a rotas dinâmicas /perfil, /lobbies, /comunidade, /partida-design/*)
+  const [currentPath, setCurrentPath] = useState<string>(() => window.location.pathname.toLowerCase());
+
+  useEffect(() => {
+    const handlePopState = () => {
+      setCurrentPath(window.location.pathname.toLowerCase());
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
   const [phase, setPhase] = useState<GamePhase>(() => {
     const path = window.location.pathname.toLowerCase();
     if (path === '/perfil') return 'PROFILE';
-    if (path === '/criar-lobby') return 'CREATE_LOBBY';
+    if (path === '/criar-lobby') {
+      window.history.replaceState({}, document.title, '/');
+      return 'LOBBY';
+    }
     if (path === '/lobbies') return 'PUBLIC_LOBBIES';
     if (path === '/comunidade') return 'COMMUNITY';
     return 'LOBBY';
@@ -104,12 +115,10 @@ export function App() {
     mode: 'standard',
     cardCount: 15,
   });
-  const [activeDeck, setActiveDeck] = useState<Character[]>(() => STANDARD_60_CHARACTERS.slice(0, 15));
+  const [activeDeck, setActiveDeck] = useState<Character[]>(() => getDeckByDifficulty(30));
   const [isBuildingDeck, setIsBuildingDeck] = useState(false);
   const [deckTargetCount, setDeckTargetCount] = useState<DifficultyCount>(30);
-  const [deckIsSecret, setDeckIsSecret] = useState(false);
-  const [deckPassword, setDeckPassword] = useState('');
-  const [deckIsCallMode, setDeckIsCallMode] = useState(false);
+  const [isConfiguringRoom, setIsConfiguringRoom] = useState(false);
 
   // Modal quando oponente abandona (Ponto 2)
   const [opponentLeftData, setOpponentLeftData] = useState<{
@@ -139,22 +148,6 @@ export function App() {
   const [undoStack, setUndoStack] = useState<UndoAction[]>([]);
   const [targetCharacter, setTargetCharacter] = useState<Character | null>(null);
 
-  // Contagem em tempo real das cartas ativas, suspeitas e descartadas
-  const cardCounts = useMemo(() => {
-    const counts = Object.values(cardStatuses).reduce(
-      (acc, curr) => {
-        acc[curr] = (acc[curr] || 0) + 1;
-        return acc;
-      },
-      { normal: 0, suspect: 0, discard: 0, target: 0 } as Record<CardStatus, number>
-    );
-    return {
-      active: Math.max(0, activeDeck.length - counts.discard),
-      suspect: counts.suspect,
-      discard: counts.discard,
-    };
-  }, [cardStatuses, activeDeck.length]);
-
   // Personagens Secretos
   const [mySecretCharacter, setMySecretCharacter] = useState<Character | null>(null);
   const [opponentSecretCharacter, setOpponentSecretCharacter] = useState<Character | null>(null);
@@ -177,11 +170,26 @@ export function App() {
   // Chat Rápido
   const [chatMessages, setChatMessages] = useState<{ sender: string; text: string; id: string }[]>([]);
 
-  // Modal de Ação do Card (Suspeito / Descarte)
-  const [selectedCardForAction, setSelectedCardForAction] = useState<Character | null>(null);
+  // Clique na Carta: Deitar ou Levantar diretamente (mesma dinâmica da página inicial)
   const handleCardClick = useCallback((char: Character) => {
     sounds.playClick();
-    setSelectedCardForAction(char);
+    setCardStatuses((prev) => {
+      const isCurrentlyDown = prev[char.id] === 'discard';
+      const newStatus: CardStatus = isCurrentlyDown ? 'normal' : 'discard';
+      setUndoStack((old) => [
+        ...old,
+        {
+          type: 'status_change',
+          previousStates: { [char.id]: prev[char.id] || 'normal' },
+          newStates: { [char.id]: newStatus },
+          description: isCurrentlyDown ? `Levantou ${char.name}` : `Deitou ${char.name}`,
+        },
+      ]);
+      return {
+        ...prev,
+        [char.id]: newStatus,
+      };
+    });
   }, []);
 
   // Referências para evitar fechamentos obsoletos em listeners de eventos
@@ -276,12 +284,11 @@ export function App() {
     switch (p) {
       case 'PROFILE':
         return '/perfil';
-      case 'CREATE_LOBBY':
-        return '/criar-lobby';
       case 'PUBLIC_LOBBIES':
         return '/lobbies';
       case 'COMMUNITY':
         return '/comunidade';
+      case 'CREATE_LOBBY':
       default:
         return '/';
     }
@@ -302,9 +309,13 @@ export function App() {
     const newUrl = `${targetPath}${newSearch}`;
 
     if (currentPath !== targetPath || (!importDeckId && window.location.search.includes('import_deck'))) {
-      window.history.pushState({ phase, path: targetPath }, '', newUrl);
+      if (waitingForPlayer && targetPath === '/') {
+        window.history.replaceState({ phase, path: targetPath }, '', newUrl);
+      } else {
+        window.history.pushState({ phase, path: targetPath }, '', newUrl);
+      }
     }
-  }, [phase, importDeckId]);
+  }, [phase, importDeckId, waitingForPlayer]);
 
   // Se o modal de importação for fechado, limpar ?import_deck da URL para evitar que F5 reabra o modal
   useEffect(() => {
@@ -332,6 +343,12 @@ export function App() {
         return;
       }
 
+      // Se estava em telas auxiliares (comunidade, perfil, lobbies) e voltou no navegador:
+      if (phase === 'COMMUNITY' || phase === 'PROFILE' || phase === 'PUBLIC_LOBBIES') {
+        setPhase('LOBBY');
+        return;
+      }
+
       if (waitingForPlayer) {
         handleExitToLobby();
         return;
@@ -346,7 +363,8 @@ export function App() {
           setLoginModalOpen(true);
         }
       } else if (path === '/criar-lobby') {
-        setPhase('CREATE_LOBBY');
+        window.history.replaceState({}, document.title, '/');
+        setPhase('LOBBY');
       } else if (path === '/lobbies') {
         setPhase('PUBLIC_LOBBIES');
       } else if (path === '/comunidade') {
@@ -1076,28 +1094,6 @@ export function App() {
     }
   };
 
-  const handleSetCardStatus = useCallback((charId: string, newStatus: CardStatus) => {
-    setCardStatuses((prev) => {
-      const prevStatus = prev[charId] || 'normal';
-      if (prevStatus === newStatus) return prev;
-
-      setUndoStack((old) => [
-        ...old,
-        {
-          type: 'status_change',
-          previousStates: { [charId]: prevStatus },
-          newStates: { [charId]: newStatus },
-          description: `Alterou carta para ${newStatus}`,
-        },
-      ]);
-
-      return {
-        ...prev,
-        [charId]: newStatus,
-      };
-    });
-  }, []);
-
   const handleUndo = () => {
     if (undoStack.length === 0) return;
 
@@ -1304,6 +1300,7 @@ export function App() {
 
     setPhase('LOBBY');
     setWaitingForPlayer(false);
+    setIsConfiguringRoom(false);
     setRoomCode('');
   };
 
@@ -1324,6 +1321,7 @@ export function App() {
     setReconnectSecondsLeft(0);
     setPhase('LOBBY');
     setWaitingForPlayer(false);
+    setIsConfiguringRoom(false);
     setRoomCode('');
     // PROBLEMA 2 RESOLVIDO: Limpar histórico ao voltar ao Lobby
     setQuestionHistory([]);
@@ -1340,19 +1338,53 @@ export function App() {
     hasStartedGameRef.current = false;
   };
 
-  // PONTO 2.b: Iniciar partida diretamente com um baralho personalizado salvo (Código de 6 números)
+  // PONTO 2.b: Iniciar partida diretamente com um baralho personalizado salvo ou aplicar na sala aberta
   const handlePlaySavedDeck = async (savedDeck: SavedDeck) => {
-    if (!currentUser) {
-      sounds.playWrong();
-      setLoginModalOpen(true);
+    setIsBuildingDeck(false);
+
+    // Se estiver no fluxo de configuração prévia da sala (sem ter criado a sala ainda), seleciona o baralho e volta para Configurar Partida
+    if (isConfiguringRoom) {
+      const updatedConfig: RoomConfig = {
+        ...roomConfig,
+        mode: 'custom',
+        cardCount: (savedDeck.card_count as DifficultyCount) || 30,
+        deckName: savedDeck.name,
+        customCards: savedDeck.cards,
+      };
+      setRoomConfig(updatedConfig);
+      const syncedDeck = getDeckByDifficulty(updatedConfig.cardCount, updatedConfig.customCards);
+      setActiveDeck(syncedDeck);
+      setPhase('LOBBY');
+      sounds.playClick();
       return;
     }
+
+    // Se já estiver com uma sala de espera aberta como anfitrião, aplica o baralho à sala atual e retorna instantaneamente
+    if (waitingForPlayer && roomCode && isHost) {
+      const updatedConfig: RoomConfig = {
+        ...roomConfig,
+        mode: 'custom',
+        cardCount: (savedDeck.card_count as DifficultyCount) || 15,
+        deckName: savedDeck.name,
+        customCards: savedDeck.cards,
+      };
+      setRoomConfig(updatedConfig);
+      const syncedDeck = getDeckByDifficulty(updatedConfig.cardCount, updatedConfig.customCards);
+      setActiveDeck(syncedDeck);
+      setPhase('LOBBY');
+      sounds.playClick();
+      // Sincroniza em background sem travar o redirecionamento
+      network.syncRoomState({
+        config: updatedConfig,
+      }).catch((err) => console.error('Erro ao sincronizar baralho:', err));
+      return;
+    }
+
     setPhase('LOBBY');
-    setIsBuildingDeck(false);
     const newCode = await network.generateUniqueRoomCode();
     handleJoinRoom(newCode, playerName || currentUser?.username || 'Host', true, {
       mode: 'custom',
-      cardCount: savedDeck.card_count as DifficultyCount,
+      cardCount: (savedDeck.card_count as DifficultyCount) || 15,
       deckName: savedDeck.name,
       customCards: savedDeck.cards,
     });
@@ -1368,19 +1400,46 @@ export function App() {
 
   const isMyTurn = currentTurnPlayerId === network.playerId;
 
+  // Renderizar SandBox de Redesign da Partida (/partida-design/*)
+  if (currentPath.startsWith('/partida-design')) {
+    return (
+      <MatchDesignSandbox
+        onExitSandbox={() => {
+          window.history.pushState(null, '', '/');
+          setCurrentPath('/');
+          setPhase('LOBBY');
+        }}
+      />
+    );
+  }
+
+  // Renderizar Painel de Administrador (/painel-admin) - Estritamente Restrito a Administradores
+  if (currentPath === '/painel-admin') {
+    return (
+      <AdminLayout
+        currentUser={currentUser}
+        onBackToGame={() => {
+          window.history.replaceState(null, '', '/');
+          setCurrentPath('/');
+          setPhase('LOBBY');
+        }}
+      />
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-[#F8FAFC] text-slate-800 flex flex-col selection:bg-sky-200 selection:text-sky-900 font-sans relative">
-      {/* Wallpaper de Fundo Personalizado (Padrão Doodle Suave e Sutil) */}
+    <div className="min-h-screen bg-[#F6F2EA] text-[#2B2420] flex flex-col selection:bg-[#E2DACD] selection:text-[#2B2420] font-sans relative">
+      {/* Wallpaper de Fundo Personalizado (Padrão Doodle Suave e Sutil - Contraste Reduzido em 35%) */}
       <div
-        className="fixed inset-0 pointer-events-none -z-10 bg-repeat bg-[length:540px_auto] opacity-25 transition-opacity"
+        className="fixed inset-0 pointer-events-none -z-10 bg-repeat bg-[length:540px_auto] opacity-[0.08] transition-opacity"
         style={{
           backgroundImage: "url('/wallpaper.jpg')",
         }}
       />
 
       {/* Barra Superior */}
-      <header className="border-b border-slate-200/90 bg-white/85 backdrop-blur-md sticky top-0 z-30 transition-colors">
-        <div className="max-w-7xl mx-auto px-2.5 sm:px-4 h-13 sm:h-16 flex items-center justify-between gap-1.5 sm:gap-2">
+      <header className="border-b border-[#E2DACD] bg-[#F6F2EA]/95 backdrop-blur-md sticky top-0 z-30 transition-colors">
+        <div className="max-w-6xl w-full mx-auto px-4 sm:px-6 h-14 sm:h-16 flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             <span
               onClick={handleNavigateToMainMenu}
@@ -1390,12 +1449,12 @@ export function App() {
               <img
                 src="/logo-icon.svg"
                 alt="Tá na Cara!"
-                className="h-7 w-7 object-contain sm:hidden"
+                className="h-8 w-8 object-contain sm:hidden"
               />
               <img
                 src="/logo-horizontal.svg"
                 alt="Tá na Cara!"
-                className="hidden sm:block h-7 sm:h-9 w-auto object-contain hover:opacity-90 transition-opacity"
+                className="hidden sm:block h-8 sm:h-9 w-auto object-contain hover:opacity-90 transition-opacity"
               />
             </span>
             {/* Botão de Reconectar no Canto Superior Esquerdo ao lado do Logo / Tag */}
@@ -1492,39 +1551,51 @@ export function App() {
               currentUser ? (
                 <button
                   onClick={() => setPhase('PROFILE')}
-                  className="flex items-center gap-1.5 text-xs font-bold text-slate-700 bg-white hover:bg-slate-50 px-2 py-1 sm:px-3 sm:py-1.5 rounded-xl border border-slate-200 shadow-sm transition-all hover:border-indigo-400 group cursor-pointer shrink-0"
-                  title="Ver estatísticas e baralhos salvos"
+                  className="flex items-center gap-2 text-xs font-medium text-[#2B2420] bg-[#FBF8F3] hover:bg-[#F2ECE1] px-3 py-1.5 rounded-[6px] border border-[#E2DACD] transition-colors cursor-pointer shrink-0 min-h-[38px]"
+                  title="Ver perfil e baralhos"
                 >
                   {currentUser.avatarUrl ? (
                     <img
                       src={currentUser.avatarUrl}
                       alt={currentUser.username}
-                      className="w-5 h-5 rounded-full object-cover ring-1 ring-indigo-500 shadow-sm shrink-0"
+                      className="w-5 h-5 rounded-[4px] object-cover border border-[#E2DACD] shrink-0"
                     />
                   ) : (
-                    <UserIcon size={14} className="text-amber-600 shrink-0" />
+                    <UserIcon size={14} className="text-[#6F655C] shrink-0" />
                   )}
-                  <span className="hidden md:inline max-w-[80px] truncate">{currentUser.username}</span>
-                  <span className="text-[10px] bg-indigo-50 text-indigo-600 font-extrabold px-1.5 py-0.5 rounded-md border border-indigo-100 group-hover:bg-indigo-100 transition-colors flex items-center gap-1">
-                    <Trophy size={10} />
-                    <span>Perfil</span>
-                  </span>
+                  <span className="hidden sm:inline max-w-[90px] truncate">{currentUser.username}</span>
+                  <span className="text-[11px] text-[#6F655C]">Perfil</span>
                 </button>
               ) : (
                 <button
                   onClick={() => setLoginModalOpen(true)}
-                  className="flex items-center gap-1 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-all border border-slate-200 cursor-pointer shrink-0"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-[6px] bg-[#FBF8F3] hover:bg-[#F2ECE1] text-[#2B2420] text-xs font-medium transition-colors border border-[#E2DACD] cursor-pointer shrink-0 min-h-[38px]"
                 >
-                  <UserIcon size={13} className="text-slate-500 shrink-0" />
+                  <UserIcon size={14} className="text-[#6F655C] shrink-0" />
                   <span>Entrar</span>
                 </button>
               )
             )}
 
+            {/* Atalho para SandBox de Redesign no Localhost */}
+            <button
+              onClick={() => {
+                window.history.pushState(null, '', '/partida-design/a');
+                setCurrentPath('/partida-design/a');
+              }}
+              title="Testar propostas de Redesign da Partida"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#FFE8E0] hover:bg-[#FFD2C4] text-[#C25E3E] border border-[#FFB59A] text-xs font-bold transition-all cursor-pointer shrink-0 min-h-[40px] shadow-2xs"
+            >
+              <Sparkles size={14} className="text-[#C25E3E]" />
+              <span className="hidden sm:inline">Propostas UI</span>
+            </button>
+
+            {/* Botão de Som: Ícone puro, 44x44px touch target, aria-label descritivo */}
             <button
               onClick={toggleSound}
+              aria-label={soundEnabled ? 'Silenciar efeitos sonoros' : 'Ativar efeitos sonoros'}
               title={soundEnabled ? 'Silenciar Sons' : 'Ativar Sons'}
-              className="p-1.5 sm:p-2 rounded-xl bg-white hover:bg-slate-100 text-slate-600 hover:text-slate-900 border border-slate-200 shadow-sm transition-all cursor-pointer shrink-0"
+              className="w-10 h-10 min-w-[40px] min-h-[40px] flex items-center justify-center rounded-[6px] bg-[#FBF8F3] hover:bg-[#F2ECE1] text-[#6F655C] hover:text-[#2B2420] border border-[#E2DACD] transition-colors cursor-pointer shrink-0"
             >
               {soundEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
             </button>
@@ -1534,9 +1605,9 @@ export function App() {
               <button
                 onClick={handleNavigateToMainMenu}
                 title="Voltar ao Menu Principal"
-                className="flex items-center justify-center gap-1 p-1.5 sm:px-2.5 sm:py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 text-xs font-extrabold uppercase tracking-wider transition-all active:scale-95 shadow-sm cursor-pointer shrink-0"
+                className="flex items-center justify-center gap-1 px-3 py-2 rounded-[6px] bg-transparent hover:bg-[#F8EBEA] border border-[#ECC7C5] text-[#8C2E2A] text-xs font-medium transition-colors cursor-pointer shrink-0 min-h-[38px]"
               >
-                <LogOut size={14} />
+                <LogOut size={13} />
                 <span className="hidden sm:inline">Menu</span>
               </button>
             )}
@@ -1544,8 +1615,8 @@ export function App() {
         </div>
       </header>
 
-      {/* Conteúdo Principal */}
-      <main className="flex-1 max-w-7xl w-full mx-auto p-2 sm:p-4 flex flex-col">
+      {/* Conteúdo Principal (Container Alinhado com o Header) */}
+      <main className={`flex-1 w-full mx-auto px-2 sm:px-4 md:px-6 py-2 sm:py-4 flex flex-col ${phase === 'PLAYING' ? 'max-w-[1360px]' : 'max-w-6xl'}`}>
         {wrongGuessAlert && (
           <div className="mb-4 bg-rose-50 border-2 border-rose-300 rounded-2xl p-3.5 text-center text-sm font-extrabold text-rose-800 shadow-sm animate-bounce">
             ⚠️ {wrongGuessAlert}
@@ -1553,12 +1624,16 @@ export function App() {
         )}
 
         {/* 1. LOBBY */}
-        {phase === 'LOBBY' && !isBuildingDeck && (
+        <div className={(phase === 'LOBBY' || phase === 'CREATE_LOBBY') && !isBuildingDeck ? 'block' : 'hidden'}>
           <Lobby
             onJoinRoom={handleJoinRoom}
             onOpenCreateLobby={(pName) => {
               setPlayerName(pName);
-              setPhase('CREATE_LOBBY');
+            }}
+            onOpenDeckBuilder={(count) => {
+              setEditingDeck(null);
+              setDeckTargetCount(count || 15);
+              setIsBuildingDeck(true);
             }}
             onOpenLogin={() => setLoginModalOpen(true)}
             onOpenProfile={() => setPhase('PROFILE')}
@@ -1583,32 +1658,18 @@ export function App() {
             reconnectSecondsLeft={reconnectSecondsLeft}
             onReconnectMatch={handleReconnectMatch}
             onDismissReconnect={handleDismissReconnect}
-          />
-        )}
-
-        {/* 1.0 CONFIGURAÇÃO DO LOBBY (Ponto 3: Página exclusiva com Modo Call, tipos de sala, baralhos) */}
-        {phase === 'CREATE_LOBBY' && !isBuildingDeck && (
-          <CreateLobbyPage
-            playerName={playerName || currentUser?.username || 'Host'}
-            currentUser={currentUser}
-            onBackToHome={() => setPhase('LOBBY')}
-            onOpenLogin={() => setLoginModalOpen(true)}
-            onOpenProfile={() => setPhase('PROFILE')}
-            onCreateRoom={async (config) => {
-              const newCode = await network.generateUniqueRoomCode();
-              handleJoinRoom(newCode, playerName || currentUser?.username || 'Host', true, config);
+            roomConfig={roomConfig}
+            onUpdateConfig={(newConfig) => {
+              setRoomConfig(newConfig);
+              const syncedDeck = getDeckByDifficulty(newConfig.cardCount, newConfig.customCards);
+              setActiveDeck(syncedDeck);
+              network.syncRoomState({ config: newConfig });
             }}
-            onOpenDeckBuilder={(count, isSecret, password, isCallMode) => {
-              setEditingDeck(null);
-              setDeckTargetCount(count);
-              setDeckIsSecret(Boolean(isSecret));
-              setDeckPassword(password || '');
-              setDeckIsCallMode(Boolean(isCallMode));
-              setIsBuildingDeck(true);
-            }}
-            isConnecting={isConnecting}
+            isConfiguringRoom={isConfiguringRoom}
+            onStartConfiguringRoom={() => setIsConfiguringRoom(true)}
+            onCancelConfiguringRoom={() => setIsConfiguringRoom(false)}
           />
-        )}
+        </div>
 
         {/* 1.1 CONSTRUTOR DE BARALHO PERSONALIZADO */}
         {isBuildingDeck && (
@@ -1641,15 +1702,32 @@ export function App() {
                 setPhase('PROFILE');
                 return;
               }
+
+              // Se estava em sala de espera aberta como anfitrião, aplica o baralho diretamente e retorna à sala
+              if (waitingForPlayer && roomCode && isHost) {
+                const updatedConfig: RoomConfig = {
+                  ...roomConfig,
+                  mode: 'custom',
+                  cardCount: deckTargetCount,
+                  deckName: customDeckName || 'Baralho Personalizado',
+                  customCards,
+                };
+                setRoomConfig(updatedConfig);
+                const syncedDeck = getDeckByDifficulty(updatedConfig.cardCount, customCards);
+                setActiveDeck(syncedDeck);
+                setIsBuildingDeck(false);
+                setPhase('LOBBY');
+                sounds.playWin();
+                network.syncRoomState({ config: updatedConfig }).catch((err) => console.error(err));
+                return;
+              }
+
               const newCode = await network.generateUniqueRoomCode();
               handleJoinRoom(newCode, playerName || currentUser?.username || 'Host', true, {
                 mode: 'custom',
                 cardCount: deckTargetCount,
                 deckName: customDeckName,
                 customCards,
-                isSecret: deckIsSecret,
-                password: deckPassword || undefined,
-                isCallMode: deckIsCallMode,
               });
             }}
             onCancel={() => {
@@ -1658,7 +1736,7 @@ export function App() {
                 setEditingDeck(null);
                 setPhase('PROFILE');
               } else {
-                setPhase('CREATE_LOBBY');
+                setPhase('LOBBY');
               }
             }}
           />
@@ -1700,15 +1778,18 @@ export function App() {
 
         {/* 1.4 EXPLORAR COMUNIDADE */}
         {phase === 'COMMUNITY' && !isBuildingDeck && (
-          <CommunityExplorerPage
-            currentUser={currentUser}
-            onBackToHome={() => setPhase('LOBBY')}
-            onOpenLogin={() => setLoginModalOpen(true)}
-            onPlayDeck={(deck) => {
-              handlePlaySavedDeck(deck);
-            }}
-            onGoToProfile={() => setPhase('PROFILE')}
-          />
+          <div className="animate-in fade-in duration-150 flex-1 flex flex-col">
+            <CommunityExplorerPage
+              currentUser={currentUser}
+              isConfiguring={isConfiguringRoom}
+              onBackToHome={() => setPhase('LOBBY')}
+              onOpenLogin={() => setLoginModalOpen(true)}
+              onPlayDeck={(deck) => {
+                handlePlaySavedDeck(deck);
+              }}
+              onGoToProfile={() => setPhase('PROFILE')}
+            />
+          </div>
         )}
 
         {/* 2. ESCOLHA DO PERSONAGEM SECRETO */}
@@ -1721,167 +1802,48 @@ export function App() {
           />
         )}
 
-        {/* 3. TABULEIRO EM JOGO */}
+        {/* 3. TABULEIRO EM JOGO (NOVO DESIGN - PROPOSTA B / ESTILO TERMO & CONTEXTO) */}
         {phase === 'PLAYING' && (
-          <div className="flex-1 w-full max-w-[1240px] mx-auto flex flex-col gap-3 sm:gap-4 pb-6 animate-in fade-in duration-200">
-            {/* Barra de Controle Superior: Você é: + Status das Cartas + Desfazer */}
-            <div className="w-full flex items-center justify-between gap-2 bg-white border-2 border-slate-200 rounded-2xl sm:rounded-3xl p-2 sm:px-4 sm:py-2.5 shadow-sm">
-              {/* Esquerda: Seu Personagem Secreto Compacto */}
-              <div className="shrink-0">
-                {mySecretCharacter && (
-                  <SecretCardBadge character={mySecretCharacter} />
-                )}
-              </div>
+          <div className="w-full flex flex-col items-center animate-in fade-in duration-200">
+            <MatchDesignB
+              deck={activeDeck}
+              cardStatuses={cardStatuses}
+              secretCharacter={mySecretCharacter || undefined}
+              questionHistory={questionHistory}
+              currentQuestion={currentQuestion}
+              isMyTurn={isMyTurn}
+              timeLeft={turnTimeLeft}
+              totalTime={TURN_DURATION_SECONDS}
+              opponentName={opponentName}
+              playerName={playerName}
+              roomCode={roomCode}
+              undoDisabled={undoStack.length === 0}
+              isCallMode={roomConfig.isCallMode}
+              onCardClick={handleCardClick}
+              onUndo={() => {
+                if (undoStack.length === 0) return;
+                sounds.playClick();
+                handleUndo();
+              }}
+              onAskQuestion={handleAskQuestion}
+              onPassTurn={handlePassTurn}
+              onOpenGuessModal={() => {
+                if (isMyTurn) {
+                  setGuessModalOpen(true);
+                } else {
+                  sounds.playWrong();
+                }
+              }}
+            />
 
-              {/* Direita: Status das Cartas e Botão Desfazer */}
-              <div className="flex items-center gap-1.5 sm:gap-3">
-                {/* Status das Cartas */}
-                <div className="flex items-center gap-1 sm:gap-1.5 bg-slate-50 border border-slate-200 rounded-xl sm:rounded-2xl p-1 sm:px-2.5 sm:py-1">
-                  <div
-                    className="flex items-center gap-1 px-1.5 py-0.5 rounded-lg bg-emerald-50 text-emerald-800 text-[11px] sm:text-xs font-black"
-                    title="Cartas ativas ainda no jogo"
-                  >
-                    <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
-                    <span>{cardCounts.active}</span>
-                    <span className="hidden md:inline font-semibold text-[10px] text-emerald-700">Ativas</span>
-                  </div>
-                  <div
-                    className="flex items-center gap-1 px-1.5 py-0.5 rounded-lg bg-amber-50 text-amber-900 text-[11px] sm:text-xs font-black"
-                    title="Cartas marcadas como suspeitas"
-                  >
-                    <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
-                    <span>{cardCounts.suspect}</span>
-                    <span className="hidden md:inline font-semibold text-[10px] text-amber-700">Suspeitas</span>
-                  </div>
-                  <div
-                    className="flex items-center gap-1 px-1.5 py-0.5 rounded-lg bg-rose-50 text-rose-800 text-[11px] sm:text-xs font-black"
-                    title="Cartas descartadas"
-                  >
-                    <span className="w-2 h-2 rounded-full bg-rose-500 shrink-0" />
-                    <span>{cardCounts.discard}</span>
-                    <span className="hidden md:inline font-semibold text-[10px] text-rose-700">Descartes</span>
-                  </div>
-                </div>
-
-                {/* Botão Desfazer */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (undoStack.length === 0) return;
-                    sounds.playClick();
-                    handleUndo();
-                  }}
-                  disabled={undoStack.length === 0}
-                  title={undoStack.length === 0 ? 'Nenhuma ação recente para desfazer' : 'Desfazer última alteração'}
-                  className="flex items-center gap-1.5 py-1.5 px-2.5 sm:py-2 sm:px-3.5 rounded-xl sm:rounded-2xl font-black text-xs uppercase tracking-wider transition-all border shadow-sm cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed bg-slate-900 hover:bg-slate-800 text-white border-slate-900 active:translate-y-0.5 shrink-0"
-                >
-                  <RotateCcw size={14} className="text-sky-400" />
-                  <span className="hidden sm:inline">Desfazer</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Painel de Perguntas / Turno Otimizado para Mobile */}
-            <div ref={questionControlAnchorRef}>
-              <QuestionControl
-                isMyTurn={isMyTurn}
-                opponentName={opponentName}
-                currentQuestion={currentQuestion}
-                timeLeft={turnTimeLeft}
-                totalTime={TURN_DURATION_SECONDS}
-                isCallMode={roomConfig.isCallMode}
-                onAskQuestion={handleAskQuestion}
-                onPassTurn={handlePassTurn}
-                onOpenGuessModal={() => {
-                  if (isMyTurn) {
-                    setGuessModalOpen(true);
-                  } else {
-                    sounds.playWrong();
-                  }
-                }}
-              />
-            </div>
-
-            {/* Tabuleiro Expandido Horizontalmente (Mais Cartas por Linha) */}
-            <div className="bg-slate-100/70 border-2 border-slate-200 rounded-2xl sm:rounded-3xl p-2 sm:p-5 shadow-sm">
-              <div
-                className={`grid gap-2 sm:gap-3 md:gap-3.5 cards-board-grid ${
-                  activeDeck.length <= 15
-                    ? 'grid-cols-3 sm:grid-cols-5'
-                    : activeDeck.length <= 30
-                    ? 'grid-cols-3 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-7'
-                    : activeDeck.length <= 60
-                    ? 'grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10'
-                    : 'grid-cols-4 sm:grid-cols-6 md:grid-cols-9 lg:grid-cols-12'
-                }`}
-              >
-                {activeDeck.map((char) => (
-                  <Card
-                    key={char.id}
-                    character={char}
-                    status={cardStatuses[char.id] || 'normal'}
-                    onCardClick={handleCardClick}
-                  />
-                ))}
-              </div>
-            </div>
-
-            {/* Histórico da Partida (Abaixo do Baralho ao Rolar a Página) */}
-            <div className="w-full bg-white border-2 border-slate-200 rounded-2xl sm:rounded-3xl p-4 sm:p-5 shadow-sm">
-              <div className="flex items-center justify-between pb-3 mb-3 border-b border-slate-100">
-                <div className="flex items-center gap-2">
-                  <History size={16} className="text-sky-600" />
-                  <h3 className="text-xs sm:text-sm font-black text-slate-800 uppercase tracking-wider">
-                    Histórico da Partida
-                  </h3>
-                </div>
-                <span className="text-[11px] font-bold text-slate-400">
-                  {questionHistory.length} {questionHistory.length === 1 ? 'pergunta' : 'perguntas'}
-                </span>
-              </div>
-
-              {questionHistory.length === 0 ? (
-                <div className="py-6 text-center text-xs text-slate-400 italic">
-                  Nenhuma pergunta feita ainda nesta partida.
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 max-h-72 overflow-y-auto pr-1">
-                  {questionHistory.map((q, idx) => (
-                    <div key={q.id || idx} className="bg-slate-50 border border-slate-200/80 rounded-xl p-3 flex flex-col justify-between gap-1.5 shadow-2xs">
-                      <div className="flex items-center justify-between text-[11px] text-slate-500 font-bold">
-                        <span className="text-slate-900 font-extrabold">{q.senderName}:</span>
-                        {q.answer !== null && q.answer !== undefined ? (
-                          <span
-                            className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
-                              q.answer
-                                ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
-                                : 'bg-rose-100 text-rose-800 border border-rose-200'
-                            }`}
-                          >
-                            {q.answer ? 'SIM' : 'NÃO'}
-                          </span>
-                        ) : (
-                          <span className="text-amber-600 font-semibold text-[10px]">Aguardando resposta...</span>
-                        )}
-                      </div>
-                      <p className="text-xs font-semibold text-slate-800 leading-snug">
-                        "{q.text}"
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+            {/* Chat Rápido DENTRO da Área do Jogo */}
+            <QuickChat
+              onSendMessage={handleSendChat}
+              recentMessages={chatMessages}
+              currentUserName={playerName}
+            />
           </div>
         )}
-
-        {/* Modal / Bottom Sheet de Ação do Personagem (Mobile & Desktop) */}
-        <CardActionModal
-          character={selectedCardForAction}
-          status={selectedCardForAction ? (cardStatuses[selectedCardForAction.id] || 'normal') : 'normal'}
-          onSetStatus={handleSetCardStatus}
-          onClose={() => setSelectedCardForAction(null)}
-        />
 
         {/* Modal de Resposta: EXCLUSIVAMENTE SIM ou NÃO (oculto no Modo Call) */}
         {questionToAnswer && mySecretCharacter && !roomConfig.isCallMode && (
@@ -1906,6 +1868,7 @@ export function App() {
         {guessModalOpen && (
           <GuessModal
             cards={activeDeck}
+            cardStatuses={cardStatuses}
             opponentName={opponentName}
             onConfirmGuess={handleConfirmGuess}
             onClose={() => setGuessModalOpen(false)}
@@ -1931,29 +1894,29 @@ export function App() {
 
         {/* Modal de Confirmação de Abandonar Partida (PONTO 1.a) */}
         {showAbandonModal && (
-          <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
-            <div className="bg-white border-2 border-slate-200 rounded-3xl max-w-sm w-full p-6 shadow-2xl text-center animate-in zoom-in-95">
-              <div className="w-14 h-14 bg-rose-100 text-rose-600 rounded-2xl flex items-center justify-center mx-auto mb-3 border border-rose-200 shadow-tactile-sm">
-                <AlertTriangle size={28} />
+          <div className="fixed inset-0 z-50 bg-[#382C26]/40 backdrop-blur-xs flex items-center justify-center p-4">
+            <div className="bg-white border border-[#E8E0D8] rounded-3xl max-w-sm w-full p-6 shadow-xl text-center animate-in zoom-in-95">
+              <div className="w-14 h-14 bg-[#FFE8E0] text-[#C25E3E] rounded-2xl flex items-center justify-center mx-auto mb-3 border border-[#FFB59A]/40 shadow-xs">
+                <AlertTriangle size={26} />
               </div>
 
-              <h3 className="text-lg font-black text-slate-900 mb-1">
+              <h3 className="text-lg font-bold text-[#382C26] mb-1">
                 Abandonar Partida?
               </h3>
-              <p className="text-xs text-slate-500 mb-6 leading-relaxed">
+              <p className="text-xs text-[#8C786E] mb-6 leading-relaxed">
                 Você deseja realmente abandonar a partida atual e voltar ao menu principal?
               </p>
 
               <div className="grid grid-cols-2 gap-3">
                 <button
                   onClick={() => setShowAbandonModal(false)}
-                  className="py-2.5 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-xs uppercase tracking-wider transition-all"
+                  className="py-2.5 px-4 rounded-xl bg-[#FAF6F0] hover:bg-[#E8E0D8] text-[#776156] font-bold text-xs uppercase tracking-wider transition-all border border-[#E8E0D8] cursor-pointer"
                 >
                   Continuar Jogando
                 </button>
                 <button
                   onClick={handleConfirmAbandon}
-                  className="py-2.5 px-4 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-xs uppercase tracking-wider shadow-tactile-sm transition-all active:translate-y-0.5"
+                  className="py-2.5 px-4 rounded-xl bg-[#C25E3E] hover:bg-[#A94E31] text-white font-bold text-xs uppercase tracking-wider transition-all cursor-pointer shadow-none"
                 >
                   Sim, Abandonar
                 </button>
@@ -2010,14 +1973,6 @@ export function App() {
           }}
         />
       </main>
-
-      {/* Chat Rápido */}
-      {phase === 'PLAYING' && (
-        <QuickChat
-          onSendMessage={handleSendChat}
-          recentMessages={chatMessages}
-        />
-      )}
 
       {/* Rodapé (Footer) com Política de Privacidade e Termos */}
       <Footer

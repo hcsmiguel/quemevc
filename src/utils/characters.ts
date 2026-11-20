@@ -1,6 +1,7 @@
 import type { Character, DifficultyCount } from '../types/game';
+import { MOCK_90_CHARACTERS } from '../components/redesign/mockData';
 
-// 15 Personagens Oficiais do Modo Padrão
+// 15 Personagens Oficiais (Descontinuados - mantidos apenas como referência interna)
 export const STANDARD_15_CHARACTERS: Character[] = [
   { id: 'std_1', name: 'Ana', imageUrl: '/standard-faces/Ana.jpg' },
   { id: 'std_2', name: 'Bruno', imageUrl: '/standard-faces/Bruno.jpg' },
@@ -36,5 +37,6 @@ export function getDeckByDifficulty(count: DifficultyCount, customCards?: Charac
   if (customCards && customCards.length > 0) {
     return customCards.slice(0, count);
   }
-  return STANDARD_15_CHARACTERS.slice(0, count);
+  // Modo clássico descontinuado: sempre utiliza o baralho moderno da comunidade
+  return MOCK_90_CHARACTERS.slice(0, count);
 }

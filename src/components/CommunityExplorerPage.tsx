@@ -24,6 +24,7 @@ interface CommunityExplorerPageProps {
   onOpenLogin: () => void;
   onPlayDeck: (deck: SavedDeck) => void;
   onGoToProfile: () => void;
+  isConfiguring?: boolean;
 }
 
 export const CommunityExplorerPage: FC<CommunityExplorerPageProps> = ({
@@ -32,12 +33,13 @@ export const CommunityExplorerPage: FC<CommunityExplorerPageProps> = ({
   onOpenLogin,
   onPlayDeck,
   onGoToProfile,
+  isConfiguring = false,
 }) => {
   const [activeTab, setActiveTab] = useState<'decks' | 'faces'>('decks');
   const [searchQuery, setSearchQuery] = useState('');
-  const [publicDecks, setPublicDecks] = useState<SavedDeck[]>([]);
-  const [publicFaces, setPublicFaces] = useState<SavedFace[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [publicDecks, setPublicDecks] = useState<SavedDeck[]>(() => auth.getCachedPublicDecks());
+  const [publicFaces, setPublicFaces] = useState<SavedFace[]>(() => auth.getCachedPublicFaces());
+  const [loading, setLoading] = useState(() => !auth.getCachedPublicDecks().length);
 
   // Estados de feedback de cópia e salvamento
   const [copiedDeckId, setCopiedDeckId] = useState<string | null>(null);
@@ -53,7 +55,10 @@ export const CommunityExplorerPage: FC<CommunityExplorerPageProps> = ({
   useEffect(() => {
     let isMounted = true;
     const fetchData = async () => {
-      setLoading(true);
+      // Se já temos dados em cache e não há busca, não exibe spinner bloqueante
+      if (searchQuery || (activeTab === 'decks' ? !publicDecks.length : !publicFaces.length)) {
+        setLoading(true);
+      }
       try {
         if (activeTab === 'decks') {
           const decks = await auth.getPublicDecks(searchQuery);
@@ -69,7 +74,8 @@ export const CommunityExplorerPage: FC<CommunityExplorerPageProps> = ({
       }
     };
 
-    const timer = setTimeout(fetchData, 250);
+    const delay = searchQuery.trim() ? 250 : 0;
+    const timer = setTimeout(fetchData, delay);
     return () => {
       isMounted = false;
       clearTimeout(timer);
@@ -150,36 +156,36 @@ export const CommunityExplorerPage: FC<CommunityExplorerPageProps> = ({
   };
 
   return (
-    <div className="max-w-6xl mx-auto w-full py-4 sm:py-6 px-3 sm:px-4 animate-in fade-in duration-200">
+    <div className="max-w-6xl mx-auto w-full py-6 sm:py-8 px-4 sm:px-6 animate-in fade-in duration-200">
       {/* Botão Voltar */}
-      <div className="mb-4">
+      <div className="mb-5">
         <button
           onClick={onBackToHome}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl sm:rounded-2xl bg-white hover:bg-slate-50 border-2 border-slate-200 text-slate-700 font-extrabold text-[11px] sm:text-xs shadow-sm hover:border-slate-300 transition-all cursor-pointer"
+          className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white hover:bg-[#FAF6F0] border border-[#E8E0D8] text-[#776156] hover:text-[#382C26] font-bold text-xs transition-all cursor-pointer"
         >
-          <ArrowLeft size={14} />
+          <ArrowLeft size={16} />
           <span>Voltar ao Menu Principal</span>
         </button>
       </div>
 
       {/* Hero Header */}
-      <div className="bg-gradient-to-r from-purple-50 via-sky-50 to-amber-50 border-2 border-purple-200 rounded-3xl p-5 sm:p-7 shadow-sm mb-6 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
+      <div className="bg-white border border-[#E8E0D8] rounded-3xl p-5 sm:p-7 shadow-xs mb-6 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3.5 min-w-0">
-          <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-purple-600 text-white flex items-center justify-center font-black shadow-tactile-sm shrink-0">
+          <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-[#FFE8E0] text-[#C25E3E] flex items-center justify-center font-bold shrink-0">
             <Globe2 size={26} />
           </div>
           <div>
-            <div className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
-              <span className="text-[10px] font-black uppercase tracking-wider text-purple-900">
-                Hub Aberto
+            <div className="flex items-center gap-1.5 mb-0.5">
+              <span className="w-2 h-2 rounded-full bg-[#2E7D32] animate-pulse" />
+              <span className="text-[10px] font-bold uppercase tracking-wider text-[#776156]">
+                Comunidade Aberta
               </span>
             </div>
-            <h1 className="text-xl sm:text-2xl font-black text-slate-900 leading-tight">
+            <h1 className="text-xl sm:text-2xl font-bold text-[#382C26] leading-tight">
               Explorar Comunidade
             </h1>
-            <p className="text-xs sm:text-sm text-slate-600">
-              Baralhos e personagens criados por jogadores da comunidade prontos para jogar!
+            <p className="text-xs sm:text-sm text-[#8C786E]">
+              Baralhos e personagens criados por jogadores prontos para jogar a qualquer momento
             </p>
           </div>
         </div>
@@ -187,9 +193,9 @@ export const CommunityExplorerPage: FC<CommunityExplorerPageProps> = ({
         {currentUser && (
           <button
             onClick={onGoToProfile}
-            className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-extrabold text-xs uppercase tracking-wider shadow-[0_2px_0_#581c87] transition-all cursor-pointer shrink-0"
+            className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#FAF6F0] hover:bg-[#F3ECE6] border border-[#E8E0D8] text-[#382C26] font-bold text-xs uppercase tracking-wider transition-all cursor-pointer shrink-0"
           >
-            <User size={14} />
+            <User size={14} className="text-[#C25E3E]" />
             <span>Meu Perfil</span>
           </button>
         )}
@@ -198,20 +204,20 @@ export const CommunityExplorerPage: FC<CommunityExplorerPageProps> = ({
       {/* Barra de Filtros e Busca */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 mb-6">
         {/* Abas: Baralhos vs Caras */}
-        <div className="grid grid-cols-2 p-1 bg-slate-200/70 rounded-xl sm:rounded-2xl border border-slate-200 text-xs font-bold gap-1 sm:inline-flex sm:w-auto">
+        <div className="grid grid-cols-2 p-1 bg-[#FAF6F0] rounded-xl border border-[#E8E0D8] text-xs font-bold gap-1 sm:inline-flex sm:w-auto">
           <button
             type="button"
             onClick={() => {
               sounds.playClick();
               setActiveTab('decks');
             }}
-            className={`py-2 px-4 rounded-lg sm:rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+            className={`py-2 px-4 rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
               activeTab === 'decks'
-                ? 'bg-white text-slate-900 shadow-sm border border-slate-200/80 font-black'
-                : 'text-slate-600 hover:text-slate-900'
+                ? 'bg-[#FFE8E0] text-[#C25E3E] font-bold'
+                : 'text-[#776156] hover:text-[#382C26]'
             }`}
           >
-            <Layers size={14} className={activeTab === 'decks' ? 'text-indigo-600' : ''} />
+            <Layers size={14} />
             <span>Baralhos da Comunidade</span>
           </button>
 
@@ -221,13 +227,13 @@ export const CommunityExplorerPage: FC<CommunityExplorerPageProps> = ({
               sounds.playClick();
               setActiveTab('faces');
             }}
-            className={`py-2 px-4 rounded-lg sm:rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+            className={`py-2 px-4 rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
               activeTab === 'faces'
-                ? 'bg-white text-slate-900 shadow-sm border border-slate-200/80 font-black'
-                : 'text-slate-600 hover:text-slate-900'
+                ? 'bg-[#FFE8E0] text-[#C25E3E] font-bold'
+                : 'text-[#776156] hover:text-[#382C26]'
             }`}
           >
-            <Smile size={14} className={activeTab === 'faces' ? 'text-amber-600' : ''} />
+            <Smile size={14} />
             <span>Banco de Caras</span>
           </button>
         </div>
@@ -236,16 +242,16 @@ export const CommunityExplorerPage: FC<CommunityExplorerPageProps> = ({
         <div className="relative flex-1 sm:max-w-xs">
           <input
             type="text"
-            placeholder={activeTab === 'decks' ? 'Buscar baralhos por nome...' : 'Buscar personagens...'}
+            placeholder={activeTab === 'decks' ? 'Buscar baralhos por tema...' : 'Buscar personagens...'}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-white border-2 border-slate-200 text-slate-900 placeholder-slate-400 text-xs font-semibold rounded-xl sm:rounded-2xl pl-9 pr-8 py-2.5 focus:outline-none focus:border-purple-400 transition-all shadow-sm"
+            className="w-full bg-white border border-[#E8E0D8] text-[#382C26] placeholder-[#8C786E] text-xs font-semibold rounded-xl pl-9 pr-8 py-2.5 focus:outline-none focus:border-[#C25E3E] transition-all"
           />
-          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#8C786E] pointer-events-none" />
           {searchQuery && (
             <button
               onClick={() => setSearchQuery('')}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs cursor-pointer"
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#8C786E] hover:text-[#382C26] text-xs cursor-pointer"
             >
               ✕
             </button>
@@ -258,18 +264,18 @@ export const CommunityExplorerPage: FC<CommunityExplorerPageProps> = ({
         <div>
           {loading ? (
             <div className="py-20 text-center flex flex-col items-center justify-center gap-2">
-              <Loader2 size={26} className="animate-spin text-purple-600" />
-              <span className="text-xs font-extrabold text-slate-500">Carregando baralhos da comunidade...</span>
+              <Loader2 size={26} className="animate-spin text-[#C25E3E]" />
+              <span className="text-xs font-bold text-[#8C786E]">Carregando baralhos da comunidade...</span>
             </div>
           ) : publicDecks.length === 0 ? (
-            <div className="bg-white border-2 border-dashed border-slate-200 rounded-3xl p-10 text-center max-w-md mx-auto">
-              <div className="w-14 h-14 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center mx-auto mb-3 shadow-tactile-sm">
+            <div className="bg-white border-2 border-dashed border-[#D4C7BC] rounded-3xl p-10 text-center max-w-md mx-auto">
+              <div className="w-14 h-14 rounded-2xl bg-[#FFE8E0] text-[#C25E3E] flex items-center justify-center mx-auto mb-3">
                 <Layers size={26} />
               </div>
-              <h3 className="text-base font-black text-slate-900 mb-1">
+              <h3 className="text-base font-bold text-[#382C26] mb-1">
                 {searchQuery ? 'Nenhum baralho encontrado' : 'Nenhum baralho público ainda'}
               </h3>
-              <p className="text-xs text-slate-500 leading-relaxed">
+              <p className="text-xs text-[#8C786E] leading-relaxed">
                 {searchQuery
                   ? 'Tente pesquisar por outro termo ou limpe a busca para ver todos.'
                   : 'Crie seu baralho no perfil e ative a opção "Público para Comunidade" para ser o primeiro!'}
@@ -280,20 +286,20 @@ export const CommunityExplorerPage: FC<CommunityExplorerPageProps> = ({
               {publicDecks.map((deck) => (
                 <div
                   key={deck.id}
-                  className="bg-white border-2 border-slate-200 rounded-3xl p-5 shadow-sm hover:shadow-md hover:border-purple-300 transition-all flex flex-col justify-between"
+                  className="bg-white border border-[#E8E0D8] hover:border-[#C25E3E] rounded-2xl p-5 shadow-xs hover:-translate-y-1 transition-all flex flex-col justify-between"
                 >
                   <div>
                     <div className="flex items-start justify-between gap-2 mb-2">
                       <div className="min-w-0">
-                        <h3 className="font-black text-base text-slate-900 leading-tight truncate">
+                        <h3 className="font-bold text-base text-[#382C26] leading-tight truncate">
                           {deck.name}
                         </h3>
                         <div className="flex items-center gap-2 mt-1">
-                          <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 border border-purple-200">
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#FAF6F0] text-[#776156] border border-[#E8E0D8]">
                             {deck.card_count} Caras
                           </span>
-                          <span className="text-[10px] font-bold text-slate-500 truncate">
-                            por <strong className="text-slate-700">{deck.author_name?.trim() ? deck.author_name : 'Jogador da Comunidade'}</strong>
+                          <span className="text-[10px] text-[#8C786E] truncate">
+                            por <strong className="text-[#382C26]">{deck.author_name?.trim() ? deck.author_name : 'Jogador da Comunidade'}</strong>
                           </span>
                         </div>
                       </div>
@@ -305,8 +311,8 @@ export const CommunityExplorerPage: FC<CommunityExplorerPageProps> = ({
                           title="Copiar link deste baralho"
                           className={`p-2 rounded-xl transition-colors cursor-pointer ${
                             copiedDeckId === deck.id
-                              ? 'bg-emerald-100 text-emerald-800'
-                              : 'bg-slate-100 hover:bg-purple-50 text-slate-500 hover:text-purple-700'
+                              ? 'bg-[#E8F5E9] text-[#2E7D32]'
+                              : 'bg-[#FAF6F0] hover:bg-[#FFE8E0] text-[#776156] hover:text-[#C25E3E]'
                           }`}
                         >
                           {copiedDeckId === deck.id ? <Check size={14} /> : <Share2 size={14} />}
@@ -323,7 +329,7 @@ export const CommunityExplorerPage: FC<CommunityExplorerPageProps> = ({
                             })
                           }
                           title="Denunciar baralho"
-                          className="p-2 rounded-xl bg-slate-100 hover:bg-rose-50 text-slate-400 hover:text-rose-600 transition-colors cursor-pointer"
+                          className="p-2 rounded-xl bg-[#FAF6F0] hover:bg-rose-50 text-[#8C786E] hover:text-rose-600 transition-colors cursor-pointer"
                         >
                           <Flag size={14} />
                         </button>
@@ -335,19 +341,19 @@ export const CommunityExplorerPage: FC<CommunityExplorerPageProps> = ({
                       {deck.cards.slice(0, 6).map((c, i) => (
                         <div
                           key={c.id || i}
-                          className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl border-2 border-white shadow-sm overflow-hidden bg-slate-100 shrink-0"
+                          className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl border-2 border-white shadow-xs overflow-hidden bg-[#FAF6F0] shrink-0"
                         >
                           {c.imageUrl ? (
                             <img src={c.imageUrl} alt={c.name} className="w-full h-full object-cover" />
                           ) : (
-                            <div className="w-full h-full flex items-center justify-center text-xs font-bold bg-amber-200 text-amber-900">
+                            <div className="w-full h-full flex items-center justify-center text-xs font-bold bg-[#FFE8E0] text-[#C25E3E]">
                               {c.name.charAt(0)}
                             </div>
                           )}
                         </div>
                       ))}
                       {deck.cards.length > 6 && (
-                        <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl border-2 border-white shadow-sm bg-slate-200 flex items-center justify-center text-xs font-black text-slate-700 shrink-0">
+                        <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl border-2 border-white shadow-xs bg-[#FAF6F0] text-[#776156] flex items-center justify-center text-xs font-bold shrink-0">
                           +{deck.cards.length - 6}
                         </div>
                       )}
@@ -355,37 +361,32 @@ export const CommunityExplorerPage: FC<CommunityExplorerPageProps> = ({
                   </div>
 
                   {/* Ações */}
-                  <div className="space-y-2 pt-2 border-t border-slate-100">
+                  <div className="space-y-2 pt-3 border-t border-[#E8E0D8]">
                     <button
                       type="button"
                       onClick={() => {
-                        if (!currentUser) {
-                          sounds.playWrong();
-                          onOpenLogin();
-                          return;
-                        }
                         sounds.playClick();
                         onPlayDeck(deck);
                       }}
-                      className="w-full flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-extrabold text-xs shadow-tactile-sm transition-all active:translate-y-0.5 cursor-pointer"
+                      className="w-full flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-[#C25E3E] hover:bg-[#A94E31] text-white font-bold text-xs uppercase tracking-wider transition-all cursor-pointer shadow-none"
                     >
-                      <Play size={14} />
-                      <span>Jogar com este Baralho</span>
+                      <Play size={14} className="fill-white" />
+                      <span>{isConfiguring ? 'Selecionar este Baralho' : 'Jogar com este Baralho'}</span>
                     </button>
 
                     <button
                       type="button"
                       onClick={() => handleSaveDeckToProfile(deck)}
                       disabled={savedDeckId === deck.id}
-                      className={`w-full flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl font-extrabold text-xs transition-colors cursor-pointer border ${
+                      className={`w-full flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl font-bold text-xs transition-colors cursor-pointer border ${
                         savedDeckId === deck.id
-                          ? 'bg-emerald-50 border-emerald-300 text-emerald-800'
-                          : 'bg-purple-50 hover:bg-purple-100 border-purple-200 text-purple-700'
+                          ? 'bg-[#E8F5E9] border-[#A5D6A7] text-[#2E7D32]'
+                          : 'bg-[#FAF6F0] hover:bg-[#F3ECE6] border-[#E8E0D8] text-[#776156]'
                       }`}
                     >
                       {savedDeckId === deck.id ? (
                         <>
-                          <Check size={13} className="text-emerald-600" />
+                          <Check size={13} className="text-[#2E7D32]" />
                           <span>Salvo no seu Perfil!</span>
                         </>
                       ) : (
@@ -408,18 +409,18 @@ export const CommunityExplorerPage: FC<CommunityExplorerPageProps> = ({
         <div>
           {loading ? (
             <div className="py-20 text-center flex flex-col items-center justify-center gap-2">
-              <Loader2 size={26} className="animate-spin text-amber-600" />
-              <span className="text-xs font-extrabold text-slate-500">Carregando caras da comunidade...</span>
+              <Loader2 size={26} className="animate-spin text-[#C25E3E]" />
+              <span className="text-xs font-bold text-[#8C786E]">Carregando caras da comunidade...</span>
             </div>
           ) : publicFaces.length === 0 ? (
-            <div className="bg-white border-2 border-dashed border-slate-200 rounded-3xl p-10 text-center max-w-md mx-auto">
-              <div className="w-14 h-14 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto mb-3 shadow-tactile-sm">
+            <div className="bg-white border-2 border-dashed border-[#D4C7BC] rounded-3xl p-10 text-center max-w-md mx-auto">
+              <div className="w-14 h-14 rounded-2xl bg-[#FFE8E0] text-[#C25E3E] flex items-center justify-center mx-auto mb-3">
                 <Smile size={26} />
               </div>
-              <h3 className="text-base font-black text-slate-900 mb-1">
+              <h3 className="text-base font-bold text-[#382C26] mb-1">
                 {searchQuery ? 'Nenhuma cara encontrada' : 'Nenhuma cara pública ainda'}
               </h3>
-              <p className="text-xs text-slate-500 leading-relaxed">
+              <p className="text-xs text-[#8C786E] leading-relaxed">
                 {searchQuery
                   ? 'Tente buscar pelo nome de outro personagem ou limpe a busca.'
                   : 'Cadastre e recorte caras no seu perfil marcando como públicas para compartilhar com todos!'}
@@ -430,9 +431,9 @@ export const CommunityExplorerPage: FC<CommunityExplorerPageProps> = ({
               {publicFaces.map((face) => (
                 <div
                   key={face.id}
-                  className="bg-white border-2 border-slate-200 rounded-3xl p-3 shadow-sm hover:border-amber-400 hover:shadow-md transition-all flex flex-col items-center text-center group relative"
+                  className="bg-white border border-[#E8E0D8] hover:border-[#C25E3E] rounded-2xl p-3 shadow-xs hover:-translate-y-1 transition-all flex flex-col items-center text-center group relative"
                 >
-                  <div className="w-24 h-24 sm:w-28 sm:h-28 md:w-32 md:h-32 rounded-2xl overflow-hidden mb-2 bg-slate-100 border border-slate-200 shadow-inner relative">
+                  <div className="w-24 h-24 sm:w-28 sm:h-28 md:w-32 md:h-32 rounded-xl overflow-hidden mb-2 bg-[#FAF6F0] border border-[#E8E0D8] relative">
                     <img
                       src={face.image_url}
                       alt={face.name}
@@ -452,33 +453,33 @@ export const CommunityExplorerPage: FC<CommunityExplorerPageProps> = ({
                         });
                       }}
                       title="Denunciar este personagem"
-                      className="absolute top-1.5 right-1.5 p-1 rounded-lg bg-white/80 hover:bg-white text-slate-400 hover:text-rose-600 shadow-xs opacity-70 hover:opacity-100 transition-all cursor-pointer backdrop-blur-xs"
+                      className="absolute top-1.5 right-1.5 p-1 rounded-lg bg-white/80 hover:bg-white text-[#8C786E] hover:text-rose-600 shadow-xs opacity-70 hover:opacity-100 transition-all cursor-pointer backdrop-blur-xs"
                     >
                       <Flag size={11} />
                     </button>
                   </div>
 
-                  <span className="font-black text-xs sm:text-sm text-slate-900 truncate w-full px-1 mb-0.5">
+                  <span className="font-bold text-xs sm:text-sm text-[#382C26] truncate w-full px-1 mb-0.5">
                     {face.name}
                   </span>
 
-                  <span className="text-[10px] text-slate-400 font-bold mb-2 truncate w-full">
-                    por <strong className="text-slate-600">{face.author_name?.trim() ? face.author_name : 'Comunidade'}</strong>
+                  <span className="text-[10px] text-[#8C786E] mb-2 truncate w-full">
+                    por <strong className="text-[#776156]">{face.author_name?.trim() ? face.author_name : 'Comunidade'}</strong>
                   </span>
 
                   <button
                     type="button"
                     onClick={() => handleSaveFaceToProfile(face)}
                     disabled={savedFaceId === face.id}
-                    className={`w-full flex items-center justify-center gap-1 py-1.5 px-2 rounded-xl font-extrabold text-[11px] transition-all cursor-pointer border ${
+                    className={`w-full flex items-center justify-center gap-1 py-1.5 px-2 rounded-xl font-bold text-[11px] transition-all cursor-pointer border ${
                       savedFaceId === face.id
-                        ? 'bg-emerald-50 border-emerald-300 text-emerald-800'
-                        : 'bg-amber-50 hover:bg-amber-100 border-amber-200 text-amber-900'
+                        ? 'bg-[#E8F5E9] border-[#A5D6A7] text-[#2E7D32]'
+                        : 'bg-[#FAF6F0] hover:bg-[#FFE8E0] border-[#E8E0D8] text-[#776156]'
                     }`}
                   >
                     {savedFaceId === face.id ? (
                       <>
-                        <Check size={12} className="text-emerald-600" />
+                        <Check size={12} className="text-[#2E7D32]" />
                         <span>Salva!</span>
                       </>
                     ) : (

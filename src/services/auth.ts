@@ -4,9 +4,14 @@ import type { Character } from '../types/game';
 export interface AppUser {
   id: string;
   username: string;
+  email?: string;
   avatarUrl?: string;
   provider?: 'google' | 'discord' | 'email';
   created_at: string;
+  is_admin?: boolean;
+  is_banned?: boolean;
+  banned_until?: string | null;
+  ban_reason?: string | null;
 }
 
 export interface MatchRecord {
@@ -36,6 +41,13 @@ export interface SavedDeck {
   created_at: string;
   is_public?: boolean;
   author_name?: string;
+  is_official?: boolean;
+  is_draft?: boolean;
+  is_featured?: boolean;
+  featured_order?: number;
+  description?: string;
+  cover_image_url?: string;
+  is_hidden?: boolean;
 }
 
 export interface SavedFace {
@@ -48,7 +60,11 @@ export interface SavedFace {
   author_name?: string;
 }
 
-export class AuthService {
+export // Cache em memória para transições ultra-rápidas e instantâneas da Comunidade
+let publicDecksMemoryCache: { data: SavedDeck[]; timestamp: number } | null = null;
+let publicFacesMemoryCache: { data: SavedFace[]; timestamp: number } | null = null;
+
+class AuthService {
   private currentUser: AppUser | null = null;
   private authStateListeners: Set<(user: AppUser | null) => void> = new Set();
 
@@ -58,6 +74,7 @@ export class AuthService {
     if (saved) {
       try {
         this.currentUser = JSON.parse(saved);
+        this.refreshUserProfile();
       } catch {
         this.currentUser = null;
       }
@@ -89,18 +106,132 @@ export class AuthService {
         const appUser: AppUser = {
           id: u.id,
           username: name,
+          email: u.email,
           avatarUrl: avatar,
           provider,
           created_at: u.created_at || new Date().toISOString(),
         };
 
-        this.setCurrentUser(appUser);
+        await this.syncAndLoadUserProfile(appUser);
       }
     });
   }
 
   public getCurrentUser(): AppUser | null {
     return this.currentUser;
+  }
+
+  public isAdmin(): boolean {
+    return !!this.currentUser?.is_admin;
+  }
+
+  public isBanned(): boolean {
+    return !!this.currentUser?.is_banned;
+  }
+
+  public async syncAndLoadUserProfile(appUser: AppUser): Promise<AppUser> {
+    try {
+      const { data, error } = await supabase
+        .from('user_profiles')
+        .select('*')
+        .eq('id', appUser.id)
+        .maybeSingle();
+
+      if (!error && data) {
+        const isBanned = !!data.is_banned && (!data.banned_until || new Date(data.banned_until) > new Date());
+        appUser.is_admin = !!data.is_admin;
+        appUser.is_banned = isBanned;
+        appUser.banned_until = data.banned_until;
+        appUser.ban_reason = data.ban_reason;
+        appUser.email = data.email || appUser.email;
+      } else {
+        await supabase.from('user_profiles').insert({
+          id: appUser.id,
+          username: appUser.username,
+          email: appUser.email || null,
+          avatar_url: appUser.avatarUrl || null,
+          provider: appUser.provider || 'discord',
+          is_admin: false,
+          is_banned: false,
+        });
+      }
+    } catch (e) {
+      console.warn('Falha ao sincronizar perfil do usuário:', e);
+    }
+
+    this.setCurrentUser(appUser);
+    return appUser;
+  }
+
+  public async refreshUserProfile(): Promise<AppUser | null> {
+    if (!this.currentUser) return null;
+    try {
+      const { data, error } = await supabase
+        .from('user_profiles')
+        .select('*')
+        .eq('id', this.currentUser.id)
+        .maybeSingle();
+
+      if (!error && data) {
+        const isBanned = !!data.is_banned && (!data.banned_until || new Date(data.banned_until) > new Date());
+        this.currentUser = {
+          ...this.currentUser,
+          is_admin: !!data.is_admin,
+          is_banned: isBanned,
+          banned_until: data.banned_until,
+          ban_reason: data.ban_reason,
+          email: data.email || this.currentUser.email,
+        };
+        localStorage.setItem('cara_auth_user', JSON.stringify(this.currentUser));
+        this.notifyListeners();
+      }
+    } catch (e) {
+      console.warn('Falha ao atualizar perfil do usuário:', e);
+    }
+    return this.currentUser;
+  }
+
+  public async verifyAdminStatus(): Promise<boolean> {
+    try {
+      let uid = this.currentUser?.id;
+      if (!uid) {
+        const { data: sessionData } = await supabase.auth.getSession();
+        if (sessionData?.session?.user) {
+          uid = sessionData.session.user.id;
+        }
+      }
+      if (!uid) return false;
+
+      const { data, error } = await supabase
+        .from('user_profiles')
+        .select('*')
+        .eq('id', uid)
+        .maybeSingle();
+
+      const isAdmin = !error && !!data?.is_admin;
+      if (isAdmin) {
+        if (!this.currentUser && data) {
+          const appUser: AppUser = {
+            id: data.id,
+            username: data.username,
+            email: data.email,
+            avatarUrl: data.avatar_url,
+            provider: data.provider || 'discord',
+            created_at: data.created_at,
+            is_admin: true,
+            is_banned: false,
+          };
+          this.setCurrentUser(appUser);
+        } else if (this.currentUser && this.currentUser.is_admin !== isAdmin) {
+          this.currentUser.is_admin = isAdmin;
+          localStorage.setItem('cara_auth_user', JSON.stringify(this.currentUser));
+          this.notifyListeners();
+        }
+      }
+      return isAdmin;
+    } catch {
+      return false;
+    }
   }
 
   public onAuthChange(fn: (user: AppUser | null) => void): () => void {
@@ -505,8 +636,22 @@ export class AuthService {
     return true;
   }
 
-  // Buscar Baralhos da Comunidade
+  // Obter baralhos públicos em cache imediatamente para renderização síncrona
+  public getCachedPublicDecks(): SavedDeck[] {
+    return publicDecksMemoryCache ? publicDecksMemoryCache.data : [];
+  }
+
+  // Obter caras públicas em cache imediatamente
+  public getCachedPublicFaces(): SavedFace[] {
+    return publicFacesMemoryCache ? publicFacesMemoryCache.data : [];
+  }
+
+  // Buscar Baralhos da Comunidade (com cache em memória para resposta instantânea)
   public async getPublicDecks(searchQuery?: string): Promise<SavedDeck[]> {
+    if (!searchQuery && publicDecksMemoryCache && Date.now() - publicDecksMemoryCache.timestamp < 60000) {
+      return publicDecksMemoryCache.data;
+    }
+
     try {
       let query = supabase
         .from('saved_decks')
@@ -521,7 +666,11 @@ export class AuthService {
 
       const { data, error } = await query;
       if (!error && data) {
-        return data as SavedDeck[];
+        const result = data as SavedDeck[];
+        if (!searchQuery) {
+          publicDecksMemoryCache = { data: result, timestamp: Date.now() };
+        }
+        return result;
       }
     } catch {
       // ignore
@@ -540,6 +689,7 @@ export class AuthService {
       const q = searchQuery.toLowerCase().trim();
       return publicDecks.filter((d) => d.name.toLowerCase().includes(q));
     }
+    publicDecksMemoryCache = { data: publicDecks, timestamp: Date.now() };
     return publicDecks;
   }
 
@@ -617,8 +767,12 @@ export class AuthService {
     return true;
   }
 
-  // Buscar Caras da Comunidade
+  // Buscar Caras da Comunidade (com cache em memória)
   public async getPublicFaces(searchQuery?: string): Promise<SavedFace[]> {
+    if (!searchQuery && publicFacesMemoryCache && Date.now() - publicFacesMemoryCache.timestamp < 60000) {
+      return publicFacesMemoryCache.data;
+    }
+
     try {
       let query = supabase
         .from('saved_faces')
@@ -633,7 +787,11 @@ export class AuthService {
 
       const { data, error } = await query;
       if (!error && data) {
-        return data as SavedFace[];
+        const result = data as SavedFace[];
+        if (!searchQuery) {
+          publicFacesMemoryCache = { data: result, timestamp: Date.now() };
+        }
+        return result;
       }
     } catch {
       // ignore
@@ -652,6 +810,7 @@ export class AuthService {
       const q = searchQuery.toLowerCase().trim();
       return publicFaces.filter((f) => f.name.toLowerCase().includes(q));
     }
+    publicFacesMemoryCache = { data: publicFaces, timestamp: Date.now() };
     return publicFaces;
   }
 
