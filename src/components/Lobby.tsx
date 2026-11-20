@@ -20,6 +20,7 @@ import { Input } from './ui/Input';
 import { SegmentedControl } from './ui/SegmentedControl';
 import { Radio } from './ui/Radio';
 import { Checkbox } from './ui/Checkbox';
+import { HeroGamePreview } from './HeroGamePreview';
 
 interface LobbyProps {
   onJoinRoom: (roomCode: string, playerName: string, isHost: boolean, config: RoomConfig, password?: string) => void;
@@ -47,15 +48,6 @@ interface LobbyProps {
   onStartConfiguringRoom?: () => void;
   onCancelConfiguringRoom?: () => void;
 }
-
-// 5 Personagens autênticos com fotos para o leque físico da Mesa de Jogo
-const FAN_CARDS = [
-  { id: 'ana', name: 'Ana', imageUrl: '/standard-faces/Ana.jpg', rotation: '-6deg', translate: '-translate-x-4' },
-  { id: 'bruno', name: 'Bruno', imageUrl: '/standard-faces/Bruno.jpg', rotation: '-3deg', translate: '-translate-x-2' },
-  { id: 'face-down', name: 'Verso', imageUrl: '', rotation: '0deg', translate: 'translate-x-0', isBack: true },
-  { id: 'carla', name: 'Carla', imageUrl: '/standard-faces/Carla.jpg', rotation: '3deg', translate: 'translate-x-2' },
-  { id: 'davi', name: 'Davi', imageUrl: '/standard-faces/Davi.jpg', rotation: '6deg', translate: 'translate-x-4' },
-];
 
 const FUN_NICKNAMES = [
   'Detetive Pipoca',
@@ -858,47 +850,9 @@ export const Lobby: FC<LobbyProps> = ({
             </div>
           </div>
 
-          {/* Coluna Direita: O Leque Físico de Cartas na Mesa */}
-          <div className="lg:col-span-6 w-full flex items-center justify-center py-6 sm:py-8">
-            <div className="relative flex items-center justify-center w-full max-w-[340px] sm:max-w-[400px] h-[210px] select-none">
-              {FAN_CARDS.map((card, index) => {
-                return (
-                  <div
-                    key={card.id}
-                    style={{
-                      transform: `rotate(${card.rotation})`,
-                      zIndex: index === 2 ? 10 : index === 1 || index === 3 ? 5 : 1,
-                    }}
-                    className={`absolute w-24 sm:w-28 aspect-[3/4] rounded-[8px] border border-[#E2DACD] bg-[#FBF8F3] shadow-md transition-transform duration-300 hover:scale-105 p-1.5 flex flex-col justify-between ${card.translate}`}
-                  >
-                    {card.isBack ? (
-                      /* Verso de papel com textura gráfica suave */
-                      <div className="w-full h-full rounded-[4px] border border-[#E2DACD]/80 bg-[#F6F2EA] flex flex-col items-center justify-center p-2 text-center relative overflow-hidden">
-                        <div className="w-8 h-8 rounded-full border border-[#E2DACD] flex items-center justify-center mb-1 bg-[#FBF8F3]">
-                          <span className="font-serif text-sm font-bold text-[#B4532F]">?</span>
-                        </div>
-                        <span className="font-serif text-[10px] text-[#6F655C]">Tá na Cara!</span>
-                      </div>
-                    ) : (
-                      /* Frente com retrato fotográfico e nome */
-                      <>
-                        <div className="w-full aspect-square rounded-[4px] overflow-hidden bg-white border border-[#E2DACD]/60">
-                          <img
-                            src={card.imageUrl}
-                            alt={card.name}
-                            loading="lazy"
-                            className="w-full h-full object-cover"
-                          />
-                        </div>
-                        <span className="text-[11px] font-sans font-medium text-[#2B2420] text-center truncate block mt-1">
-                          {card.name}
-                        </span>
-                      </>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+          {/* Coluna Direita: Prévia Interativa do Jogo com Cartas que se Apagam */}
+          <div className="lg:col-span-6 w-full flex items-center justify-center py-4 sm:py-6">
+            <HeroGamePreview />
           </div>
         </div>
       </section>

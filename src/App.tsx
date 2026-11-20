@@ -30,7 +30,7 @@ import { OpponentLeftModal } from './components/OpponentLeftModal';
 import { PasswordPromptModal } from './components/PasswordPromptModal';
 import { Footer } from './components/Footer';
 import { LegalModal, type LegalTab } from './components/LegalModal';
-import { Volume2, VolumeX, User as UserIcon, LogOut, AlertTriangle, RotateCcw, Clock } from 'lucide-react';
+import { Volume2, VolumeX, User as UserIcon, LogOut, AlertTriangle, RotateCcw, Clock, Shield } from 'lucide-react';
 import type { SavedDeck } from './services/auth';
 import { MatchDesignSandbox } from './components/redesign/MatchDesignSandbox';
 import { MatchDesignB } from './components/redesign/MatchDesignB';
@@ -1549,23 +1549,38 @@ export function App() {
             {/* Ocultar botão de perfil/login quando estiver na tela de jogo */}
             {phase !== 'PLAYING' && phase !== 'CHOOSING_SECRET' && (
               currentUser ? (
-                <button
-                  onClick={() => setPhase('PROFILE')}
-                  className="flex items-center gap-2 text-xs font-medium text-[#2B2420] bg-[#FBF8F3] hover:bg-[#F2ECE1] px-3 py-1.5 rounded-[6px] border border-[#E2DACD] transition-colors cursor-pointer shrink-0 min-h-[38px]"
-                  title="Ver perfil e baralhos"
-                >
-                  {currentUser.avatarUrl ? (
-                    <img
-                      src={currentUser.avatarUrl}
-                      alt={currentUser.username}
-                      className="w-5 h-5 rounded-[4px] object-cover border border-[#E2DACD] shrink-0"
-                    />
-                  ) : (
-                    <UserIcon size={14} className="text-[#6F655C] shrink-0" />
+                <>
+                  {currentUser.is_admin && (
+                    <button
+                      onClick={() => {
+                        window.history.pushState(null, '', '/painel-admin');
+                        setCurrentPath('/painel-admin');
+                      }}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-[6px] bg-[#FDF5F2] hover:bg-[#F9ECE7] text-[#B4532F] border border-[#F3D7CD] text-xs font-bold transition-all cursor-pointer shrink-0 min-h-[38px] shadow-2xs"
+                      title="Acessar Painel de Gestão (Admin)"
+                    >
+                      <Shield size={14} className="text-[#B4532F]" />
+                      <span className="hidden sm:inline">Painel Admin</span>
+                    </button>
                   )}
-                  <span className="hidden sm:inline max-w-[90px] truncate">{currentUser.username}</span>
-                  <span className="text-[11px] text-[#6F655C]">Perfil</span>
-                </button>
+                  <button
+                    onClick={() => setPhase('PROFILE')}
+                    className="flex items-center gap-2 text-xs font-medium text-[#2B2420] bg-[#FBF8F3] hover:bg-[#F2ECE1] px-3 py-1.5 rounded-[6px] border border-[#E2DACD] transition-colors cursor-pointer shrink-0 min-h-[38px]"
+                    title="Ver perfil e baralhos"
+                  >
+                    {currentUser.avatarUrl ? (
+                      <img
+                        src={currentUser.avatarUrl}
+                        alt={currentUser.username}
+                        className="w-5 h-5 rounded-[4px] object-cover border border-[#E2DACD] shrink-0"
+                      />
+                    ) : (
+                      <UserIcon size={14} className="text-[#6F655C] shrink-0" />
+                    )}
+                    <span className="hidden sm:inline max-w-[90px] truncate">{currentUser.username}</span>
+                    <span className="text-[11px] text-[#6F655C]">Perfil</span>
+                  </button>
+                </>
               ) : (
                 <button
                   onClick={() => setLoginModalOpen(true)}

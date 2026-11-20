@@ -166,16 +166,52 @@ class AuthService {
   public async refreshUserProfile(): Promise<AppUser | null> {
     if (!this.currentUser) return null;
     try {
-      const { data, error } = await supabase
-        .from('user_profiles')
-        .select('*')
-        .eq('id', this.currentUser.id)
-        .maybeSingle();
+      let data: any = null;
+      let error: any = null;
+
+      // 1. Tentar por ID
+      if (this.currentUser.id) {
+        const res = await supabase
+          .from('user_profiles')
+          .select('*')
+          .eq('id', this.currentUser.id)
+          .maybeSingle();
+        data = res.data;
+        error = res.error;
+      }
+
+      // 2. Fallback por e-mail
+      if (!data && this.currentUser.email) {
+        const emailRes = await supabase
+          .from('user_profiles')
+          .select('*')
+          .eq('email', this.currentUser.email)
+          .maybeSingle();
+        if (emailRes.data) {
+          data = emailRes.data;
+          error = null;
+        }
+      }
+
+      // 3. Fallback por nome de usuário (case-insensitive)
+      if (!data && this.currentUser.username) {
+        const userRes = await supabase
+          .from('user_profiles')
+          .select('*')
+          .ilike('username', this.currentUser.username)
+          .maybeSingle();
+        if (userRes.data) {
+          data = userRes.data;
+          error = null;
+        }
+      }
 
       if (!error && data) {
         const isBanned = !!data.is_banned && (!data.banned_until || new Date(data.banned_until) > new Date());
         this.currentUser = {
           ...this.currentUser,
+          id: data.id || this.currentUser.id,
+          username: data.username || this.currentUser.username,
           is_admin: !!data.is_admin,
           is_banned: isBanned,
           banned_until: data.banned_until,
@@ -200,13 +236,43 @@ class AuthService {
           uid = sessionData.session.user.id;
         }
       }
-      if (!uid) return false;
 
-      const { data, error } = await supabase
-        .from('user_profiles')
-        .select('*')
-        .eq('id', uid)
-        .maybeSingle();
+      let data: any = null;
+      let error: any = null;
+
+      if (uid) {
+        const res = await supabase
+          .from('user_profiles')
+          .select('*')
+          .eq('id', uid)
+          .maybeSingle();
+        data = res.data;
+        error = res.error;
+      }
+
+      if (!data && this.currentUser?.email) {
+        const emailRes = await supabase
+          .from('user_profiles')
+          .select('*')
+          .eq('email', this.currentUser.email)
+          .maybeSingle();
+        if (emailRes.data) {
+          data = emailRes.data;
+          error = null;
+        }
+      }
+
+      if (!data && this.currentUser?.username) {
+        const userRes = await supabase
+          .from('user_profiles')
+          .select('*')
+          .ilike('username', this.currentUser.username)
+          .maybeSingle();
+        if (userRes.data) {
+          data = userRes.data;
+          error = null;
+        }
+      }
 
       const isAdmin = !error && !!data?.is_admin;
       if (isAdmin) {

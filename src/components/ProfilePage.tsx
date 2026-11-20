@@ -17,6 +17,7 @@ import {
   Check,
   RotateCcw,
   Globe,
+  Shield,
 } from 'lucide-react';
 import { sounds } from '../utils/sound';
 import { network } from '../services/network';
@@ -343,6 +344,12 @@ export const ProfilePage: FC<ProfilePageProps> = ({
                 <h1 className="font-serif text-2xl sm:text-3xl font-normal text-[#2B2420] leading-tight">
                   {currentUser.username}
                 </h1>
+                {currentUser.is_admin && (
+                  <span className="text-[11px] font-bold text-[#B4532F] bg-[#FDF5F2] border border-[#F3D7CD] px-2 py-0.5 rounded-md flex items-center gap-1">
+                    <Shield size={11} />
+                    Administrador
+                  </span>
+                )}
                 {currentUser.provider && currentUser.provider !== 'email' && (
                   <span className="text-xs text-[#6F655C] font-sans">
                     via {currentUser.provider}
@@ -373,6 +380,22 @@ export const ProfilePage: FC<ProfilePageProps> = ({
 
           {/* Ações em links de texto discretos */}
           <div className="flex items-center gap-3 text-xs pt-1 sm:pt-0">
+            {currentUser.is_admin && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => {
+                    window.history.pushState(null, '', '/painel-admin');
+                    window.dispatchEvent(new PopStateEvent('popstate'));
+                  }}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[6px] bg-[#B4532F] hover:bg-[#9C4323] text-white font-bold transition-colors cursor-pointer shadow-2xs"
+                >
+                  <Shield size={12} />
+                  <span>Painel Admin</span>
+                </button>
+                <span className="text-[#E2DACD]">·</span>
+              </>
+            )}
             <button
               type="button"
               onClick={() => setPasswordModalOpen(true)}
