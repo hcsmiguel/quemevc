@@ -14,6 +14,7 @@ import { sounds } from '../utils/sound';
 import { network } from '../services/network';
 import type { DifficultyCount, RoomConfig, Character } from '../types/game';
 import { auth, type AppUser, type SavedDeck } from '../services/auth';
+import { supabase } from '../services/supabase';
 import { MOCK_90_CHARACTERS } from './redesign/mockData';
 import { Button } from './ui/Button';
 import { Input } from './ui/Input';
@@ -107,8 +108,14 @@ export const Lobby: FC<LobbyProps> = ({
   const [copiedCode, setCopiedCode] = useState(false);
 
   // Configuração prévia de sala
-  const [localIsConfiguring, setLocalIsConfiguring] = useState(false);
+  const [localIsConfiguring, setLocalIsConfiguring] = useState(() => propIsConfiguringRoom || false);
   const isConfiguring = propIsConfiguringRoom !== undefined ? propIsConfiguringRoom : localIsConfiguring;
+
+  useEffect(() => {
+    if (propIsConfiguringRoom !== undefined) {
+      setLocalIsConfiguring(propIsConfiguringRoom);
+    }
+  }, [propIsConfiguringRoom]);
 
   const [hostDeckName, setHostDeckName] = useState(() => (roomConfig?.deckName && roomConfig.deckName !== 'Turma do Clássico') ? roomConfig.deckName : 'Aleatório #1');
   const [hostCardCount, setHostCardCount] = useState<DifficultyCount>(() => (roomConfig?.cardCount as DifficultyCount) || 30);
@@ -127,6 +134,27 @@ export const Lobby: FC<LobbyProps> = ({
   // Menu de troca de baralho dentro de Configurar Partida
   const [showDeckPicker, setShowDeckPicker] = useState(false);
   const [mySavedDecks, setMySavedDecks] = useState<SavedDeck[]>([]);
+  const [dynamicFeaturedDecks, setDynamicFeaturedDecks] = useState<SavedDeck[]>([]);
+
+  // Carregar destaques configurados no Admin
+  useEffect(() => {
+    const fetchFeatured = async () => {
+      try {
+        const { data } = await supabase
+          .from('saved_decks')
+          .select('*')
+          .eq('is_featured', true)
+          .eq('is_hidden', false)
+          .order('featured_order', { ascending: true });
+        if (data && data.length > 0) {
+          setDynamicFeaturedDecks(data as SavedDeck[]);
+        }
+      } catch {
+        // ignore
+      }
+    };
+    fetchFeatured();
+  }, []);
 
   // Sincronizar regras caso sejam alteradas externamente (ex.: selecionado na comunidade)
   useEffect(() => {
@@ -174,10 +202,9 @@ export const Lobby: FC<LobbyProps> = ({
 
   const handleStartConfiguring = () => {
     sounds.playClick();
+    setLocalIsConfiguring(true);
     if (onStartConfiguringRoom) {
       onStartConfiguringRoom();
-    } else {
-      setLocalIsConfiguring(true);
     }
     if (!hostDeckName || hostDeckName === 'Turma do Clássico') {
       setHostDeckName('Aleatório #1');
@@ -187,10 +214,9 @@ export const Lobby: FC<LobbyProps> = ({
 
   const handleCancelConfiguring = () => {
     sounds.playClick();
+    setLocalIsConfiguring(false);
     if (onCancelConfiguringRoom) {
       onCancelConfiguringRoom();
-    } else {
-      setLocalIsConfiguring(false);
     }
     setShowDeckPicker(false);
   };
@@ -883,71 +909,120 @@ export const Lobby: FC<LobbyProps> = ({
 
         {/* Lista Editorial dos Baralhos */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          {/* Baralho 1: Personalidades & Memes */}
-          <div
-            onClick={() => {
-              sounds.playClick();
-              setHostDeckName('Personalidades & Memes');
-              setHostCardCount(30);
-              setHostCustomCards(MOCK_90_CHARACTERS.slice(0, 30));
-              handleStartConfiguring();
-            }}
-            className="p-4 rounded-[8px] border border-[#E2DACD] bg-[#FBF8F3] hover:border-[#2B2420] transition-colors cursor-pointer group flex flex-col justify-between"
-          >
-            <div>
-              <span className="text-[10px] font-medium text-[#6F655C] uppercase tracking-wider block mb-1">
-                Oficial · 30 cartas
-              </span>
-              <h3 className="font-serif text-base text-[#2B2420] group-hover:text-[#B4532F] transition-colors mb-1">
-                Personalidades & Memes
-              </h3>
-              <p className="text-xs text-[#6F655C] leading-relaxed">
-                Famosos, criadores de conteúdo e figuras da cultura pop.
-              </p>
-            </div>
+          {dynamicFeaturedDecks.length > 0 ? (
+            dynamicFeaturedDecks.map((deck) => {
+              const isOfficial = Boolean((deck as any).is_official);
+              const count = deck.card_count || deck.cards.length;
 
-            <div className="mt-4 pt-3 border-t border-[#E2DACD]/80 flex items-center justify-between">
-              <div className="flex items-center -space-x-1.5">
-                <img src="/standard-faces/Bruno.jpg" alt="Bruno" className="w-7 h-7 rounded-full border border-white object-cover" />
-                <img src="/standard-faces/Ana.jpg" alt="Ana" className="w-7 h-7 rounded-full border border-white object-cover" />
-                <img src="/standard-faces/Felipe.jpg" alt="Felipe" className="w-7 h-7 rounded-full border border-white object-cover" />
+              return (
+                <div
+                  key={deck.id}
+                  onClick={() => {
+                    sounds.playClick();
+                    setHostDeckName(deck.name);
+                    setHostCardCount((count as DifficultyCount) || 30);
+                    setHostCustomCards(deck.cards);
+                    handleStartConfiguring();
+                  }}
+                  className="p-4 rounded-[8px] border border-[#E2DACD] bg-[#FBF8F3] hover:border-[#2B2420] transition-colors cursor-pointer group flex flex-col justify-between"
+                >
+                  <div>
+                    <span className="text-[10px] font-medium text-[#6F655C] uppercase tracking-wider block mb-1">
+                      {isOfficial ? 'Oficial' : 'Comunidade'} · {count} cartas
+                    </span>
+                    <h3 className="font-serif text-base text-[#2B2420] group-hover:text-[#B4532F] transition-colors mb-1 truncate">
+                      {deck.name}
+                    </h3>
+                    <p className="text-xs text-[#6F655C] leading-relaxed line-clamp-2">
+                      {(deck as any).description || 'Coleção pronta para jogar com amigos.'}
+                    </p>
+                  </div>
+
+                  <div className="mt-4 pt-3 border-t border-[#E2DACD]/80 flex items-center justify-between">
+                    <div className="flex items-center -space-x-1.5">
+                      {deck.cards.slice(0, 3).map((card, i) => (
+                        <img
+                          key={card.id || i}
+                          src={card.imageUrl}
+                          alt={card.name}
+                          className="w-7 h-7 rounded-full border border-white object-cover"
+                        />
+                      ))}
+                    </div>
+                    <span className="text-xs font-semibold text-[#B4532F] group-hover:underline">Jogar</span>
+                  </div>
+                </div>
+              );
+            })
+          ) : (
+            <>
+              {/* Baralho 1 Padrão: Personalidades & Memes */}
+              <div
+                onClick={() => {
+                  sounds.playClick();
+                  setHostDeckName('Personalidades & Memes');
+                  setHostCardCount(30);
+                  setHostCustomCards(MOCK_90_CHARACTERS.slice(0, 30));
+                  handleStartConfiguring();
+                }}
+                className="p-4 rounded-[8px] border border-[#E2DACD] bg-[#FBF8F3] hover:border-[#2B2420] transition-colors cursor-pointer group flex flex-col justify-between"
+              >
+                <div>
+                  <span className="text-[10px] font-medium text-[#6F655C] uppercase tracking-wider block mb-1">
+                    Oficial · 30 cartas
+                  </span>
+                  <h3 className="font-serif text-base text-[#2B2420] group-hover:text-[#B4532F] transition-colors mb-1">
+                    Personalidades & Memes
+                  </h3>
+                  <p className="text-xs text-[#6F655C] leading-relaxed">
+                    Famosos, criadores de conteúdo e figuras da cultura pop.
+                  </p>
+                </div>
+
+                <div className="mt-4 pt-3 border-t border-[#E2DACD]/80 flex items-center justify-between">
+                  <div className="flex items-center -space-x-1.5">
+                    <img src="/standard-faces/Bruno.jpg" alt="Bruno" className="w-7 h-7 rounded-full border border-white object-cover" />
+                    <img src="/standard-faces/Ana.jpg" alt="Ana" className="w-7 h-7 rounded-full border border-white object-cover" />
+                    <img src="/standard-faces/Felipe.jpg" alt="Felipe" className="w-7 h-7 rounded-full border border-white object-cover" />
+                  </div>
+                  <span className="text-xs font-semibold text-[#B4532F] group-hover:underline">Jogar</span>
+                </div>
               </div>
-              <span className="text-xs font-semibold text-[#B4532F] group-hover:underline">Jogar</span>
-            </div>
-          </div>
 
-          {/* Baralho 2: Turma Clássica */}
-          <div
-            onClick={() => {
-              sounds.playClick();
-              setHostDeckName('Turma do Tabuleiro');
-              setHostCardCount(15);
-              setHostCustomCards(MOCK_90_CHARACTERS.slice(0, 15));
-              handleStartConfiguring();
-            }}
-            className="p-4 rounded-[8px] border border-[#E2DACD] bg-[#FBF8F3] hover:border-[#2B2420] transition-colors cursor-pointer group flex flex-col justify-between"
-          >
-            <div>
-              <span className="text-[10px] font-medium text-[#6F655C] uppercase tracking-wider block mb-1">
-                Clássico · 15 cartas
-              </span>
-              <h3 className="font-serif text-base text-[#2B2420] group-hover:text-[#B4532F] transition-colors mb-1">
-                Turma do Tabuleiro
-              </h3>
-              <p className="text-xs text-[#6F655C] leading-relaxed">
-                Personagens com traços distintos para rodadas rápidas e estratégicas.
-              </p>
-            </div>
+              {/* Baralho 2 Padrão: Turma Clássica */}
+              <div
+                onClick={() => {
+                  sounds.playClick();
+                  setHostDeckName('Turma do Tabuleiro');
+                  setHostCardCount(15);
+                  setHostCustomCards(MOCK_90_CHARACTERS.slice(0, 15));
+                  handleStartConfiguring();
+                }}
+                className="p-4 rounded-[8px] border border-[#E2DACD] bg-[#FBF8F3] hover:border-[#2B2420] transition-colors cursor-pointer group flex flex-col justify-between"
+              >
+                <div>
+                  <span className="text-[10px] font-medium text-[#6F655C] uppercase tracking-wider block mb-1">
+                    Clássico · 15 cartas
+                  </span>
+                  <h3 className="font-serif text-base text-[#2B2420] group-hover:text-[#B4532F] transition-colors mb-1">
+                    Turma do Tabuleiro
+                  </h3>
+                  <p className="text-xs text-[#6F655C] leading-relaxed">
+                    Personagens com traços distintos para rodadas rápidas e estratégicas.
+                  </p>
+                </div>
 
-            <div className="mt-4 pt-3 border-t border-[#E2DACD]/80 flex items-center justify-between">
-              <div className="flex items-center -space-x-1.5">
-                <img src="/standard-faces/Carla.jpg" alt="Carla" className="w-7 h-7 rounded-full border border-white object-cover" />
-                <img src="/standard-faces/Davi.jpg" alt="Davi" className="w-7 h-7 rounded-full border border-white object-cover" />
-                <img src="/standard-faces/Hugo.jpg" alt="Hugo" className="w-7 h-7 rounded-full border border-white object-cover" />
+                <div className="mt-4 pt-3 border-t border-[#E2DACD]/80 flex items-center justify-between">
+                  <div className="flex items-center -space-x-1.5">
+                    <img src="/standard-faces/Carla.jpg" alt="Carla" className="w-7 h-7 rounded-full border border-white object-cover" />
+                    <img src="/standard-faces/Davi.jpg" alt="Davi" className="w-7 h-7 rounded-full border border-white object-cover" />
+                    <img src="/standard-faces/Hugo.jpg" alt="Hugo" className="w-7 h-7 rounded-full border border-white object-cover" />
+                  </div>
+                  <span className="text-xs font-semibold text-[#B4532F] group-hover:underline">Jogar</span>
+                </div>
               </div>
-              <span className="text-xs font-semibold text-[#B4532F] group-hover:underline">Jogar</span>
-            </div>
-          </div>
+            </>
+          )}
 
           {/* Baralho 3: Crie seu próprio baralho */}
           <div

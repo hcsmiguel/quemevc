@@ -833,6 +833,27 @@ class AuthService {
     return true;
   }
 
+  // Verificar se já existe uma cara com o mesmo nome público
+  public async checkIfPublicFaceNameExists(name: string): Promise<boolean> {
+    const clean = name.trim();
+    if (!clean) return false;
+    try {
+      const { data, error } = await supabase
+        .from('saved_faces')
+        .select('id')
+        .eq('is_public', true)
+        .ilike('name', clean)
+        .limit(1);
+
+      if (!error && data && data.length > 0) {
+        return true;
+      }
+    } catch {
+      // ignore
+    }
+    return false;
+  }
+
   // Buscar Caras da Comunidade (com cache em memória)
   public async getPublicFaces(searchQuery?: string): Promise<SavedFace[]> {
     if (!searchQuery && publicFacesMemoryCache && Date.now() - publicFacesMemoryCache.timestamp < 60000) {

@@ -1,6 +1,6 @@
 import React from 'react';
 import type { AdminOverviewMetrics, AdminAuditLog } from '../../services/admin';
-import { Layers, Users, ShieldAlert, Ban, Clock, ArrowRight, CheckCircle2 } from 'lucide-react';
+import { Layers, ShieldAlert, Ban, Clock, ArrowRight, Plus, Sparkles } from 'lucide-react';
 
 interface AdminOverviewProps {
   metrics: AdminOverviewMetrics;
@@ -17,11 +17,11 @@ export const AdminOverview: React.FC<AdminOverviewProps> = ({
     <div className="space-y-8 animate-in fade-in duration-200">
       {/* Cabeçalho da Visão Geral */}
       <div>
-        <h2 className="text-2xl font-serif font-bold text-[#2B2420]">
-          Visão Geral do Jogo
+        <h2 className="text-2xl font-serif text-[#2B2420]">
+          Painel de Gestão do Jogo
         </h2>
-        <p className="text-sm text-[#6F655C] mt-1">
-          Acompanhamento central de baralhos oficiais, moderação e integridade da comunidade.
+        <p className="text-xs text-[#6F655C] mt-1">
+          Acompanhamento central de baralhos oficiais, curadoria da Home, moderação e integridade da comunidade.
         </p>
       </div>
 
@@ -40,7 +40,7 @@ export const AdminOverview: React.FC<AdminOverviewProps> = ({
               <Layers size={16} />
             </div>
           </div>
-          <div className="text-3xl font-bold font-serif text-[#2B2420]">
+          <div className="text-3xl font-serif text-[#2B2420]">
             {metrics.officialDecksCount}
           </div>
           <p className="text-xs text-[#6F655C] mt-1 flex items-center gap-1 group-hover:text-[#B4532F] transition-colors">
@@ -55,17 +55,17 @@ export const AdminOverview: React.FC<AdminOverviewProps> = ({
         >
           <div className="flex items-center justify-between mb-3">
             <span className="text-xs font-bold uppercase tracking-wider text-[#6F655C]">
-              Comunidade
+              Destaques da Home
             </span>
             <div className="w-8 h-8 rounded-xl bg-[#F6F2EA] flex items-center justify-center text-[#B4532F] group-hover:bg-[#B4532F] group-hover:text-white transition-colors">
-              <Users size={16} />
+              <Sparkles size={16} />
             </div>
           </div>
-          <div className="text-3xl font-bold font-serif text-[#2B2420]">
+          <div className="text-3xl font-serif text-[#2B2420]">
             {metrics.communityDecksCount}
           </div>
           <p className="text-xs text-[#6F655C] mt-1 flex items-center gap-1 group-hover:text-[#B4532F] transition-colors">
-            Baralhos públicos ativos <ArrowRight size={12} />
+            Organizar destaques <ArrowRight size={12} />
           </p>
         </div>
 
@@ -88,11 +88,11 @@ export const AdminOverview: React.FC<AdminOverviewProps> = ({
               <ShieldAlert size={16} />
             </div>
           </div>
-          <div className="text-3xl font-bold font-serif text-[#2B2420]">
+          <div className="text-3xl font-serif text-[#2B2420]">
             {metrics.pendingReportsCount}
           </div>
           <p className="text-xs text-[#6F655C] mt-1 flex items-center gap-1 group-hover:text-[#B4532F] transition-colors">
-            {metrics.pendingReportsCount === 0 ? 'Tudo em dia' : 'Requer atenção'} <ArrowRight size={12} />
+            {metrics.pendingReportsCount === 0 ? 'Tudo em dia' : 'Requer moderação'} <ArrowRight size={12} />
           </p>
         </div>
 
@@ -109,7 +109,7 @@ export const AdminOverview: React.FC<AdminOverviewProps> = ({
               <Ban size={16} />
             </div>
           </div>
-          <div className="text-3xl font-bold font-serif text-[#2B2420]">
+          <div className="text-3xl font-serif text-[#2B2420]">
             {metrics.bannedUsersCount}
           </div>
           <p className="text-xs text-[#6F655C] mt-1 flex items-center gap-1 group-hover:text-[#B4532F] transition-colors">
@@ -118,72 +118,76 @@ export const AdminOverview: React.FC<AdminOverviewProps> = ({
         </div>
       </div>
 
-      {/* Seção Informativa de Módulos & Auditoria Recente */}
+      {/* Seção Operacional: Ações Rápidas & Auditoria Recente */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Status dos Módulos do Painel */}
-        <div className="lg:col-span-1 bg-white border border-[#E2DACD] rounded-2xl p-6 shadow-xs">
-          <h3 className="text-base font-bold text-[#2B2420] mb-4 flex items-center gap-2">
-            <CheckCircle2 size={18} className="text-[#B4532F]" />
-            Módulos do Sistema
-          </h3>
-          <div className="space-y-3">
-            <div className="p-3 rounded-xl bg-[#FBF8F3] border border-[#E2DACD] flex items-start gap-3">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 mt-1.5 shrink-0" />
-              <div>
-                <p className="text-xs font-bold text-[#2B2420]">Etapa 1: Acesso & RLS</p>
-                <p className="text-[11px] text-[#6F655C]">
-                  Autenticação interna via Supabase, RLS ativo e rota protegida.
-                </p>
-              </div>
-            </div>
+        {/* Ações Rápidas de Gestão */}
+        <div className="lg:col-span-1 bg-white border border-[#E2DACD] rounded-2xl p-6 shadow-xs flex flex-col justify-between">
+          <div>
+            <h3 className="font-serif text-base text-[#2B2420] mb-3">
+              Ações Rápidas
+            </h3>
+            <div className="space-y-2">
+              <button
+                type="button"
+                onClick={() => onNavigateTab('official_decks')}
+                className="w-full p-3 rounded-xl border border-[#E2DACD] bg-[#FBF8F3] hover:bg-white hover:border-[#2B2420] transition-colors text-left flex items-center justify-between group cursor-pointer"
+              >
+                <div className="flex items-center gap-2.5">
+                  <div className="w-7 h-7 rounded-lg bg-white border border-[#E2DACD] flex items-center justify-center text-[#B4532F]">
+                    <Plus size={14} />
+                  </div>
+                  <span className="text-xs font-bold text-[#2B2420]">
+                    Criar Baralho Oficial
+                  </span>
+                </div>
+                <ArrowRight size={13} className="text-[#6F655C] group-hover:text-[#B4532F] transition-colors" />
+              </button>
 
-            <div className="p-3 rounded-xl bg-white border border-[#E2DACD] flex items-start gap-3">
-              <span className="w-2 h-2 rounded-full bg-amber-400 mt-1.5 shrink-0" />
-              <div>
-                <p className="text-xs font-bold text-[#2B2420]">Etapa 2: Baralhos Oficiais</p>
-                <p className="text-[11px] text-[#6F655C]">
-                  Criação, edição, validações (15-90 cartas) e publicação.
-                </p>
-              </div>
-            </div>
+              <button
+                type="button"
+                onClick={() => onNavigateTab('featured_decks')}
+                className="w-full p-3 rounded-xl border border-[#E2DACD] bg-[#FBF8F3] hover:bg-white hover:border-[#2B2420] transition-colors text-left flex items-center justify-between group cursor-pointer"
+              >
+                <div className="flex items-center gap-2.5">
+                  <div className="w-7 h-7 rounded-lg bg-white border border-[#E2DACD] flex items-center justify-center text-[#B4532F]">
+                    <Sparkles size={14} />
+                  </div>
+                  <span className="text-xs font-bold text-[#2B2420]">
+                    Organizar Destaques da Home
+                  </span>
+                </div>
+                <ArrowRight size={13} className="text-[#6F655C] group-hover:text-[#B4532F] transition-colors" />
+              </button>
 
-            <div className="p-3 rounded-xl bg-white border border-[#E2DACD] flex items-start gap-3">
-              <span className="w-2 h-2 rounded-full bg-stone-300 mt-1.5 shrink-0" />
-              <div>
-                <p className="text-xs font-bold text-[#2B2420]">Etapa 3: Destaques da Home</p>
-                <p className="text-[11px] text-[#6F655C]">
-                  Curadoria e ordenação visual na página inicial.
-                </p>
-              </div>
+              <button
+                type="button"
+                onClick={() => onNavigateTab('reports')}
+                className="w-full p-3 rounded-xl border border-[#E2DACD] bg-[#FBF8F3] hover:bg-white hover:border-[#2B2420] transition-colors text-left flex items-center justify-between group cursor-pointer"
+              >
+                <div className="flex items-center gap-2.5">
+                  <div className="w-7 h-7 rounded-lg bg-white border border-[#E2DACD] flex items-center justify-center text-[#B4532F]">
+                    <ShieldAlert size={14} />
+                  </div>
+                  <span className="text-xs font-bold text-[#2B2420]">
+                    Fila de Denúncias
+                  </span>
+                </div>
+                <ArrowRight size={13} className="text-[#6F655C] group-hover:text-[#B4532F] transition-colors" />
+              </button>
             </div>
+          </div>
 
-            <div className="p-3 rounded-xl bg-white border border-[#E2DACD] flex items-start gap-3">
-              <span className="w-2 h-2 rounded-full bg-stone-300 mt-1.5 shrink-0" />
-              <div>
-                <p className="text-xs font-bold text-[#2B2420]">Etapa 4: Denúncias</p>
-                <p className="text-[11px] text-[#6F655C]">
-                  Fila de moderação de baralhos, cartas e jogadores.
-                </p>
-              </div>
-            </div>
-
-            <div className="p-3 rounded-xl bg-white border border-[#E2DACD] flex items-start gap-3">
-              <span className="w-2 h-2 rounded-full bg-stone-300 mt-1.5 shrink-0" />
-              <div>
-                <p className="text-xs font-bold text-[#2B2420]">Etapa 5: Banimentos & Auditoria</p>
-                <p className="text-[11px] text-[#6F655C]">
-                  Suspensão imediata de contas e registro histórico completo.
-                </p>
-              </div>
-            </div>
+          <div className="mt-6 pt-4 border-t border-[#E2DACD]/60 text-[11px] text-[#6F655C] space-y-1">
+            <p>• Baralhos Oficiais pertencem sempre a <strong>Tá na Cara!</strong>.</p>
+            <p>• Destaques da Home atualizam em tempo real para todos os jogadores.</p>
           </div>
         </div>
 
         {/* Registro Recente de Auditoria */}
         <div className="lg:col-span-2 bg-white border border-[#E2DACD] rounded-2xl p-6 shadow-xs flex flex-col">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-base font-bold text-[#2B2420] flex items-center gap-2">
-              <Clock size={18} className="text-[#6F655C]" />
+            <h3 className="font-serif text-base text-[#2B2420] flex items-center gap-2">
+              <Clock size={16} className="text-[#6F655C]" />
               Últimas Ações de Gestão
             </h3>
             {auditLogs.length > 0 && (
@@ -202,7 +206,7 @@ export const AdminOverview: React.FC<AdminOverviewProps> = ({
                 Nenhuma ação recente registrada
               </p>
               <p className="text-xs text-[#6F655C] max-w-sm">
-                Todas as alterações em baralhos oficiais, destaques, denúncias e banimentos serão catalogadas automaticamente aqui.
+                Todas as alterações em baralhos oficiais, destaques, denúncias e banimentos são registradas e auditadas aqui.
               </p>
             </div>
           ) : (

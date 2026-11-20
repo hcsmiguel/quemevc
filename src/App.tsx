@@ -1342,23 +1342,6 @@ export function App() {
   const handlePlaySavedDeck = async (savedDeck: SavedDeck) => {
     setIsBuildingDeck(false);
 
-    // Se estiver no fluxo de configuração prévia da sala (sem ter criado a sala ainda), seleciona o baralho e volta para Configurar Partida
-    if (isConfiguringRoom) {
-      const updatedConfig: RoomConfig = {
-        ...roomConfig,
-        mode: 'custom',
-        cardCount: (savedDeck.card_count as DifficultyCount) || 30,
-        deckName: savedDeck.name,
-        customCards: savedDeck.cards,
-      };
-      setRoomConfig(updatedConfig);
-      const syncedDeck = getDeckByDifficulty(updatedConfig.cardCount, updatedConfig.customCards);
-      setActiveDeck(syncedDeck);
-      setPhase('LOBBY');
-      sounds.playClick();
-      return;
-    }
-
     // Se já estiver com uma sala de espera aberta como anfitrião, aplica o baralho à sala atual e retorna instantaneamente
     if (waitingForPlayer && roomCode && isHost) {
       const updatedConfig: RoomConfig = {
@@ -1380,14 +1363,20 @@ export function App() {
       return;
     }
 
-    setPhase('LOBBY');
-    const newCode = await network.generateUniqueRoomCode();
-    handleJoinRoom(newCode, playerName || currentUser?.username || 'Host', true, {
+    // Seleciona o baralho e abre a tela de Configurar Partida (o anfitrião revisa as opções antes de gerar a sala)
+    const updatedConfig: RoomConfig = {
+      ...roomConfig,
       mode: 'custom',
-      cardCount: (savedDeck.card_count as DifficultyCount) || 15,
+      cardCount: (savedDeck.card_count as DifficultyCount) || 30,
       deckName: savedDeck.name,
       customCards: savedDeck.cards,
-    });
+    };
+    setRoomConfig(updatedConfig);
+    const syncedDeck = getDeckByDifficulty(updatedConfig.cardCount, updatedConfig.customCards);
+    setActiveDeck(syncedDeck);
+    setIsConfiguringRoom(true);
+    setPhase('LOBBY');
+    sounds.playClick();
   };
 
   const handleSendChat = (text: string) => {
@@ -1724,13 +1713,20 @@ export function App() {
                 return;
               }
 
-              const newCode = await network.generateUniqueRoomCode();
-              handleJoinRoom(newCode, playerName || currentUser?.username || 'Host', true, {
+              // Seleciona o baralho recém-criado e volta para a tela de Configurar Partida
+              const updatedConfig: RoomConfig = {
+                ...roomConfig,
                 mode: 'custom',
                 cardCount: deckTargetCount,
-                deckName: customDeckName,
+                deckName: customDeckName || 'Baralho Personalizado',
                 customCards,
-              });
+              };
+              setRoomConfig(updatedConfig);
+              const syncedDeck = getDeckByDifficulty(deckTargetCount, customCards);
+              setActiveDeck(syncedDeck);
+              setIsConfiguringRoom(true);
+              setPhase('LOBBY');
+              sounds.playClick();
             }}
             onCancel={() => {
               setIsBuildingDeck(false);
@@ -1738,6 +1734,7 @@ export function App() {
                 setEditingDeck(null);
                 setPhase('PROFILE');
               } else {
+                setIsConfiguringRoom(true);
                 setPhase('LOBBY');
               }
             }}

@@ -133,7 +133,7 @@ export const CommunityExplorerPage: FC<CommunityExplorerPageProps> = ({
     sounds.playClick();
     try {
       const userFaces = await auth.getUserSavedFaces(currentUser.id);
-      if (userFaces.length >= 200) {
+      if (userFaces.length >= 360) {
         sounds.playWrong();
         setLimitModalType('face');
         return;

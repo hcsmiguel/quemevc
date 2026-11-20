@@ -34,14 +34,14 @@ export const AccountLimitModal: FC<AccountLimitModalProps> = ({
 
         {/* Título */}
         <h3 className="text-base sm:text-lg font-bold text-[#382C26] mb-2 leading-tight">
-          {isDeck ? 'Máximo de 10 Baralhos Salvos' : 'Máximo de 200 Caras Salvas'}
+          {isDeck ? 'Máximo de 10 Baralhos Salvos' : 'Máximo de 360 Caras Salvas'}
         </h3>
 
         {/* Descrição */}
         <p className="text-xs text-[#8C786E] leading-relaxed mb-6">
           {isDeck
             ? 'Você já possui o limite de 10 baralhos salvos no seu perfil. Para criar ou salvar um novo baralho, você precisa excluir ou editar algum baralho antigo.'
-            : 'Você já possui o limite de 200 caras salvas no seu perfil. Para cadastrar novas caras, exclua as fotos que não utiliza mais.'}
+            : 'Você já possui o limite de 360 caras salvas no seu perfil. Para cadastrar novas caras, exclua as fotos que não utiliza mais.'}
         </p>
 
         {/* Botões */}

@@ -69,14 +69,14 @@ export const ImportSharedDeckModal: FC<ImportSharedDeckModalProps> = ({
       // 1. Salvar o baralho
       await auth.saveDeck(currentUser.id, deck.name, deck.card_count, deck.cards, false, currentUser.username);
 
-      // 2. Se solicitou importar as caras também para o perfil, checar limite de 200
+      // 2. Se solicitou importar as caras também para o perfil, checar limite de 360
       let facesSkippedDueToLimit = false;
       if (importFaces) {
         const userFaces = await auth.getUserSavedFaces(currentUser.id);
         let currentFaceCount = userFaces.length;
 
         for (const card of deck.cards) {
-          if (currentFaceCount >= 200) {
+          if (currentFaceCount >= 360) {
             facesSkippedDueToLimit = true;
             break;
           }
@@ -93,7 +93,7 @@ export const ImportSharedDeckModal: FC<ImportSharedDeckModalProps> = ({
 
       sounds.playWin();
       if (facesSkippedDueToLimit) {
-        setSavedSuccess('Baralho salvo! Algumas caras não foram importadas pois você atingiu o limite de 200 caras.');
+        setSavedSuccess('Baralho salvo! Algumas caras não foram importadas pois você atingiu o limite de 360 caras.');
       } else {
         setSavedSuccess(
           importFaces

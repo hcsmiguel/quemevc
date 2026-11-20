@@ -23,6 +23,7 @@ import { sounds } from '../utils/sound';
 import { network } from '../services/network';
 import { ImageCropperModal } from './ImageCropperModal';
 import { AccountLimitModal } from './AccountLimitModal';
+import { DuplicateFaceAlertModal } from './DuplicateFaceAlertModal';
 import { Button } from './ui/Button';
 import { Tabs } from './ui/Tabs';
 import { Input } from './ui/Input';
@@ -115,6 +116,7 @@ export const ProfilePage: FC<ProfilePageProps> = ({
 
   // Modal de aviso de limites da conta
   const [limitModalType, setLimitModalType] = useState<'deck' | 'face' | null>(null);
+  const [duplicateWarningFace, setDuplicateWarningFace] = useState<Character | null>(null);
 
   // Modal de Trocar Senha
   const [passwordModalOpen, setPasswordModalOpen] = useState(false);
@@ -217,7 +219,7 @@ export const ProfilePage: FC<ProfilePageProps> = ({
 
   const handleAddFaceClick = () => {
     sounds.playClick();
-    if (savedFaces.length >= 100) {
+    if (savedFaces.length >= 360) {
       sounds.playWrong();
       setLimitModalType('face');
       return;
@@ -257,13 +259,23 @@ export const ProfilePage: FC<ProfilePageProps> = ({
     setTimeout(() => setCopiedDeckId(null), 3000);
   };
 
-  const handleSaveCroppedFace = async (newChar: Character) => {
+  const commitSaveFace = async (char: Character) => {
     sounds.playWin();
-    setIsAddingFace(false);
-    if (newChar.imageUrl) {
-      const face = await auth.saveFace(currentUser.id, newChar.name, newChar.imageUrl);
+    if (char.imageUrl) {
+      const face = await auth.saveFace(currentUser.id, char.name, char.imageUrl);
       setSavedFaces((prev) => [face, ...prev]);
     }
+    setDuplicateWarningFace(null);
+  };
+
+  const handleSaveCroppedFace = async (newChar: Character) => {
+    setIsAddingFace(false);
+    const exists = await auth.checkIfPublicFaceNameExists(newChar.name);
+    if (exists) {
+      setDuplicateWarningFace(newChar);
+      return;
+    }
+    await commitSaveFace(newChar);
   };
 
   const handleDeleteFace = async (faceId: string) => {
@@ -574,7 +586,7 @@ export const ProfilePage: FC<ProfilePageProps> = ({
         <div className="space-y-4 animate-in fade-in duration-150">
           <div className="flex items-center justify-between pb-2">
             <span className="text-xs text-[#6F655C]">
-              {savedFaces.length} {savedFaces.length === 1 ? 'cara salva' : 'caras salvas'} (limite de 100)
+              {savedFaces.length} {savedFaces.length === 1 ? 'cara salva' : 'caras salvas'} (limite de 360)
             </span>
             <Button
               size="sm"
@@ -808,6 +820,16 @@ export const ProfilePage: FC<ProfilePageProps> = ({
         isOpen={limitModalType !== null}
         type={limitModalType || 'deck'}
         onClose={() => setLimitModalType(null)}
+      />
+
+      {/* Modal de Alerta para Nome de Cara já Existente */}
+      <DuplicateFaceAlertModal
+        isOpen={!!duplicateWarningFace}
+        faceName={duplicateWarningFace?.name || ''}
+        onConfirm={() => {
+          if (duplicateWarningFace) commitSaveFace(duplicateWarningFace);
+        }}
+        onCancel={() => setDuplicateWarningFace(null)}
       />
     </div>
   );

@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { sounds } from '../utils/sound';
 import { AccountLimitModal } from './AccountLimitModal';
+import { DuplicateFaceAlertModal } from './DuplicateFaceAlertModal';
 import { Button } from './ui/Button';
 import { Checkbox } from './ui/Checkbox';
 
@@ -73,6 +74,7 @@ export const CustomDeckBuilder: FC<CustomDeckBuilderProps> = ({
   const [saveToProfile, setSaveToProfile] = useState(false);
   const [isPublicDeck, setIsPublicDeck] = useState(initialDeck?.is_public ?? false);
   const [limitModalType, setLimitModalType] = useState<'deck' | 'face' | null>(null);
+  const [duplicateWarningFace, setDuplicateWarningFace] = useState<Character | null>(null);
 
   const [isCropperOpen, setIsCropperOpen] = useState(false);
   const [isSavingDeck, setIsSavingDeck] = useState(false);
@@ -148,13 +150,7 @@ export const CustomDeckBuilder: FC<CustomDeckBuilderProps> = ({
     }
   }, [isFacePickerOpen, facePickerTab, faceSearchQuery]);
 
-  const handleSaveCroppedCharacter = (newChar: Character) => {
-    // Limita o nome a no máximo 20 caracteres
-    const sanitizedChar = {
-      ...newChar,
-      name: newChar.name.slice(0, 20),
-    };
-
+  const commitSaveCharacter = (sanitizedChar: Character) => {
     if (replacingCardId) {
       setCards((prev) =>
         prev.map((c) =>
@@ -167,6 +163,22 @@ export const CustomDeckBuilder: FC<CustomDeckBuilderProps> = ({
     } else {
       setCards((prev) => [...prev, sanitizedChar]);
     }
+    setDuplicateWarningFace(null);
+  };
+
+  const handleSaveCroppedCharacter = async (newChar: Character) => {
+    // Limita o nome a no máximo 20 caracteres
+    const sanitizedChar = {
+      ...newChar,
+      name: newChar.name.slice(0, 20),
+    };
+
+    const exists = await auth.checkIfPublicFaceNameExists(sanitizedChar.name);
+    if (exists) {
+      setDuplicateWarningFace(sanitizedChar);
+      return;
+    }
+    commitSaveCharacter(sanitizedChar);
   };
 
   const handleRemoveCard = (id: string) => {
@@ -175,6 +187,20 @@ export const CustomDeckBuilder: FC<CustomDeckBuilderProps> = ({
   };
 
   const handleToggleFace = (face: SavedFace) => {
+    if (replacingCardId) {
+      sounds.playClick();
+      setCards((prev) =>
+        prev.map((c) =>
+          c.id === replacingCardId
+            ? { ...c, name: face.name.slice(0, 20), imageUrl: face.image_url }
+            : c
+        )
+      );
+      setReplacingCardId(null);
+      setIsFacePickerOpen(false);
+      return;
+    }
+
     const isAdded = cards.some(
       (c) =>
         c.name.trim().toLowerCase() === face.name.trim().toLowerCase() ||
@@ -380,7 +406,7 @@ export const CustomDeckBuilder: FC<CustomDeckBuilderProps> = ({
               ? 'Salvar'
               : isFromProfile
               ? 'Salvar baralho'
-              : 'Iniciar partida'}
+              : 'Selecionar baralho'}
           </Button>
         </div>
       </div>
@@ -408,7 +434,7 @@ export const CustomDeckBuilder: FC<CustomDeckBuilderProps> = ({
               id="save-profile"
               checked={saveToProfile}
               onChange={(e) => setSaveToProfile(e.target.checked)}
-              label="Salvar no meu perfil"
+              label="Salvar baralho no perfil"
             />
           )}
 
@@ -468,26 +494,48 @@ export const CustomDeckBuilder: FC<CustomDeckBuilderProps> = ({
 
       {/* Grid de Cartas com Dropzone Unificada */}
       <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-3">
-        {/* Dropzone Unificada para Upload / Colar */}
+        {/* Dropzone Unificada para Upload / Escolha da Comunidade */}
         {!isComplete && (
-          <button
-            type="button"
-            onClick={() => {
-              sounds.playClick();
-              setIsCropperOpen(true);
-            }}
-            className="p-3 rounded-[8px] border border-dashed border-[#E2DACD] hover:border-[#2B2420] bg-[#FBF8F3] hover:bg-white transition-colors flex flex-col items-center justify-center text-center min-h-[160px] cursor-pointer group"
-          >
-            <div className="w-10 h-10 rounded-[6px] border border-[#E2DACD] bg-white flex items-center justify-center text-[#B4532F] mb-2 group-hover:scale-105 transition-transform">
-              <Upload size={18} />
-            </div>
-            <span className="text-xs font-sans font-medium text-[#2B2420]">
-              Adicionar foto
-            </span>
-            <span className="text-[10px] text-[#6F655C] mt-0.5">
-              Arquivo ou Ctrl+V
-            </span>
-          </button>
+          currentUser ? (
+            <button
+              type="button"
+              onClick={() => {
+                sounds.playClick();
+                setIsCropperOpen(true);
+              }}
+              className="p-3 rounded-[8px] border border-dashed border-[#E2DACD] hover:border-[#2B2420] bg-[#FBF8F3] hover:bg-white transition-colors flex flex-col items-center justify-center text-center min-h-[160px] cursor-pointer group"
+            >
+              <div className="w-10 h-10 rounded-[6px] border border-[#E2DACD] bg-white flex items-center justify-center text-[#B4532F] mb-2 group-hover:scale-105 transition-transform">
+                <Upload size={18} />
+              </div>
+              <span className="text-xs font-sans font-medium text-[#2B2420]">
+                Adicionar foto
+              </span>
+              <span className="text-[10px] text-[#6F655C] mt-0.5">
+                Arquivo ou Ctrl+V
+              </span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => {
+                sounds.playClick();
+                setFacePickerTab('community');
+                setIsFacePickerOpen(true);
+              }}
+              className="p-3 rounded-[8px] border border-dashed border-[#E2DACD] hover:border-[#2B2420] bg-[#FBF8F3] hover:bg-white transition-colors flex flex-col items-center justify-center text-center min-h-[160px] cursor-pointer group"
+            >
+              <div className="w-10 h-10 rounded-[6px] border border-[#E2DACD] bg-white flex items-center justify-center text-[#B4532F] mb-2 group-hover:scale-105 transition-transform">
+                <Search size={18} />
+              </div>
+              <span className="text-xs font-sans font-medium text-[#2B2420]">
+                Escolher da Comunidade
+              </span>
+              <span className="text-[10px] text-[#A39A90] mt-0.5">
+                Upload exige conta
+              </span>
+            </button>
+          )
         )}
 
         {/* Cartas do Baralho */}
@@ -504,7 +552,12 @@ export const CustomDeckBuilder: FC<CustomDeckBuilderProps> = ({
                 type="button"
                 onClick={() => {
                   setReplacingCardId(char.id);
-                  setIsCropperOpen(true);
+                  if (!currentUser) {
+                    setFacePickerTab('community');
+                    setIsFacePickerOpen(true);
+                  } else {
+                    setIsCropperOpen(true);
+                  }
                 }}
                 title="Substituir foto"
                 className="absolute top-1 left-1 p-1 bg-white/90 hover:bg-white rounded-[4px] text-[#6F655C] hover:text-[#2B2420] opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer shadow-2xs"
@@ -698,6 +751,16 @@ export const CustomDeckBuilder: FC<CustomDeckBuilderProps> = ({
         isOpen={limitModalType !== null}
         type={limitModalType || 'deck'}
         onClose={() => setLimitModalType(null)}
+      />
+
+      {/* Modal de Alerta para Nome de Cara já Existente */}
+      <DuplicateFaceAlertModal
+        isOpen={!!duplicateWarningFace}
+        faceName={duplicateWarningFace?.name || ''}
+        onConfirm={() => {
+          if (duplicateWarningFace) commitSaveCharacter(duplicateWarningFace);
+        }}
+        onCancel={() => setDuplicateWarningFace(null)}
       />
     </div>
   );

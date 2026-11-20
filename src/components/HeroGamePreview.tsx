@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { HelpCircle, Check, RotateCcw } from 'lucide-react';
+import { HelpCircle, Check } from 'lucide-react';
 import { sounds } from '../utils/sound';
 
 interface PreviewCharacter {
@@ -24,6 +24,7 @@ interface SimulationStep {
   answer: string;
   isYes: boolean;
   discardedIds: string[];
+  winnerId?: string;
 }
 
 const SIMULATION_STEPS: SimulationStep[] = [
@@ -44,72 +45,46 @@ const SIMULATION_STEPS: SimulationStep[] = [
     answer: 'SIM, ACERTOU!',
     isYes: true,
     discardedIds: ['hugo', 'bruno', 'felipe', 'ana', 'carla'],
+    winnerId: 'davi',
   },
 ];
 
 export const HeroGamePreview: React.FC = () => {
   const [stepIndex, setStepIndex] = useState(0);
-  const [discarded, setDiscarded] = useState<Record<string, boolean>>({
-    hugo: true,
-    bruno: true,
-    felipe: true,
-  });
-  const [isManual, setIsManual] = useState(false);
 
-  // Ciclo automático da simulação (apenas se o usuário não estiver interagindo manualmente)
+  // Ciclo 100% automático e contínuo da demonstração
   useEffect(() => {
-    if (isManual) return;
-
     const timer = setInterval(() => {
       setStepIndex((prev) => {
         const next = (prev + 1) % (SIMULATION_STEPS.length + 1);
-        if (next === SIMULATION_STEPS.length) {
-          // Reset completo
-          setDiscarded({});
-          return next;
+        if (next < SIMULATION_STEPS.length) {
+          sounds.playFlip();
         }
-        const currentStep = SIMULATION_STEPS[next];
-        const newDiscarded: Record<string, boolean> = {};
-        currentStep.discardedIds.forEach((id) => {
-          newDiscarded[id] = true;
-        });
-        setDiscarded(newDiscarded);
-        sounds.playFlip();
         return next;
       });
-    }, 3800);
+    }, 3400);
 
     return () => clearInterval(timer);
-  }, [isManual]);
+  }, []);
 
-  const currentStep =
-    stepIndex < SIMULATION_STEPS.length
-      ? SIMULATION_STEPS[stepIndex]
-      : {
-          question: 'Iniciando nova rodada...',
-          answer: 'VEZ DELE',
-          isYes: true,
-          discardedIds: [],
-        };
+  const isResetting = stepIndex === SIMULATION_STEPS.length;
+  const currentStep = isResetting
+    ? {
+        question: 'Preparando nova rodada...',
+        answer: 'NOVO JOGO',
+        isYes: true,
+        discardedIds: [],
+        winnerId: undefined,
+      }
+    : SIMULATION_STEPS[stepIndex];
 
-  const handleCardClick = (id: string) => {
-    setIsManual(true);
-    sounds.playFlip();
-    setDiscarded((prev) => ({
-      ...prev,
-      [id]: !prev[id],
-    }));
-  };
-
-  const handleResetManual = () => {
-    sounds.playClick();
-    setIsManual(false);
-    setStepIndex(0);
-    setDiscarded({ hugo: true, bruno: true, felipe: true });
-  };
+  const discardedSet = new Set(currentStep.discardedIds);
 
   return (
-    <div className="w-full max-w-[390px] bg-white border border-[#E2DACD] rounded-2xl p-4 sm:p-5 shadow-xs transition-all select-none">
+    <div
+      aria-label="Demonstração do jogo"
+      className="w-full max-w-[390px] bg-white border border-[#E2DACD] rounded-2xl p-4 sm:p-5 shadow-xs transition-all pointer-events-none select-none"
+    >
       {/* Cabeçalho da Simulação: Pergunta e Resposta */}
       <div className="flex items-center justify-between gap-2 pb-3 mb-3 border-b border-[#E2DACD]">
         <div className="flex items-center gap-1.5 min-w-0">
@@ -132,26 +107,24 @@ export const HeroGamePreview: React.FC = () => {
         </span>
       </div>
 
-      {/* Grid 3x2 com as Cartas Físicas da Simulação */}
+      {/* Grid 3x2 com as Cartas Demonstrativas */}
       <div className="grid grid-cols-3 gap-2.5">
         {PREVIEW_CHARACTERS.map((char) => {
-          const isOff = discarded[char.id];
-          const isWinner = char.id === 'davi' && stepIndex === 2;
+          const isOff = discardedSet.has(char.id);
+          const isWinner = currentStep.winnerId === char.id;
 
           return (
-            <button
-              type="button"
+            <div
               key={char.id}
-              onClick={() => handleCardClick(char.id)}
-              className={`group flex flex-col items-center p-1.5 rounded-xl border transition-all duration-300 cursor-pointer ${
+              className={`flex flex-col items-center p-1.5 rounded-xl border transition-all duration-300 ${
                 isWinner
-                  ? 'bg-amber-50 border-amber-300 ring-2 ring-amber-200 scale-105 shadow-sm'
+                  ? 'bg-amber-50 border-amber-300 ring-2 ring-amber-300 scale-105 shadow-sm'
                   : isOff
-                  ? 'bg-[#F6F2EA]/60 border-[#E2DACD]/60 opacity-40 scale-[0.96] grayscale'
-                  : 'bg-[#FBF8F3] border-[#E2DACD] hover:border-[#B4532F]/50 shadow-2xs hover:scale-[1.02]'
+                  ? 'bg-[#F6F2EA]/60 border-[#E2DACD]/60 opacity-35 scale-[0.96] grayscale'
+                  : 'bg-[#FBF8F3] border-[#E2DACD] shadow-2xs'
               }`}
             >
-              <div className="w-full aspect-square rounded-lg overflow-hidden bg-white mb-1.5 relative">
+              <div className="w-full aspect-square rounded-lg overflow-hidden bg-white mb-1.5 relative border border-[#E2DACD]/60">
                 <img
                   src={char.imageUrl}
                   alt={char.name}
@@ -163,7 +136,7 @@ export const HeroGamePreview: React.FC = () => {
                   </div>
                 )}
                 {isWinner && (
-                  <div className="absolute top-1 right-1 w-4 h-4 rounded-full bg-emerald-500 text-white flex items-center justify-center">
+                  <div className="absolute top-1 right-1 w-4 h-4 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-xs">
                     <Check size={10} strokeWidth={3} />
                   </div>
                 )}
@@ -175,24 +148,9 @@ export const HeroGamePreview: React.FC = () => {
               >
                 {char.name}
               </span>
-            </button>
+            </div>
           );
         })}
-      </div>
-
-      {/* Rodapé com Dica de Interatividade */}
-      <div className="flex items-center justify-between pt-3 mt-3 border-t border-[#E2DACD]/70 text-[11px] text-[#6F655C]">
-        <span>Clique em qualquer cara para testar</span>
-        {isManual && (
-          <button
-            type="button"
-            onClick={handleResetManual}
-            className="flex items-center gap-1 text-[#B4532F] font-bold hover:underline cursor-pointer"
-          >
-            <RotateCcw size={11} />
-            <span>Voltar simulação</span>
-          </button>
-        )}
       </div>
     </div>
   );
