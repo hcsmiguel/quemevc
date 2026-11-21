@@ -5,6 +5,7 @@ import type { Character } from '../../types/game';
 import { Button } from '../ui/Button';
 import { CaraLegenda } from '../community/CaraLegenda';
 import { FacePreviewModal } from '../community/FacePreviewModal';
+import { ImageCropperModal, type CroppedFaceResult } from '../ImageCropperModal';
 import { normalizeText, getRelevanceTier } from '../../utils/communitySearch';
 import { calculateImageHash } from '../../utils/imageHash';
 import { sounds } from '../../utils/sound';
@@ -17,6 +18,7 @@ import {
   Check,
   AlertTriangle,
   ZoomIn,
+  Scissors,
 } from 'lucide-react';
 
 interface OfficialDeckBuilderProps {
@@ -78,6 +80,12 @@ export const OfficialDeckBuilder: React.FC<OfficialDeckBuilderProps> = ({
     existingFace: SavedFace;
     tempFile?: File | Blob;
   } | null>(null);
+
+  // 8. Modal de Redimensionamento / Recorte de Imagem
+  const [isCropperOpen, setIsCropperOpen] = useState(false);
+  const [cropperInitialImage, setCropperInitialImage] = useState<string | null>(null);
+  const [cropperInitialName, setCropperInitialName] = useState<string>('');
+  const [cropperEditingDraftId, setCropperEditingDraftId] = useState<string | null>(null);
 
   // Cartas quebradas em modo de reparação
   const [brokenCards, setBrokenCards] = useState<Character[]>(initialBrokenCards);
@@ -213,83 +221,134 @@ export const OfficialDeckBuilder: React.FC<OfficialDeckBuilderProps> = ({
     });
   };
 
-  // Processar arquivos enviados (upload, drag&drop, colar)
-  const processNewImageFiles = async (files: FileList | File[]) => {
-    const fileArray = Array.from(files).filter((f) => f.type.startsWith('image/'));
-    if (fileArray.length === 0) return;
+  // Abrir cropper para nova cara
+  const handleOpenCropperForNew = () => {
+    sounds.playClick();
+    setCropperInitialImage(null);
+    setCropperInitialName('');
+    setCropperEditingDraftId(null);
+    setIsCropperOpen(true);
+  };
 
-    for (const file of fileArray) {
-      // 1. Calcular hash SHA-256 no cliente
-      const hash = await calculateImageHash(file);
+  // Abrir cropper para redimensionar cara existente em rascunho
+  const handleOpenCropperForDraft = (draft: OfficialDeckDraftFace) => {
+    sounds.playClick();
+    setCropperInitialImage(draft.previewUrl);
+    setCropperInitialName(draft.name);
+    setCropperEditingDraftId(draft.tempId);
+    setIsCropperOpen(true);
+  };
 
-      // 2. Anti-duplicata: checar se hash já existe no catálogo público
-      const existingByHash = hash
-        ? catalogFaces.find((f: any) => f.content_hash === hash || f.image_url?.includes(hash))
-        : null;
+  // Carregar arquivo para recorte e redimensionamento
+  const handleFilePickedToCrop = (file: File | Blob, defaultName?: string) => {
+    if (!file.type.startsWith('image/')) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setCropperInitialImage(e.target?.result as string);
+      const name = defaultName || ('name' in file ? (file as File).name.replace(/\.[^/.]+$/, '').trim().slice(0, 20) : '');
+      setCropperInitialName(name);
+      setCropperEditingDraftId(null);
+      setIsCropperOpen(true);
+    };
+    reader.readAsDataURL(file);
+  };
 
-      if (existingByHash) {
-        sounds.playWrong();
-        setDuplicateWarning({
-          type: 'exact_image',
-          existingFace: existingByHash,
-          tempFile: file,
-        });
-        continue;
-      }
+  // Salvar resultado do recorte e redimensionamento
+  const handleSaveCroppedFace = async (result: CroppedFaceResult) => {
+    setIsCropperOpen(false);
+    const cleanName = result.name.trim().slice(0, 20);
 
-      // 3. Anti-duplicata entre os próprios rascunhos
-      const existingInDrafts = draftFaces.find((d) => d.contentHash && d.contentHash === hash);
-      if (existingInDrafts) {
-        sounds.playWrong();
-        alert(`Esta imagem já foi adicionada nos rascunhos como "${existingInDrafts.name}".`);
-        continue;
-      }
+    // 1. Calcular hash SHA-256 no cliente a partir do Blob recortado
+    const hash = await calculateImageHash(result.blob);
 
-      // 4. Montar rascunho
-      const previewUrl = URL.createObjectURL(file);
-      const baseName = file.name.replace(/\.[^/.]+$/, '').trim().slice(0, 20);
-      const tempId = 'draft_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
+    // 2. Anti-duplicata: checar se hash já existe no catálogo público
+    const existingByHash = hash
+      ? catalogFaces.find((f: any) => f.content_hash === hash || f.image_url?.includes(hash))
+      : null;
 
-      const draft: OfficialDeckDraftFace = {
-        tempId,
-        name: baseName,
-        file,
-        previewUrl,
-        contentHash: hash,
-      };
-
-      // 5. Anti-duplicata: checar nome igual ou muito parecido no catálogo
-      const normName = normalizeText(baseName);
-      const existingByName = normName.length >= 3
-        ? catalogFaces.find((f) => normalizeText(f.name) === normName)
-        : null;
-
-      if (existingByName) {
-        sounds.playWrong();
-        setDuplicateWarning({
-          type: 'similar_name',
-          draft,
-          existingFace: existingByName,
-        });
-      } else {
-        setDraftFaces((prev) => [...prev, draft]);
-        setSelectedDraftIds((prev) => new Set(prev).add(tempId));
-        setActiveTab('drafts');
-        sounds.playClick();
-      }
+    if (existingByHash) {
+      sounds.playWrong();
+      setDuplicateWarning({
+        type: 'exact_image',
+        existingFace: existingByHash,
+        tempFile: result.blob,
+      });
+      return;
     }
+
+    // 3. Se estiver editando um rascunho existente:
+    if (cropperEditingDraftId) {
+      setDraftFaces((prev) =>
+        prev.map((d) =>
+          d.tempId === cropperEditingDraftId
+            ? {
+                ...d,
+                name: cleanName,
+                file: result.blob,
+                previewUrl: result.previewUrl,
+                contentHash: hash,
+              }
+            : d
+        )
+      );
+      setCropperEditingDraftId(null);
+      sounds.playWin();
+      return;
+    }
+
+    // 4. Anti-duplicata entre os próprios rascunhos
+    const existingInDrafts = draftFaces.find((d) => d.contentHash && d.contentHash === hash);
+    if (existingInDrafts) {
+      sounds.playWrong();
+      alert(`Esta imagem já foi adicionada nos rascunhos como "${existingInDrafts.name}".`);
+      return;
+    }
+
+    const tempId = 'draft_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
+    const newDraft: OfficialDeckDraftFace = {
+      tempId,
+      name: cleanName,
+      file: result.blob,
+      previewUrl: result.previewUrl,
+      contentHash: hash,
+    };
+
+    // 5. Anti-duplicata: checar nome igual ou muito parecido no catálogo
+    const normName = normalizeText(cleanName);
+    const existingByName = normName.length >= 3
+      ? catalogFaces.find((f) => normalizeText(f.name) === normName)
+      : null;
+
+    if (existingByName) {
+      sounds.playWrong();
+      setDuplicateWarning({
+        type: 'similar_name',
+        draft: newDraft,
+        existingFace: existingByName,
+        tempFile: result.blob,
+      });
+      return;
+    }
+
+    setDraftFaces((prev) => [...prev, newDraft]);
+    setSelectedDraftIds((prev) => new Set(prev).add(tempId));
+    setActiveTab('drafts');
+    sounds.playWin();
   };
 
   // Suporte a colar (Ctrl+V) de imagens
   useEffect(() => {
     const handlePaste = (e: ClipboardEvent) => {
       if (e.clipboardData?.files && e.clipboardData.files.length > 0) {
-        processNewImageFiles(e.clipboardData.files);
+        const file = e.clipboardData.files[0];
+        if (file && file.type.startsWith('image/')) {
+          handleFilePickedToCrop(file);
+        }
       }
     };
     window.addEventListener('paste', handlePaste);
     return () => window.removeEventListener('paste', handlePaste);
-  }, [catalogFaces, draftFaces]);
+  }, []);
 
   // Atualizar nome de cara em rascunho
   const updateDraftName = (tempId: string, newName: string) => {
@@ -562,37 +621,43 @@ export const OfficialDeckBuilder: React.FC<OfficialDeckBuilderProps> = ({
       )}
 
       {/* NAVEGAÇÃO POR ABAS DE TEXTO: "Catálogo" e "Novas caras" */}
-      <div className="border-b border-[#E2DACD] flex items-center justify-between gap-4">
+      <div className="border-b border-[#E2DACD] pb-3 mb-6 flex items-center justify-between gap-4">
         <div className="flex items-center gap-6 text-sm font-sans">
           <button
             type="button"
             onClick={() => setActiveTab('catalog')}
-            className={`pb-2.5 cursor-pointer transition-colors relative font-medium ${
+            className={`cursor-pointer transition-colors relative font-medium py-1 ${
               activeTab === 'catalog'
-                ? 'text-[#2B2420] border-b-2 border-[#2B2420]'
+                ? 'text-[#2B2420]'
                 : 'text-[#6F655C] hover:text-[#2B2420]'
             }`}
           >
-            Catálogo
+            <span>Catálogo</span>
             <span className="ml-1.5 text-xs text-[#A39A90]">
               ({catalogFaces.length})
             </span>
+            {activeTab === 'catalog' && (
+              <span className="absolute -bottom-3 left-0 right-0 h-[2px] bg-[#2B2420]" />
+            )}
           </button>
 
           <button
             type="button"
             onClick={() => setActiveTab('drafts')}
-            className={`pb-2.5 cursor-pointer transition-colors relative font-medium ${
+            className={`cursor-pointer transition-colors relative font-medium py-1 ${
               activeTab === 'drafts'
-                ? 'text-[#2B2420] border-b-2 border-[#2B2420]'
+                ? 'text-[#2B2420]'
                 : 'text-[#6F655C] hover:text-[#2B2420]'
             }`}
           >
-            Novas caras
+            <span>Novas caras</span>
             {draftFaces.length > 0 && (
               <span className="ml-1.5 text-xs font-bold text-[#B4532F] bg-[#FDF5F2] px-1.5 py-0.2 rounded-full border border-[#F3D7CD]">
                 {draftFaces.length}
               </span>
+            )}
+            {activeTab === 'drafts' && (
+              <span className="absolute -bottom-3 left-0 right-0 h-[2px] bg-[#2B2420]" />
             )}
           </button>
         </div>
@@ -602,12 +667,13 @@ export const OfficialDeckBuilder: React.FC<OfficialDeckBuilderProps> = ({
           ref={fileInputRef}
           type="file"
           accept="image/*"
-          multiple
           className="hidden"
           onChange={(e) => {
-            if (e.target.files) {
-              processNewImageFiles(e.target.files);
+            const file = e.target.files?.[0];
+            if (file) {
+              handleFilePickedToCrop(file);
             }
+            e.target.value = '';
           }}
         />
 
@@ -615,7 +681,8 @@ export const OfficialDeckBuilder: React.FC<OfficialDeckBuilderProps> = ({
           <Button
             size="sm"
             variant="secondary"
-            onClick={() => fileInputRef.current?.click()}
+            onClick={handleOpenCropperForNew}
+            className="my-auto"
           >
             <Upload size={13} className="mr-1.5" />
             Adicionar cara
@@ -797,11 +864,12 @@ export const OfficialDeckBuilder: React.FC<OfficialDeckBuilderProps> = ({
             onDragOver={(e) => e.preventDefault()}
             onDrop={(e) => {
               e.preventDefault();
-              if (e.dataTransfer.files) {
-                processNewImageFiles(e.dataTransfer.files);
+              const file = e.dataTransfer.files?.[0];
+              if (file) {
+                handleFilePickedToCrop(file);
               }
             }}
-            onClick={() => fileInputRef.current?.click()}
+            onClick={handleOpenCropperForNew}
             className="p-8 border-2 border-dashed border-[#E2DACD] hover:border-[#B4532F] rounded-2xl bg-[#FBF8F3] hover:bg-white text-center cursor-pointer transition-colors flex flex-col items-center justify-center gap-2"
           >
             <div className="w-10 h-10 rounded-full bg-white border border-[#E2DACD] flex items-center justify-center text-[#B4532F]">
@@ -812,7 +880,7 @@ export const OfficialDeckBuilder: React.FC<OfficialDeckBuilderProps> = ({
                 Clique para selecionar fotos, arraste arquivos aqui ou cole da área de transferência (Ctrl+V)
               </p>
               <p className="text-[11px] text-[#6F655C] mt-0.5">
-                Fotos quadradas em formato JPEG, PNG ou WebP. As cartas ficam em rascunho até que o baralho seja salvo.
+                Você pode redimensionar, aproximar e enquadrar a foto antes de salvar. As cartas ficam em rascunho até que o baralho seja salvo.
               </p>
             </div>
           </div>
@@ -859,13 +927,25 @@ export const OfficialDeckBuilder: React.FC<OfficialDeckBuilderProps> = ({
                       <Check size={12} strokeWidth={3} />
                     </div>
 
-                    {/* Foto da Nova Cara */}
-                    <div className="w-full aspect-square rounded-lg overflow-hidden bg-[#F6F2EA] border border-[#E2DACD]/60 relative mb-2">
+                    {/* Foto da Nova Cara com Ação de Redimensionar */}
+                    <div className="w-full aspect-square rounded-lg overflow-hidden bg-[#F6F2EA] border border-[#E2DACD]/60 relative mb-2 group">
                       <img
                         src={draft.previewUrl}
                         alt={draft.name || `Nova #${idx + 1}`}
                         className="w-full h-full object-cover"
                       />
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleOpenCropperForDraft(draft);
+                        }}
+                        title="Redimensionar foto"
+                        className="absolute bottom-1 right-1 px-1.5 py-0.5 rounded bg-black/75 hover:bg-black text-white text-[10px] font-sans flex items-center gap-1 cursor-pointer transition-colors shadow-xs"
+                      >
+                        <Scissors size={10} />
+                        <span>Redimensionar</span>
+                      </button>
                     </div>
 
                     {/* Campo de Nome Obrigatório Inline */}
@@ -946,6 +1026,22 @@ export const OfficialDeckBuilder: React.FC<OfficialDeckBuilderProps> = ({
             setPreviewFace(null);
           }}
           isSelectionEnabled={true}
+        />
+      )}
+
+      {/* MODAL DE REDIMENSIONAR E ENQUADRAR IMAGEM */}
+      {isCropperOpen && (
+        <ImageCropperModal
+          initialImageSrc={cropperInitialImage}
+          initialName={cropperInitialName}
+          deferUpload={true}
+          onSaveCropped={handleSaveCroppedFace}
+          onClose={() => {
+            setIsCropperOpen(false);
+            setCropperInitialImage(null);
+            setCropperInitialName('');
+            setCropperEditingDraftId(null);
+          }}
         />
       )}
 

@@ -4,7 +4,6 @@ import { auth } from '../../services/auth';
 import { adminService, type AdminOverviewMetrics, type AdminAuditLog } from '../../services/admin';
 import { AdminOverview } from './AdminOverview';
 import { AdminOfficialDecks } from './AdminOfficialDecks';
-import { AdminOfficialFaces } from './AdminOfficialFaces';
 import { AdminFeaturedDecks } from './AdminFeaturedDecks';
 import { AdminReports } from './AdminReports';
 import { AdminAccounts } from './AdminAccounts';
@@ -13,7 +12,6 @@ import { AdminAuditLogs } from './AdminAuditLogs';
 export type AdminTab =
   | 'overview'
   | 'official_decks'
-  | 'official_faces'
   | 'featured_decks'
   | 'reports'
   | 'accounts'
@@ -175,17 +173,6 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
             </button>
 
             <button
-              onClick={() => setActiveTab('official_faces')}
-              className={`px-3 py-2 rounded-lg text-xs font-bold transition-all text-left cursor-pointer shrink-0 ${
-                activeTab === 'official_faces'
-                  ? 'bg-[#2B2420] text-white shadow-2xs'
-                  : 'text-[#6F655C] hover:bg-white hover:text-[#2B2420]'
-              }`}
-            >
-              Banco de Caras (Legado)
-            </button>
-
-            <button
               onClick={() => setActiveTab('featured_decks')}
               className={`px-3 py-2 rounded-lg text-xs font-bold transition-all text-left cursor-pointer shrink-0 ${
                 activeTab === 'featured_decks'
@@ -252,10 +239,6 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
 
           {activeTab === 'official_decks' && (
             <AdminOfficialDecks />
-          )}
-
-          {activeTab === 'official_faces' && (
-            <AdminOfficialFaces />
           )}
 
           {activeTab === 'featured_decks' && (

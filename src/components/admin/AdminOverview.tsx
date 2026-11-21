@@ -1,10 +1,11 @@
 import React from 'react';
 import type { AdminOverviewMetrics, AdminAuditLog } from '../../services/admin';
+import type { AdminTab } from './AdminLayout';
 
 interface AdminOverviewProps {
   metrics: AdminOverviewMetrics;
   auditLogs: AdminAuditLog[];
-  onNavigateTab: (tab: 'overview' | 'official_decks' | 'official_faces' | 'featured_decks' | 'reports' | 'accounts' | 'audit_logs') => void;
+  onNavigateTab: (tab: AdminTab) => void;
 }
 
 export const AdminOverview: React.FC<AdminOverviewProps> = ({
@@ -25,7 +26,7 @@ export const AdminOverview: React.FC<AdminOverviewProps> = ({
       </div>
 
       {/* Grid de Métricas Principais (Sem Ícones Genéricos de IA) */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3.5">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
         {/* Card 1: Baralhos Tá na Cara! */}
         <div
           onClick={() => onNavigateTab('official_decks')}
@@ -42,23 +43,7 @@ export const AdminOverview: React.FC<AdminOverviewProps> = ({
           </span>
         </div>
 
-        {/* Card 2: Banco de Caras (Legado) */}
-        <div
-          onClick={() => onNavigateTab('official_faces')}
-          className="bg-white border border-[#E2DACD] rounded-xl p-4 hover:border-[#2B2420] transition-colors cursor-pointer shadow-2xs"
-        >
-          <span className="text-[11px] font-bold uppercase tracking-wider text-[#6F655C] block mb-2">
-            Caras (Legado)
-          </span>
-          <div className="text-3xl font-serif text-[#2B2420]">
-            {metrics.officialFacesCount}
-          </div>
-          <span className="text-xs text-[#B4532F] font-medium mt-2 inline-block hover:underline">
-            Ver fotos legadas →
-          </span>
-        </div>
-
-        {/* Card 3: Destaques da Home */}
+        {/* Card 2: Destaques da Home */}
         <div
           onClick={() => onNavigateTab('featured_decks')}
           className="bg-white border border-[#E2DACD] rounded-xl p-4 hover:border-[#2B2420] transition-colors cursor-pointer shadow-2xs"
@@ -127,22 +112,6 @@ export const AdminOverview: React.FC<AdminOverviewProps> = ({
                   </span>
                   <span className="text-[11px] text-[#6F655C]">
                     Montar coleção de 15 a 90 cartas
-                  </span>
-                </div>
-                <span className="text-xs text-[#B4532F] font-bold">→</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => onNavigateTab('official_faces')}
-                className="w-full p-3 rounded-lg border border-[#E2DACD] bg-[#FBF8F3] hover:bg-white hover:border-[#2B2420] transition-colors text-left flex items-center justify-between cursor-pointer"
-              >
-                <div>
-                  <span className="text-xs font-bold text-[#2B2420] block">
-                    Banco de Caras (Legado)
-                  </span>
-                  <span className="text-[11px] text-[#6F655C]">
-                    Consultar acervo histórico descontinuado
                   </span>
                 </div>
                 <span className="text-xs text-[#B4532F] font-bold">→</span>

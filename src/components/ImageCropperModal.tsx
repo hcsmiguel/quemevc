@@ -4,23 +4,35 @@ import { Upload, X, Check, ZoomIn, ZoomOut, Move, Scissors, Clipboard, Image as 
 import { sounds } from '../utils/sound';
 import type { Character } from '../types/game';
 
+export interface CroppedFaceResult {
+  name: string;
+  blob: Blob;
+  previewUrl: string;
+}
+
 interface ImageCropperModalProps {
-  onSaveCharacter: (character: Character) => void;
+  onSaveCharacter?: (character: Character) => void;
+  onSaveCropped?: (result: CroppedFaceResult) => void;
   onClose: () => void;
   initialIndex?: number;
   roomCode?: string;
   initialImageSrc?: string | null;
+  initialName?: string;
+  deferUpload?: boolean;
 }
 
 export const ImageCropperModal: FC<ImageCropperModalProps> = ({
   onSaveCharacter,
+  onSaveCropped,
   onClose,
   initialIndex: _initialIndex = 1,
   roomCode = 'temp',
   initialImageSrc = null,
+  initialName = '',
+  deferUpload = false,
 }) => {
   const [imageSrc, setImageSrc] = useState<string | null>(initialImageSrc);
-  const [characterName, setCharacterName] = useState('');
+  const [characterName, setCharacterName] = useState(initialName);
   const [zoom, setZoom] = useState(1);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
@@ -200,6 +212,12 @@ export const ImageCropperModal: FC<ImageCropperModalProps> = ({
     const img = imgRef.current;
     if (!img) return;
 
+    const finalName = characterName.trim();
+    if (!finalName) {
+      setErrorMsg('O nome da cara é obrigatório. Digite um nome antes de salvar.');
+      return;
+    }
+
     setIsUploading(true);
     sounds.playClick();
 
@@ -227,6 +245,25 @@ export const ImageCropperModal: FC<ImageCropperModalProps> = ({
         return;
       }
 
+      if (deferUpload || onSaveCropped) {
+        const previewUrl = URL.createObjectURL(blob);
+        if (onSaveCropped) {
+          onSaveCropped({ name: finalName, blob, previewUrl });
+        }
+        if (onSaveCharacter) {
+          const newChar: Character = {
+            id: 'custom_' + Date.now() + '_' + Math.random().toString(36).slice(2, 5),
+            name: finalName,
+            imageUrl: previewUrl,
+            avatarBg: '#1e293b',
+          };
+          onSaveCharacter(newChar);
+        }
+        setIsUploading(false);
+        onClose();
+        return;
+      }
+
       let publicUrl = '';
       try {
         const filePath = `room_${roomCode}/face_${Date.now()}_${Math.random().toString(36).slice(2, 7)}.jpg`;
@@ -248,13 +285,6 @@ export const ImageCropperModal: FC<ImageCropperModalProps> = ({
         publicUrl = finalCanvas.toDataURL('image/jpeg', 0.85);
       }
 
-      const finalName = characterName.trim();
-      if (!finalName) {
-        setErrorMsg('O nome da cara é obrigatório. Digite um nome antes de salvar.');
-        setIsUploading(false);
-        return;
-      }
-
       const newChar: Character = {
         id: 'custom_' + Date.now() + '_' + Math.random().toString(36).slice(2, 5),
         name: finalName,
@@ -262,7 +292,9 @@ export const ImageCropperModal: FC<ImageCropperModalProps> = ({
         avatarBg: '#1e293b',
       };
 
-      onSaveCharacter(newChar);
+      if (onSaveCharacter) {
+        onSaveCharacter(newChar);
+      }
       setIsUploading(false);
       onClose();
     }, 'image/jpeg', 0.88);
