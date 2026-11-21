@@ -20,6 +20,8 @@ export interface Character {
   name: string;
   nickname?: string; // Apelido curto opcional (máx. 12 caracteres, prioridade na cartela)
   imageUrl?: string; // Para caras personalizadas
+  authorName?: string;
+  isOfficial?: boolean;
   traits?: CharacterTraits; // Para caras padrão
   avatarBg?: string;
   hairHex?: string;

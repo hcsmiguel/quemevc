@@ -1,27 +1,18 @@
-import { useState, useEffect, type FC } from 'react';
+import { useState, useEffect, useRef, type FC } from 'react';
 import type { Character, DifficultyCount } from '../types/game';
 import { STANDARD_60_CHARACTERS } from '../utils/characters';
-import { Avatar } from './Avatar';
 import { ImageCropperModal } from './ImageCropperModal';
+import { FacePickerModal } from './FacePickerModal';
 import { auth, type AppUser, type SavedDeck, type SavedFace } from '../services/auth';
-import {
-  Trash2,
-  Check,
-  ArrowLeft,
-  X,
-  Edit2,
-  Camera,
-  Search,
-  Upload,
-} from 'lucide-react';
+import { ArrowLeft, X, Plus } from 'lucide-react';
 import { sounds } from '../utils/sound';
-import { AccountLimitModal } from './AccountLimitModal';
-import { DuplicateFaceAlertModal } from './DuplicateFaceAlertModal';
 import { Button } from './ui/Button';
 import { Checkbox } from './ui/Checkbox';
+import { CaraLegenda } from './community/CaraLegenda';
+import { CommunityToast, type ToastData } from './community/CommunityToast';
 
 interface CustomDeckBuilderProps {
-  targetCount: DifficultyCount;
+  targetCount?: DifficultyCount;
   roomCode?: string;
   currentUser: AppUser | null;
   initialDeck?: SavedDeck | null;
@@ -30,17 +21,74 @@ interface CustomDeckBuilderProps {
   onCancel: () => void;
 }
 
+const VALID_DECK_SIZES = [15, 30, 60, 90] as const;
+
+function getDynamicSelectionInfo(count: number): { nextTarget: number; text: string; isValid: boolean } {
+  if (count === 0) {
+    return { nextTarget: 15, text: 'Nenhuma carta escolhida · faltam 15 para 15', isValid: false };
+  }
+  if (count < 15) {
+    const diff = 15 - count;
+    return {
+      nextTarget: 15,
+      text: `${count} ${count === 1 ? 'carta' : 'cartas'} · faltam ${diff} para 15`,
+      isValid: false,
+    };
+  }
+  if (count === 15) {
+    return { nextTarget: 15, text: '15 cartas · meta atingida', isValid: true };
+  }
+  if (count < 30) {
+    const diff = 30 - count;
+    const over = count - 15;
+    return {
+      nextTarget: 30,
+      text: `${count} cartas · faltam ${diff} para 30, ou remova ${over} para 15`,
+      isValid: false,
+    };
+  }
+  if (count === 30) {
+    return { nextTarget: 30, text: '30 cartas · meta atingida', isValid: true };
+  }
+  if (count < 60) {
+    const diff = 60 - count;
+    const over = count - 30;
+    return {
+      nextTarget: 60,
+      text: `${count} cartas · faltam ${diff} para 60, ou remova ${over} para 30`,
+      isValid: false,
+    };
+  }
+  if (count === 60) {
+    return { nextTarget: 60, text: '60 cartas · meta atingida', isValid: true };
+  }
+  if (count < 90) {
+    const diff = 90 - count;
+    const over = count - 60;
+    return {
+      nextTarget: 90,
+      text: `${count} cartas · faltam ${diff} para 90, ou remova ${over} para 60`,
+      isValid: false,
+    };
+  }
+  if (count === 90) {
+    return { nextTarget: 90, text: '90 cartas · meta atingida', isValid: true };
+  }
+  return { nextTarget: 90, text: 'Máximo de 90 cartas atingido', isValid: false };
+}
+
 export const CustomDeckBuilder: FC<CustomDeckBuilderProps> = ({
-  targetCount,
+  targetCount: _initialTargetCount = 30,
   currentUser,
   initialDeck = null,
-  isFromProfile = false,
+  isFromProfile: _isFromProfile = false,
   onFinishDeck,
   onCancel,
 }) => {
-  const DRAFT_KEY = `cara_deck_draft_${currentUser?.id || 'guest'}_${targetCount}`;
+  const DRAFT_KEY = `cara_deck_draft_${currentUser?.id || 'guest'}`;
   const [restoredFromDraft, setRestoredFromDraft] = useState(false);
 
+  // Cartas do baralho
   const [cards, setCards] = useState<Character[]>(() => {
     if (initialDeck) return [...initialDeck.cards];
     try {
@@ -57,6 +105,7 @@ export const CustomDeckBuilder: FC<CustomDeckBuilderProps> = ({
     return [];
   });
 
+  // Nome do baralho
   const [deckName, setDeckName] = useState(() => {
     if (initialDeck?.name) return initialDeck.name;
     try {
@@ -71,47 +120,41 @@ export const CustomDeckBuilder: FC<CustomDeckBuilderProps> = ({
     return '';
   });
 
-  const [saveToProfile, setSaveToProfile] = useState(false);
   const [isPublicDeck, setIsPublicDeck] = useState(initialDeck?.is_public ?? false);
-  const [limitModalType, setLimitModalType] = useState<'deck' | 'face' | null>(null);
-  const [duplicateWarningFace, setDuplicateWarningFace] = useState<Character | null>(null);
-
-  const [isCropperOpen, setIsCropperOpen] = useState(false);
+  const [isTitleFocused, setIsTitleFocused] = useState(false);
   const [isSavingDeck, setIsSavingDeck] = useState(false);
 
-  // Caras salvas no perfil e da comunidade
-  const [savedFaces, setSavedFaces] = useState<SavedFace[]>([]);
-  const [communityFaces, setCommunityFaces] = useState<SavedFace[]>([]);
-  const [facePickerTab, setFacePickerTab] = useState<'community' | 'my'>('community');
-  const [faceSearchQuery, setFaceSearchQuery] = useState('');
-  const [loadingFaces, setLoadingFaces] = useState(false);
+  // Modais
   const [isFacePickerOpen, setIsFacePickerOpen] = useState(false);
-  const [privateFacesToPublish, setPrivateFacesToPublish] = useState<SavedFace[] | null>(null);
+  const [isAddFaceOpen, setIsAddFaceOpen] = useState(false);
+  const [isConfirmExitOpen, setIsConfirmExitOpen] = useState(false);
+  const [privateFacesDialog, setPrivateFacesDialog] = useState<{ faces: SavedFace[] } | null>(null);
 
-  // Edição de nome da carta
-  const [editingCardId, setEditingCardId] = useState<string | null>(null);
-  const [editingCardName, setEditingCardName] = useState('');
-  const [editingCardNickname, setEditingCardNickname] = useState('');
-  const [replacingCardId, setReplacingCardId] = useState<string | null>(null);
+  // Notificações / Toast
+  const [toast, setToast] = useState<ToastData | null>(null);
+
+  // Catálogo de caras disponíveis
+  const [communityFaces, setCommunityFaces] = useState<SavedFace[]>([]);
+  const [savedFaces, setSavedFaces] = useState<SavedFace[]>([]);
+
+  const titleInputRef = useRef<HTMLInputElement>(null);
 
   // Salvar rascunho automaticamente
   useEffect(() => {
-    if (cards.length > 0 || deckName.trim()) {
-      localStorage.setItem(DRAFT_KEY, JSON.stringify({ name: deckName, cards }));
+    if (!initialDeck) {
+      if (cards.length > 0 || deckName.trim()) {
+        try {
+          localStorage.setItem(DRAFT_KEY, JSON.stringify({ name: deckName, cards }));
+        } catch {
+          // ignore
+        }
+      }
     }
-  }, [cards, deckName, DRAFT_KEY]);
+  }, [cards, deckName, initialDeck, DRAFT_KEY]);
 
-  const handleDiscardDraft = () => {
-    sounds.playClick();
-    localStorage.removeItem(DRAFT_KEY);
-    setCards(initialDeck ? [...initialDeck.cards] : []);
-    setDeckName(initialDeck?.name || '');
-    setRestoredFromDraft(false);
-  };
-
-  // Carregar dados iniciais
+  // Carregar dados iniciais e detectar restauração de rascunho
   useEffect(() => {
-    auth.getPublicFaces().then(setCommunityFaces);
+    auth.getPublicFaces().then(setCommunityFaces).catch(() => {});
     if (!initialDeck) {
       try {
         const saved = localStorage.getItem(DRAFT_KEY);
@@ -125,708 +168,670 @@ export const CustomDeckBuilder: FC<CustomDeckBuilderProps> = ({
         // ignore
       }
     }
-  }, []);
+  }, [initialDeck, DRAFT_KEY]);
 
   useEffect(() => {
     if (currentUser) {
-      auth.getUserSavedFaces(currentUser.id).then((loaded) => {
-        setSavedFaces(loaded.filter((f) => !f.is_hidden && f.name !== 'Cara removida' && (f as any).status !== 'deleted'));
-      });
+      auth
+        .getUserSavedFaces(currentUser.id)
+        .then((loaded) => {
+          setSavedFaces(
+            loaded.filter(
+              (f) => !f.is_hidden && f.name !== 'Cara removida' && (f as any).status !== 'deleted'
+            )
+          );
+        })
+        .catch(() => {});
     }
   }, [currentUser]);
 
-  useEffect(() => {
-    if (isFacePickerOpen && facePickerTab === 'community' && faceSearchQuery.trim()) {
-      setLoadingFaces(true);
-      const timer = setTimeout(() => {
-        auth.getPublicFaces(faceSearchQuery).then((faces) => {
-          setCommunityFaces((prev) => {
-            const map = new Map<string, SavedFace>();
-            prev.forEach((f) => map.set(f.id, f));
-            faces.forEach((f) => map.set(f.id, f));
-            return Array.from(map.values());
-          });
-          setLoadingFaces(false);
-        });
-      }, 250);
-      return () => clearTimeout(timer);
-    }
-  }, [isFacePickerOpen, facePickerTab, faceSearchQuery]);
-
-  const commitSaveCharacter = (sanitizedChar: Character) => {
-    if (replacingCardId) {
-      setCards((prev) =>
-        prev.map((c) =>
-          c.id === replacingCardId
-            ? { ...c, imageUrl: sanitizedChar.imageUrl, name: sanitizedChar.name || c.name }
-            : c
-        )
-      );
-      setReplacingCardId(null);
-    } else {
-      setCards((prev) => [...prev, sanitizedChar]);
-    }
-    setDuplicateWarningFace(null);
-  };
-
-  const handleSaveCroppedCharacter = async (newChar: Character) => {
-    // Limita o nome a no máximo 20 caracteres
-    const sanitizedChar = {
-      ...newChar,
-      name: newChar.name.slice(0, 20),
-    };
-
-    const exists = await auth.checkIfPublicFaceNameExists(sanitizedChar.name);
-    if (exists) {
-      setDuplicateWarningFace(sanitizedChar);
-      return;
-    }
-    commitSaveCharacter(sanitizedChar);
-  };
-
-  const handleRemoveCard = (id: string) => {
+  // Descartar rascunho automático
+  const handleDiscardDraft = () => {
     sounds.playClick();
-    setCards((prev) => prev.filter((c) => c.id !== id));
+    try {
+      localStorage.removeItem(DRAFT_KEY);
+    } catch {
+      // ignore
+    }
+    setCards([]);
+    setDeckName('');
+    setRestoredFromDraft(false);
+    setToast({
+      id: `draft-discarded-${Date.now()}`,
+      message: 'Rascunho descartado.',
+    });
   };
 
-  const handleToggleFace = (face: SavedFace) => {
-    if (replacingCardId) {
-      sounds.playClick();
-      setCards((prev) =>
-        prev.map((c) =>
-          c.id === replacingCardId
-            ? { ...c, name: face.name.slice(0, 20), imageUrl: face.image_url }
-            : c
-        )
-      );
-      setReplacingCardId(null);
-      setIsFacePickerOpen(false);
-      return;
+  // Botão Voltar (com confirmação se houver dados alterados)
+  const handleBack = () => {
+    sounds.playClick();
+    if (cards.length > 0 || deckName.trim()) {
+      setIsConfirmExitOpen(true);
+    } else {
+      onCancel();
     }
+  };
 
-    const isAdded = cards.some(
+  // Alternar seleção no Seletor
+  const handleToggleCardFromPicker = (face: SavedFace) => {
+    const isAlreadySelected = cards.some(
       (c) =>
         c.name.trim().toLowerCase() === face.name.trim().toLowerCase() ||
-        (c.imageUrl && c.imageUrl === face.image_url)
+        (c.imageUrl && c.imageUrl === face.image_url) ||
+        c.id === face.id
     );
-    if (isAdded) {
-      sounds.playClick();
+
+    if (isAlreadySelected) {
       setCards((prev) =>
         prev.filter(
           (c) =>
             c.name.trim().toLowerCase() !== face.name.trim().toLowerCase() &&
-            (!c.imageUrl || c.imageUrl !== face.image_url)
+            c.imageUrl !== face.image_url &&
+            c.id !== face.id
         )
       );
-      return;
+    } else {
+      if (cards.length >= 90) {
+        setToast({
+          id: 'max-cards-reached',
+          message: 'Máximo de 90 cartas atingido.',
+        });
+        return;
+      }
+      const newCard: Character = {
+        id: face.id,
+        name: face.name,
+        imageUrl: face.image_url,
+        authorName: face.author_name,
+        isOfficial: face.is_official,
+        avatarBg: '#1e293b',
+      };
+      setCards((prev) => [...prev, newCard]);
     }
-    if (cards.length >= targetCount) {
-      sounds.playWrong();
-      return;
-    }
-    sounds.playClick();
-    const newChar: Character = {
-      id: 'custom_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
-      name: face.name.slice(0, 20),
-      imageUrl: face.image_url,
-    };
-    setCards((prev) => [...prev, newChar]);
   };
 
-  // Preencher aleatório
-  const handleFillRandomly = () => {
-    sounds.playWin();
-    const result: Character[] = [];
-    const usedNames = new Set<string>();
+  // Remover carta da grade com opção de desfazer via toast
+  const handleRemoveCard = (cardId: string) => {
+    sounds.playClick();
+    const cardIndex = cards.findIndex((c) => c.id === cardId);
+    if (cardIndex === -1) return;
+    const removedCard = cards[cardIndex];
 
-    const shuffledSavedFaces = [...savedFaces].sort(() => 0.5 - Math.random());
-    for (const f of shuffledSavedFaces) {
-      if (result.length >= targetCount) break;
-      if (!usedNames.has(f.name.toLowerCase())) {
-        usedNames.add(f.name.toLowerCase());
-        result.push({
-          id: 'custom_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7),
-          name: f.name.slice(0, 20),
+    setCards((prev) => prev.filter((c) => c.id !== cardId));
+
+    setToast({
+      id: `removed_${cardId}_${Date.now()}`,
+      message: `"${removedCard.name}" removida do baralho.`,
+      actionLabel: 'Desfazer',
+      onAction: () => {
+        setCards((prev) => {
+          const next = [...prev];
+          next.splice(cardIndex, 0, removedCard);
+          return next;
+        });
+      },
+    });
+  };
+
+  // Limpar todas as cartas
+  const handleClearAll = () => {
+    sounds.playClick();
+    const prev = [...cards];
+    setCards([]);
+    setToast({
+      id: `cleared_${Date.now()}`,
+      message: 'Todas as cartas foram removidas.',
+      actionLabel: 'Desfazer',
+      onAction: () => setCards(prev),
+    });
+  };
+
+  // Ação "Completar": preenche aleatoriamente com cartas disponíveis até a próxima meta
+  const handleComplete = () => {
+    sounds.playClick();
+    const currentCount = cards.length;
+    const nextTarget = VALID_DECK_SIZES.find((target) => target > currentCount) || 90;
+    const needed = nextTarget - currentCount;
+    if (needed <= 0) return;
+
+    const existingKeys = new Set<string>();
+    cards.forEach((c) => {
+      existingKeys.add(c.name.trim().toLowerCase());
+      if (c.imageUrl) existingKeys.add(c.imageUrl);
+      if (c.id) existingKeys.add(c.id);
+    });
+
+    const candidates: Character[] = [];
+
+    // Adiciona das cartas salvas
+    savedFaces.forEach((f) => {
+      const key = f.name.trim().toLowerCase();
+      if (
+        !existingKeys.has(key) &&
+        !existingKeys.has(f.image_url) &&
+        !existingKeys.has(f.id) &&
+        f.name !== 'Cara removida' &&
+        (f as any).status !== 'deleted' &&
+        (f as any).status !== 'unavailable'
+      ) {
+        existingKeys.add(key);
+        candidates.push({
+          id: f.id,
+          name: f.name,
           imageUrl: f.image_url,
+          authorName: f.author_name,
+          isOfficial: f.is_official,
         });
       }
+    });
+
+    // Adiciona da comunidade
+    communityFaces.forEach((f) => {
+      const key = f.name.trim().toLowerCase();
+      if (
+        !existingKeys.has(key) &&
+        !existingKeys.has(f.image_url) &&
+        !existingKeys.has(f.id) &&
+        f.name !== 'Cara removida' &&
+        (f as any).status !== 'deleted' &&
+        (f as any).status !== 'unavailable'
+      ) {
+        existingKeys.add(key);
+        candidates.push({
+          id: f.id,
+          name: f.name,
+          imageUrl: f.image_url,
+          authorName: f.author_name,
+          isOfficial: f.is_official,
+        });
+      }
+    });
+
+    // Adiciona do padrão
+    STANDARD_60_CHARACTERS.forEach((std) => {
+      const key = std.name.trim().toLowerCase();
+      if (!existingKeys.has(key) && !existingKeys.has(std.imageUrl || '') && !existingKeys.has(std.id)) {
+        existingKeys.add(key);
+        candidates.push(std);
+      }
+    });
+
+    const shuffled = [...candidates].sort(() => 0.5 - Math.random());
+    const toAdd = shuffled.slice(0, needed);
+
+    if (toAdd.length < needed) {
+      setToast({
+        id: `err_complete_${Date.now()}`,
+        message: `Foram adicionadas ${toAdd.length} cartas (catálogo esgotado).`,
+      });
     }
 
-    if (result.length < targetCount && communityFaces.length > 0) {
-      const shuffledCommunity = [...communityFaces].sort(() => 0.5 - Math.random());
-      for (const cf of shuffledCommunity) {
-        if (result.length >= targetCount) break;
-        if (!usedNames.has(cf.name.toLowerCase())) {
-          usedNames.add(cf.name.toLowerCase());
-          result.push({
-            id: 'custom_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7),
-            name: cf.name.slice(0, 20),
-            imageUrl: cf.image_url,
-          });
-        }
-      }
+    setCards((prev) => [...prev, ...toAdd]);
+  };
+
+  // Quando cartas são criadas no modal "Adicionar Cara"
+  const handleBatchCreatedFaces = (
+    newFaces: Array<{ id: string; name: string; imageUrl: string; isExistingReference?: boolean }>
+  ) => {
+    setIsAddFaceOpen(false);
+    if (!newFaces || newFaces.length === 0) return;
+
+    const newCards: Character[] = newFaces.map((f) => ({
+      id: f.id,
+      name: f.name,
+      imageUrl: f.imageUrl,
+      authorName: currentUser?.username,
+      avatarBg: '#1e293b',
+    }));
+
+    setCards((prev) => [...prev, ...newCards]);
+
+    setToast({
+      id: `faces-added-${Date.now()}`,
+      message:
+        newFaces.length === 1
+          ? `"${newFaces[0].name}" adicionada ao baralho.`
+          : `${newFaces.length} cartas adicionadas ao baralho.`,
+    });
+  };
+
+  // Validação de salvamento
+  const selectionInfo = getDynamicSelectionInfo(cards.length);
+  const isDeckSizeValid = selectionInfo.isValid;
+  const isNameValid = deckName.trim().length > 0;
+  const canSaveDeck = isDeckSizeValid && isNameValid;
+
+  const getDisabledReason = (): string | null => {
+    if (!isNameValid) return 'Digite um nome para o baralho.';
+    if (!isDeckSizeValid) {
+      if (cards.length < 15) return `Faltam ${15 - cards.length} cartas para 15.`;
+      if (cards.length < 30) return `Faltam ${30 - cards.length} para 30, ou remova ${cards.length - 15} para 15.`;
+      if (cards.length < 60) return `Faltam ${60 - cards.length} para 60, ou remova ${cards.length - 30} para 30.`;
+      if (cards.length < 90) return `Faltam ${90 - cards.length} para 90, ou remova ${cards.length - 60} para 60.`;
+      return 'Máximo de 90 cartas permitido.';
     }
-
-    if (result.length < targetCount) {
-      const shuffledStandards = [...STANDARD_60_CHARACTERS].sort(() => 0.5 - Math.random());
-      for (const std of shuffledStandards) {
-        if (result.length >= targetCount) break;
-        if (!usedNames.has(std.name.toLowerCase())) {
-          usedNames.add(std.name.toLowerCase());
-          result.push(std);
-        }
-      }
-    }
-
-    setCards(result.slice(0, targetCount));
+    return null;
   };
 
-  const handleStartRenameCard = (char: Character) => {
-    setEditingCardId(char.id);
-    setEditingCardName(char.name);
-    setEditingCardNickname(char.nickname || '');
-  };
-
-  const handleSaveRenameCard = () => {
-    if (!editingCardId) return;
-    const clean = editingCardName.trim().slice(0, 20); // Limite de 20 caracteres
-    if (!clean) return;
-    const cleanNick = editingCardNickname.trim().slice(0, 12);
-    setCards((prev) =>
-      prev.map((c) =>
-        c.id === editingCardId
-          ? { ...c, name: clean, nickname: cleanNick || undefined }
-          : c
-      )
-    );
-    setEditingCardId(null);
-    setEditingCardNickname('');
-  };
-
-  const isTitleMissing = !deckName.trim();
-  const isComplete = cards.length >= targetCount;
-  const isFormValid = isComplete && !isTitleMissing;
-
-  const proceedSaveDeck = async (publishAsPublic: boolean) => {
-    setIsSavingDeck(true);
-    const finalDeckName = deckName.trim().slice(0, 35) || `Baralho ${targetCount} Caras`;
-
-    if (initialDeck && currentUser) {
-      try {
-        await auth.updateSavedDeck(
-          initialDeck.id,
-          currentUser.id,
-          finalDeckName,
-          targetCount,
-          cards.slice(0, targetCount),
-          publishAsPublic
-        );
-      } catch (err) {
-        console.warn('Erro ao atualizar baralho:', err);
-      }
-    } else if ((isFromProfile || saveToProfile) && currentUser) {
-      try {
-        const userDecks = await auth.getUserSavedDecks(currentUser.id);
-        if (userDecks.length >= 10) {
-          sounds.playWrong();
-          setLimitModalType('deck');
-          setIsSavingDeck(false);
-          return;
-        }
-
-        await auth.saveDeck(
-          currentUser.id,
-          finalDeckName,
-          targetCount,
-          cards.slice(0, targetCount),
-          publishAsPublic,
-          currentUser.username
-        );
-      } catch (err) {
-        console.warn('Erro ao salvar baralho no perfil:', err);
-      }
-    }
-
-    setIsSavingDeck(false);
-    localStorage.removeItem(DRAFT_KEY);
-    onFinishDeck(cards.slice(0, targetCount), finalDeckName, isFromProfile || saveToProfile);
-  };
-
-  const handleConfirm = async () => {
-    if (!isComplete || isTitleMissing) {
-      if (isTitleMissing) sounds.playWrong();
+  // Início do fluxo de Salvar Baralho
+  const handleSaveDeckClick = async () => {
+    if (!canSaveDeck || isSavingDeck) {
+      const reason = getDisabledReason();
+      if (reason) setToast({ id: 'disabled-reason', message: reason });
       return;
     }
-    sounds.playWin();
 
-    // Consistência de Visibilidade: baralho público com caras privadas
+    // Consistência ao publicar: se o baralho for público, verificar se contém caras privadas do usuário
     if (isPublicDeck && currentUser) {
-      const privateFacesInDeck = savedFaces.filter(
-        (sf) => !sf.is_public && cards.slice(0, targetCount).some((c) => c.name === sf.name || c.imageUrl === sf.image_url)
+      const myPrivateFaces = savedFaces.filter(
+        (sf) =>
+          sf.user_id === currentUser.id &&
+          !sf.is_public &&
+          cards.some(
+            (c) =>
+              c.name.trim().toLowerCase() === sf.name.trim().toLowerCase() ||
+              (c.imageUrl && c.imageUrl === sf.image_url) ||
+              c.id === sf.id
+          )
       );
-      if (privateFacesInDeck.length > 0) {
-        setPrivateFacesToPublish(privateFacesInDeck);
+
+      if (myPrivateFaces.length > 0) {
+        setPrivateFacesDialog({ faces: myPrivateFaces });
         return;
       }
     }
 
-    await proceedSaveDeck(isPublicDeck);
+    await executeSaveDeck(isPublicDeck);
   };
 
-  const filteredSavedFaces = savedFaces.filter((f) =>
-    f.name.toLowerCase().includes(faceSearchQuery.toLowerCase().trim())
-  );
-  const filteredCommunityFaces = communityFaces.filter((f) =>
-    f.name.toLowerCase().includes(faceSearchQuery.toLowerCase().trim())
-  );
+  const executeSaveDeck = async (publishPublic: boolean) => {
+    setIsSavingDeck(true);
+    sounds.playClick();
+    const finalDeckName = deckName.trim();
+    const finalTargetCount = cards.length as DifficultyCount;
+
+    try {
+      if (initialDeck && currentUser) {
+        await auth.updateSavedDeck(
+          initialDeck.id,
+          currentUser.id,
+          finalDeckName,
+          finalTargetCount,
+          cards,
+          publishPublic
+        );
+      } else if (currentUser) {
+        await auth.saveDeck(
+          currentUser.id,
+          finalDeckName,
+          finalTargetCount,
+          cards,
+          publishPublic
+        );
+      }
+
+      try {
+        localStorage.removeItem(DRAFT_KEY);
+      } catch {
+        // ignore
+      }
+
+      onFinishDeck(cards, finalDeckName, true);
+    } catch (err: any) {
+      console.error('Erro ao salvar baralho:', err);
+      setToast({
+        id: 'err-save-deck',
+        message: err?.message || 'Erro ao salvar baralho.',
+      });
+      setIsSavingDeck(false);
+    }
+  };
+
+  // Diálogo de consistência: tornar públicas e publicar
+  const handleConfirmMakeFacesPublicAndSave = async () => {
+    if (!privateFacesDialog || !currentUser) return;
+    setIsSavingDeck(true);
+
+    try {
+      for (const face of privateFacesDialog.faces) {
+        await auth.toggleFacePublic(face.id, currentUser.id, true);
+      }
+      setPrivateFacesDialog(null);
+      await executeSaveDeck(true);
+    } catch (err: any) {
+      console.error('Erro ao tornar caras públicas:', err);
+      setToast({
+        id: 'err-toggle-public',
+        message: 'Falha ao atualizar visibilidade das caras.',
+      });
+      setIsSavingDeck(false);
+    }
+  };
+
+  // Diálogo de consistência: manter baralho privado
+  const handleKeepDeckPrivateAndSave = async () => {
+    setPrivateFacesDialog(null);
+    setIsPublicDeck(false);
+    await executeSaveDeck(false);
+  };
 
   return (
-    <div className="max-w-4xl mx-auto w-full py-6 sm:py-10 px-4 text-left animate-in fade-in duration-150">
-      {/* Rascunho Recuperado */}
-      {restoredFromDraft && cards.length > 0 && (
-        <div className="flex items-center justify-between bg-[#F6F2EA] border border-[#E2DACD] text-xs px-3.5 py-2 rounded-[6px] mb-4">
-          <span className="text-[#6F655C]">
-            Rascunho recuperado automaticamente.
-          </span>
+    <div className="w-full max-w-5xl mx-auto px-4 sm:px-6 pt-6 pb-28 sm:pb-32 text-left relative">
+      {/* 1. RASCUNHO RECUPERADO (UMA LINHA DE TEXTO SIMPLES) */}
+      {restoredFromDraft && (
+        <div className="flex items-center justify-between text-xs font-sans text-[#6F655C] mb-4 pb-2 border-b border-[#E2DACD]/60">
+          <span>Rascunho recuperado automaticamente.</span>
           <button
+            type="button"
             onClick={handleDiscardDraft}
-            className="text-xs font-medium text-[#B4532F] hover:underline cursor-pointer ml-2"
+            className="text-[#2B2420] underline font-medium hover:text-[#B4532F] cursor-pointer"
           >
             Descartar
           </button>
         </div>
       )}
 
-      {/* Top Header: Voltar e Ações Primárias */}
-      <div className="flex items-center justify-between gap-3 mb-6 pb-4 border-b border-[#E2DACD]">
+      {/* 2. CABEÇALHO LIMPO: SETA À ESQUERDA, SALVAR À DIREITA */}
+      <div className="flex items-center justify-between gap-4 mb-6">
         <button
-          onClick={onCancel}
-          className="inline-flex items-center gap-1.5 text-xs text-[#6F655C] hover:text-[#2B2420] transition-colors cursor-pointer"
+          type="button"
+          onClick={handleBack}
+          aria-label="Voltar"
+          className="p-2 -ml-2 text-[#6F655C] hover:text-[#2B2420] transition-colors rounded-[6px] cursor-pointer inline-flex items-center justify-center"
         >
-          <ArrowLeft size={14} />
-          <span>Voltar</span>
+          <ArrowLeft size={18} />
         </button>
 
-        <div className="flex items-center gap-3">
-          <span className="text-xs text-[#6F655C] font-sans">
-            Progresso: <strong className={`font-mono font-bold ${isComplete ? 'text-[#2E7D32]' : 'text-[#B4532F]'}`}>{cards.length}/{targetCount}</strong>
-          </span>
-
+        <div className="flex items-center gap-2">
+          {!canSaveDeck && cards.length > 0 && (
+            <span className="hidden sm:inline-block text-xs font-sans text-[#6F655C]">
+              {getDisabledReason()}
+            </span>
+          )}
           <Button
-            size="sm"
             variant="primary"
-            disabled={!isFormValid || isSavingDeck}
-            onClick={handleConfirm}
+            disabled={!canSaveDeck || isSavingDeck}
+            onClick={handleSaveDeckClick}
+            className="min-w-[120px]"
           >
-            {isSavingDeck
-              ? 'Salvando...'
-              : initialDeck
-              ? 'Salvar'
-              : isFromProfile
-              ? 'Salvar baralho'
-              : 'Selecionar baralho'}
+            {isSavingDeck ? 'Salvando...' : 'Salvar baralho'}
           </Button>
         </div>
       </div>
 
-      {/* SUPERFÍCIE ÚNICA: Nome do Baralho sem borda grossa */}
-      <div className="mb-6">
-        <div className="relative">
-          <input
-            type="text"
-            maxLength={35}
-            value={deckName}
-            onChange={(e) => setDeckName(e.target.value.slice(0, 35))}
-            placeholder="Nome do baralho"
-            className="w-full font-serif text-3xl sm:text-4xl text-[#2B2420] placeholder-[#A39A90] bg-transparent border-0 outline-none p-0 tracking-tight"
-          />
-          <span className="text-[11px] text-[#A39A90] font-mono mt-1 block">
+      {/* 3. NOME DO BARALHO (TÍTULO SEM BORDA, PLACEHOLDER EM SERIFADA) */}
+      <div className="mb-2">
+        <input
+          ref={titleInputRef}
+          type="text"
+          value={deckName}
+          maxLength={35}
+          placeholder="Nome do baralho"
+          aria-label="Nome do baralho"
+          onFocus={() => setIsTitleFocused(true)}
+          onBlur={() => setIsTitleFocused(false)}
+          onChange={(e) => setDeckName(e.target.value)}
+          className="w-full bg-transparent border-0 border-b border-transparent focus:border-[#E2DACD] pb-1 font-serif text-2xl sm:text-3xl text-[#2B2420] font-normal leading-tight placeholder-[#A39A90] focus:outline-none transition-colors"
+        />
+
+        {/* Contador de Caracteres: apenas quando em foco, em sans (nunca monospace) */}
+        {isTitleFocused && (
+          <span className="text-xs text-[#A39A90] font-sans block mt-1">
             {deckName.length}/35 caracteres
           </span>
-        </div>
-
-        {/* Checkbox de Publicação / Salvar no Perfil */}
-        <div className="flex items-center gap-4 mt-3 flex-wrap">
-          {!isFromProfile && currentUser && (
-            <Checkbox
-              id="save-profile"
-              checked={saveToProfile}
-              onChange={(e) => setSaveToProfile(e.target.checked)}
-              label="Salvar baralho no perfil"
-            />
-          )}
-
-          {(isFromProfile || saveToProfile) && currentUser && (
-            <Checkbox
-              id="public-deck"
-              checked={isPublicDeck}
-              onChange={(e) => setIsPublicDeck(e.target.checked)}
-              label="Disponibilizar publicamente na comunidade"
-            />
-          )}
-        </div>
+        )}
       </div>
 
-      {/* Barra de Ações Rápidas: Abas e Preenchimento */}
-      <div className="flex flex-wrap items-center justify-between gap-3 pb-4 mb-4 border-b border-[#E2DACD] text-xs">
-        <div className="flex items-center gap-4">
-          <button
-            type="button"
+      {/* 4. OPÇÃO "PÚBLICO NA COMUNIDADE" (CHECKBOX SIMPLES + LINHA DE AJUDA) */}
+      <div className="mb-8 mt-3">
+        <Checkbox
+          checked={isPublicDeck}
+          onChange={(e) => setIsPublicDeck(e.target.checked)}
+          label="Público na comunidade"
+        />
+        <p className="text-xs text-[#6F655C] font-sans mt-1 ml-6">
+          Jogadores poderão encontrar e jogar com este baralho na aba Comunidade.
+        </p>
+      </div>
+
+      {/* 5. CORPO: AÇÃO DE ADICIONAR CARAS E GRADE DE CARTAS ESCOLHIDAS */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="font-serif text-lg sm:text-xl font-normal text-[#2B2420]">
+            Cartas do baralho
+          </h2>
+          <Button
+            size="sm"
+            variant="secondary"
             onClick={() => {
               sounds.playClick();
-              setFacePickerTab('community');
               setIsFacePickerOpen(true);
             }}
-            className="text-xs font-medium text-[#B4532F] hover:underline cursor-pointer"
+            className="flex items-center gap-1.5"
           >
-            Da comunidade ({communityFaces.length})
-          </button>
-
-          {currentUser && savedFaces.length > 0 && (
-            <button
-              type="button"
-              onClick={() => {
-                sounds.playClick();
-                setFacePickerTab('my');
-                setIsFacePickerOpen(true);
-              }}
-              className="text-xs font-medium text-[#6F655C] hover:text-[#2B2420] underline cursor-pointer"
-            >
-              Minhas caras ({savedFaces.length})
-            </button>
-          )}
+            <Plus size={14} />
+            <span>Adicionar caras</span>
+          </Button>
         </div>
 
-        <div className="flex items-center gap-3">
-          {cards.length < targetCount && (
-            <button
-              type="button"
-              onClick={handleFillRandomly}
-              className="text-xs text-[#6F655C] hover:text-[#2B2420] underline cursor-pointer"
-            >
-              Preencher aleatório
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* Grid de Cartas com Dropzone Unificada */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-3">
-        {/* Dropzone Unificada para Upload / Escolha da Comunidade */}
-        {!isComplete && (
-          currentUser ? (
-            <button
-              type="button"
+        {cards.length === 0 ? (
+          /* Estado Vazio: frase curta e botão claro */
+          <div className="py-16 text-center text-sm font-sans text-[#6F655C] flex flex-col items-center justify-center gap-3">
+            <p>Nenhuma carta escolhida ainda.</p>
+            <Button
+              variant="primary"
               onClick={() => {
                 sounds.playClick();
-                setIsCropperOpen(true);
-              }}
-              className="p-3 rounded-[8px] border border-dashed border-[#E2DACD] hover:border-[#2B2420] bg-[#FBF8F3] hover:bg-white transition-colors flex flex-col items-center justify-center text-center min-h-[160px] cursor-pointer group"
-            >
-              <div className="w-10 h-10 rounded-[6px] border border-[#E2DACD] bg-white flex items-center justify-center text-[#B4532F] mb-2 group-hover:scale-105 transition-transform">
-                <Upload size={18} />
-              </div>
-              <span className="text-xs font-sans font-medium text-[#2B2420]">
-                Adicionar foto
-              </span>
-              <span className="text-[10px] text-[#6F655C] mt-0.5">
-                Arquivo ou Ctrl+V
-              </span>
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={() => {
-                sounds.playClick();
-                setFacePickerTab('community');
                 setIsFacePickerOpen(true);
               }}
-              className="p-3 rounded-[8px] border border-dashed border-[#E2DACD] hover:border-[#2B2420] bg-[#FBF8F3] hover:bg-white transition-colors flex flex-col items-center justify-center text-center min-h-[160px] cursor-pointer group"
             >
-              <div className="w-10 h-10 rounded-[6px] border border-[#E2DACD] bg-white flex items-center justify-center text-[#B4532F] mb-2 group-hover:scale-105 transition-transform">
-                <Search size={18} />
-              </div>
-              <span className="text-xs font-sans font-medium text-[#2B2420]">
-                Escolher da Comunidade
-              </span>
-              <span className="text-[10px] text-[#A39A90] mt-0.5">
-                Upload exige conta
-              </span>
-            </button>
-          )
-        )}
-
-        {/* Cartas do Baralho */}
-        {cards.map((char, index) => (
-          <div
-            key={char.id || index}
-            className="p-2 rounded-[8px] border border-[#E2DACD] bg-[#FBF8F3] hover:border-[#2B2420] transition-colors flex flex-col items-center text-center relative group select-none min-h-[160px] justify-between"
-          >
-            <div className="w-full aspect-square rounded-[6px] cara-frame-thumb overflow-hidden bg-[#FAF6F0] mb-1.5 relative">
-              <Avatar character={char} className="w-full h-full object-cover" />
-
-              {/* Botão substituir foto */}
-              <button
-                type="button"
-                onClick={() => {
-                  setReplacingCardId(char.id);
-                  if (!currentUser) {
-                    setFacePickerTab('community');
-                    setIsFacePickerOpen(true);
-                  } else {
-                    setIsCropperOpen(true);
-                  }
-                }}
-                title="Substituir foto"
-                className="absolute top-1 left-1 p-1 bg-white/90 hover:bg-white rounded-[4px] text-[#6F655C] hover:text-[#2B2420] opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer shadow-2xs"
-              >
-                <Camera size={11} />
-              </button>
-
-              {/* Botão remover */}
-              <button
-                type="button"
-                onClick={() => handleRemoveCard(char.id)}
-                title="Remover carta"
-                className="absolute top-1 right-1 p-1 bg-white/90 hover:bg-[#F8EBEA] rounded-[4px] text-[#6F655C] hover:text-[#8C2E2A] opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer shadow-2xs"
-              >
-                <Trash2 size={11} />
-              </button>
-            </div>
-
-            {/* Edição de Nome (Limite de 20 caracteres) */}
-            {editingCardId === char.id ? (
-              <div className="w-full p-1 bg-white rounded-[4px] border border-[#2B2420] flex flex-col gap-1">
-                <input
-                  type="text"
-                  maxLength={20}
-                  value={editingCardName}
-                  onChange={(e) => setEditingCardName(e.target.value.slice(0, 20))}
-                  onKeyDown={(e) => e.key === 'Enter' && handleSaveRenameCard()}
-                  className="w-full text-xs font-sans border-0 outline-none p-0 text-[#2B2420]"
-                  autoFocus
-                />
-                <div className="flex items-center justify-between text-[10px] pt-1 border-t border-[#E2DACD]">
-                  <span className="text-[#A39A90] font-mono">{editingCardName.length}/20</span>
-                  <button
-                    type="button"
-                    onClick={handleSaveRenameCard}
-                    className="text-[#2E7D32] font-semibold cursor-pointer"
-                  >
-                    Salvar
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="w-full px-1">
-                <div className="flex items-center justify-center gap-1 w-full">
-                  <span className="text-xs font-sans font-medium text-[#2B2420] truncate text-center" title={char.name}>
-                    {char.name}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => handleStartRenameCard(char)}
-                    className="text-[#A39A90] hover:text-[#2B2420] opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer p-0.5"
-                    title="Editar nome"
-                  >
-                    <Edit2 size={10} />
-                  </button>
-                </div>
-                <span className="text-[10px] text-[#A39A90] font-mono block">#{index + 1}</span>
-              </div>
-            )}
+              Adicionar caras
+            </Button>
           </div>
-        ))}
-      </div>
-
-      {/* Modal de Seleção de Caras (Comunidade ou Salvas) */}
-      {isFacePickerOpen && (
-        <div className="fixed inset-0 z-50 bg-[#2B2420]/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
-          <div className="bg-[#FBF8F3] border border-[#E2DACD] rounded-[10px] max-w-2xl w-full p-5 sm:p-6 shadow-xl flex flex-col max-h-[85vh] animate-in zoom-in-95 text-left">
-            <div className="flex items-center justify-between pb-3 border-b border-[#E2DACD] mb-3">
-              <div>
-                <h3 className="font-serif text-xl font-normal text-[#2B2420]">
-                  Escolher personagens
-                </h3>
-                <p className="text-xs text-[#6F655C]">
-                  Toque para adicionar ou remover do baralho ({cards.length}/{targetCount})
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsFacePickerOpen(false)}
-                className="p-1 text-[#6F655C] hover:text-[#2B2420] cursor-pointer"
+        ) : (
+          /* Grade de Cartas Escolhidas */
+          <div className="grid grid-cols-2 xs:grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3 sm:gap-4">
+            {cards.map((card) => (
+              <div
+                key={card.id}
+                className="group relative flex flex-col items-center select-none"
               >
-                <X size={16} />
-              </button>
-            </div>
+                {/* Moldura padrão sem bordas coloridas */}
+                <div className="w-full aspect-square rounded-[12px] cara-frame bg-[#FAF6F0] relative shadow-[0_2px_6px_rgba(43,36,32,0.06),0_1px_2px_rgba(43,36,32,0.04)] overflow-hidden">
+                  <img
+                    src={card.imageUrl}
+                    alt={card.name}
+                    loading="lazy"
+                    decoding="async"
+                    className="w-full h-full object-cover cara-img"
+                  />
 
-            {/* Abas e Busca */}
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 mb-3">
-              <div className="flex items-center gap-3 text-xs">
-                <button
-                  type="button"
-                  onClick={() => setFacePickerTab('community')}
-                  className={`pb-1 border-b-2 transition-colors cursor-pointer ${
-                    facePickerTab === 'community'
-                      ? 'border-[#2B2420] font-semibold text-[#2B2420]'
-                      : 'border-transparent text-[#6F655C] hover:text-[#2B2420]'
-                  }`}
-                >
-                  Comunidade ({communityFaces.length})
-                </button>
-                {currentUser && (
+                  {/* Ação única por carta: remover com um "x" discreto no canto */}
                   <button
                     type="button"
-                    onClick={() => setFacePickerTab('my')}
-                    className={`pb-1 border-b-2 transition-colors cursor-pointer ${
-                      facePickerTab === 'my'
-                        ? 'border-[#2B2420] font-semibold text-[#2B2420]'
-                        : 'border-transparent text-[#6F655C] hover:text-[#2B2420]'
-                    }`}
+                    onClick={() => handleRemoveCard(card.id)}
+                    aria-label={`Remover ${card.name} do baralho`}
+                    title="Remover do baralho"
+                    className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-[#2B2420]/80 hover:bg-[#2B2420] text-white flex items-center justify-center transition-opacity opacity-80 sm:opacity-0 sm:group-hover:opacity-100 focus:opacity-100 cursor-pointer shadow-xs"
                   >
-                    Minhas caras ({savedFaces.length})
+                    <X size={13} />
                   </button>
-                )}
-              </div>
-
-              <div className="relative">
-                <input
-                  type="text"
-                  placeholder="Buscar..."
-                  value={faceSearchQuery}
-                  onChange={(e) => setFaceSearchQuery(e.target.value)}
-                  className="h-8 pl-7 pr-3 bg-white border border-[#E2DACD] rounded-[4px] text-xs text-[#2B2420] placeholder-[#A39A90] focus:outline-none focus:border-[#2B2420]"
-                />
-                <Search size={12} className="absolute left-2 top-1/2 -translate-y-1/2 text-[#A39A90]" />
-              </div>
-            </div>
-
-            {/* Grid de Caras Disponíveis */}
-            <div className="flex-1 overflow-y-auto pr-1">
-              {loadingFaces ? (
-                <div className="py-12 text-center text-xs text-[#6F655C]">Carregando...</div>
-              ) : (
-                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2.5">
-                  {(facePickerTab === 'community' ? filteredCommunityFaces : filteredSavedFaces).map((face) => {
-                    const isAdded = cards.some(
-                      (c) =>
-                        c.name.trim().toLowerCase() === face.name.trim().toLowerCase() ||
-                        (c.imageUrl && c.imageUrl === face.image_url)
-                    );
-                    return (
-                      <button
-                        key={face.id}
-                        type="button"
-                        onClick={() => handleToggleFace(face)}
-                        className={`p-2 rounded-[6px] border text-center transition-colors cursor-pointer flex flex-col items-center ${
-                          isAdded
-                            ? 'bg-[#E8F5E9] border-[#A5D6A7]'
-                            : 'bg-white border-[#E2DACD] hover:border-[#2B2420]'
-                        }`}
-                      >
-                        <div className="w-full aspect-square rounded-[6px] cara-frame-thumb overflow-hidden bg-[#FAF6F0] mb-1.5 relative">
-                          <img src={face.image_url} alt={face.name} className="w-full h-full object-cover cara-img" />
-                          {isAdded && (
-                            <div className="absolute inset-0 bg-[#2E7D32]/20 flex items-center justify-center">
-                              <Check size={16} className="text-[#2E7D32]" />
-                            </div>
-                          )}
-                        </div>
-                        <span className="text-[12px] font-sans font-medium text-[#2B2420] truncate w-full" title={face.name}>
-                          {face.name}
-                        </span>
-                      </button>
-                    );
-                  })}
                 </div>
-              )}
-            </div>
 
-            <div className="pt-3 border-t border-[#E2DACD] mt-3 text-right">
-              <Button size="sm" onClick={() => setIsFacePickerOpen(false)}>
-                Concluir
+                {/* Legenda padrão em sans com o nome */}
+                <CaraLegenda
+                  name={card.name}
+                  authorName={card.authorName}
+                  isOfficial={card.isOfficial}
+                />
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* 6. BARRA FIXA DE META NO RODAPÉ (SÓ APARECE QUANDO HÁ AO MENOS 1 CARTA) */}
+      {cards.length > 0 && (
+        <div
+          role="region"
+          aria-label="Progresso do baralho"
+          className="fixed bottom-0 left-0 right-0 z-40 bg-[#FBF8F3]/95 backdrop-blur-md border-t border-[#E2DACD] shadow-lg py-3 px-4 sm:px-8 pb-[max(0.75rem,env(safe-area-inset-bottom))]"
+        >
+          <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 text-xs sm:text-sm font-sans">
+            {/* Texto dinâmico de meta */}
+            <p className="text-[#2B2420] font-medium text-center sm:text-left" aria-live="polite">
+              {selectionInfo.text}
+            </p>
+
+            {/* Ações da barra */}
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={handleClearAll}
+                className="text-[#6F655C] hover:text-[#2B2420] transition-colors cursor-pointer underline"
+              >
+                Limpar
+              </button>
+
+              <button
+                type="button"
+                onClick={handleComplete}
+                className="text-[#B4532F] hover:text-[#984323] transition-colors cursor-pointer font-medium hover:underline"
+              >
+                Completar
+              </button>
+
+              <Button
+                variant="primary"
+                size="sm"
+                disabled={!canSaveDeck || isSavingDeck}
+                onClick={handleSaveDeckClick}
+                className="min-w-[120px]"
+              >
+                {isSavingDeck ? 'Salvando...' : 'Salvar baralho'}
               </Button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Modal de Recorte de Imagem */}
-      {isCropperOpen && (
+      {/* 7. MODAL DE SELEÇÃO DE PERSONAGENS */}
+      <FacePickerModal
+        isOpen={isFacePickerOpen}
+        onClose={() => setIsFacePickerOpen(false)}
+        selectedCards={cards}
+        onToggleCard={handleToggleCardFromPicker}
+        onOpenAddFace={() => {
+          setIsFacePickerOpen(false);
+          setIsAddFaceOpen(true);
+        }}
+        currentUser={currentUser}
+        communityFaces={communityFaces}
+        savedFaces={savedFaces}
+      />
+
+      {/* 8. MODAL DE ADICIONAR CARAS (UPLOAD/LOTE) */}
+      {isAddFaceOpen && (
         <ImageCropperModal
           roomCode="builder"
-          onSaveCharacter={handleSaveCroppedCharacter}
-          onClose={() => {
-            setIsCropperOpen(false);
-            setReplacingCardId(null);
-          }}
+          currentUser={currentUser}
+          onSaveBatch={handleBatchCreatedFaces}
+          onClose={() => setIsAddFaceOpen(false)}
         />
       )}
 
-      {/* Modal de Limites */}
-      <AccountLimitModal
-        isOpen={limitModalType !== null}
-        type={limitModalType || 'deck'}
-        onClose={() => setLimitModalType(null)}
-      />
-
-      {/* Modal de Alerta para Nome de Cara já Existente */}
-      <DuplicateFaceAlertModal
-        isOpen={!!duplicateWarningFace}
-        faceName={duplicateWarningFace?.name || ''}
-        onConfirm={() => {
-          if (duplicateWarningFace) commitSaveCharacter(duplicateWarningFace);
-        }}
-        onCancel={() => setDuplicateWarningFace(null)}
-      />
-
-      {/* Modal de Consistência de Visibilidade */}
-      {privateFacesToPublish && (
+      {/* 9. MODAL DE CONFIRMAÇÃO AO SAIR COM DADOS NÃO SALVOS */}
+      {isConfirmExitOpen && (
         <div
           role="dialog"
           aria-modal="true"
           className="fixed inset-0 z-50 bg-[#2B2420]/45 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150"
         >
-          <div className="bg-[#FBF8F3] border border-[#E2DACD] rounded-[12px] max-w-sm w-full p-5 shadow-xl text-left">
-            <h3 className="font-serif text-lg text-[#2B2420] font-normal mb-2 leading-snug">
-              Consistência de visibilidade
+          <div className="bg-[#FBF8F3] border border-[#E2DACD] rounded-[12px] p-6 max-w-sm w-full text-center shadow-xl">
+            <h3 className="font-serif text-xl font-normal text-[#2B2420] mb-2 leading-snug">
+              Sair da criação de baralho?
             </h3>
-            <p className="text-xs font-sans text-[#6F655C] mb-4 leading-relaxed">
-              Este baralho tem {privateFacesToPublish.length}{' '}
-              {privateFacesToPublish.length === 1 ? 'cara privada' : 'caras privadas'}. Para torná-lo público na comunidade, elas também serão tornadas públicas.
+            <p className="text-xs text-[#6F655C] font-sans mb-6">
+              Você tem alterações que ainda não foram salvas.
             </p>
-            <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-2 pt-2 border-t border-[#E2DACD]/60">
+            <div className="flex flex-col gap-2">
               <Button
-                size="sm"
-                variant="secondary"
+                variant="primary"
                 onClick={() => {
-                  setIsPublicDeck(false);
-                  setPrivateFacesToPublish(null);
-                  proceedSaveDeck(false);
+                  sounds.playClick();
+                  setIsConfirmExitOpen(false);
+                  onCancel();
                 }}
               >
-                Manter baralho privado
+                Sair e manter o rascunho
               </Button>
               <Button
-                size="sm"
-                variant="primary"
-                onClick={async () => {
-                  if (currentUser) {
-                    for (const f of privateFacesToPublish) {
-                      await auth.toggleFacePublic(f.id, currentUser.id, true);
-                    }
+                variant="secondary"
+                onClick={() => {
+                  sounds.playClick();
+                  try {
+                    localStorage.removeItem(DRAFT_KEY);
+                  } catch {
+                    // ignore
                   }
-                  setPrivateFacesToPublish(null);
-                  proceedSaveDeck(true);
+                  setIsConfirmExitOpen(false);
+                  onCancel();
                 }}
               >
+                Descartar
+              </Button>
+              <button
+                type="button"
+                onClick={() => setIsConfirmExitOpen(false)}
+                className="text-xs text-[#6F655C] hover:text-[#2B2420] underline mt-1 cursor-pointer"
+              >
+                Continuar editando
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 10. DIÁLOGO DE CONSISTÊNCIA AO PUBLICAR (CARAS PRIVADAS) */}
+      {privateFacesDialog && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 bg-[#2B2420]/45 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150"
+        >
+          <div className="bg-[#FBF8F3] border border-[#E2DACD] rounded-[12px] p-6 max-w-sm w-full text-left shadow-xl">
+            <h3 className="font-serif text-xl font-normal text-[#2B2420] mb-2 leading-snug">
+              Tornar caras públicas?
+            </h3>
+            <p className="text-xs text-[#6F655C] font-sans mb-5 leading-relaxed">
+              Este baralho tem {privateFacesDialog.faces.length}{' '}
+              {privateFacesDialog.faces.length === 1 ? 'cara privada' : 'caras privadas'}. Para
+              torná-lo público na comunidade, elas também serão públicas.
+            </p>
+            <div className="flex flex-col gap-2">
+              <Button
+                variant="primary"
+                onClick={handleConfirmMakeFacesPublicAndSave}
+              >
                 Tornar públicas e publicar
+              </Button>
+              <Button
+                variant="secondary"
+                onClick={handleKeepDeckPrivateAndSave}
+              >
+                Manter baralho privado
               </Button>
             </div>
           </div>
         </div>
       )}
+
+      {/* 11. TOAST COM SUPORTE A DESFAZER */}
+      <CommunityToast
+        toast={toast}
+        hasSelectionBar={cards.length > 0}
+        onClose={() => setToast(null)}
+      />
     </div>
   );
 };
