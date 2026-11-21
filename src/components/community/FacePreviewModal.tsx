@@ -1,19 +1,16 @@
 import { useEffect, useRef, type FC } from 'react';
-import { X, Bookmark, Check } from 'lucide-react';
+import { X, Bookmark } from 'lucide-react';
 import type { SavedFace } from '../../services/auth';
 import { ActionMenu } from './ActionMenu';
 
 interface FacePreviewModalProps {
   face: SavedFace | null;
   isOpen: boolean;
-  isSelected?: boolean;
   isSaved?: boolean;
-  isSelectionEnabled?: boolean;
   isOwner?: boolean;
   isOfficial?: boolean;
   isPublic?: boolean;
   onClose: () => void;
-  onToggleSelect?: () => void;
   onToggleSave?: () => void;
   onTogglePublic?: () => void;
   onDelete?: () => void;
@@ -25,14 +22,11 @@ interface FacePreviewModalProps {
 export const FacePreviewModal: FC<FacePreviewModalProps> = ({
   face,
   isOpen,
-  isSelected = false,
   isSaved = false,
-  isSelectionEnabled = true,
   isOwner = false,
   isOfficial = false,
   isPublic = false,
   onClose,
-  onToggleSelect,
   onToggleSave,
   onTogglePublic,
   onDelete,
@@ -69,6 +63,41 @@ export const FacePreviewModal: FC<FacePreviewModalProps> = ({
   }, [isOpen, onClose, triggerElement]);
 
   if (!isOpen || !face) return null;
+
+  // Monta lista de itens do menu de contexto
+  const menuItems = [];
+  if (isOwner) {
+    if (onTogglePublic) {
+      menuItems.push({
+        label: isPublic ? 'Tornar privada' : 'Tornar pública',
+        onClick: onTogglePublic,
+      });
+    }
+    if (onDelete) {
+      menuItems.push({
+        label: 'Excluir',
+        onClick: onDelete,
+        variant: 'danger' as const,
+      });
+    }
+  } else {
+    if (onRemoveSaved && isSaved) {
+      menuItems.push({
+        label: 'Remover dos salvos',
+        onClick: onRemoveSaved,
+      });
+    }
+    if (onReport) {
+      menuItems.push({
+        label: 'Denunciar',
+        onClick: onReport,
+        variant: 'danger' as const,
+      });
+    }
+  }
+
+  const showSaveButton = !isOwner && !isOfficial && Boolean(onToggleSave);
+  const hasActions = showSaveButton || menuItems.length > 0;
 
   return (
     <div
@@ -121,110 +150,41 @@ export const FacePreviewModal: FC<FacePreviewModalProps> = ({
           )}
         </p>
 
-        {/* Ações em Texto */}
-        <div className="mt-5 pt-4 border-t border-[#E2DACD] flex items-center justify-between gap-2 text-xs font-sans">
-          {/* Alternar Seleção (oculto quando isSelectionEnabled é falso) */}
-          {isSelectionEnabled && onToggleSelect ? (
-            <button
-              type="button"
-              onClick={onToggleSelect}
-              className={`cursor-pointer transition-colors font-medium flex items-center gap-1.5 ${
-                isSelected
-                  ? 'text-[#2B2420] underline'
-                  : 'text-[#6F655C] hover:text-[#2B2420] underline'
-              }`}
-            >
-              {isSelected ? (
-                <>
-                  <Check size={13} className="text-[#2B2420]" />
-                  <span>Remover da seleção</span>
-                </>
-              ) : (
-                <span>Adicionar à seleção</span>
-              )}
-            </button>
-          ) : (
-            <div />
-          )}
+        {/* Ações em Texto (apenas se houver ações pertinentes ao contexto) */}
+        {hasActions && (
+          <div className="mt-5 pt-4 border-t border-[#E2DACD] flex items-center justify-between gap-2 text-xs font-sans">
+            {/* Salvar / Salvo (visível apenas para caras que não são minhas) */}
+            {showSaveButton ? (
+              <button
+                type="button"
+                onClick={onToggleSave}
+                className={`cursor-pointer transition-colors font-medium flex items-center gap-1.5 ${
+                  isSaved
+                    ? 'text-[#2B2420] font-semibold'
+                    : 'text-[#6F655C] hover:text-[#2B2420] underline'
+                }`}
+              >
+                <Bookmark
+                  size={13}
+                  className={isSaved ? 'text-[#2B2420] fill-[#2B2420]' : 'text-[#6F655C]'}
+                />
+                <span>{isSaved ? 'Salva' : 'Salvar'}</span>
+              </button>
+            ) : (
+              <div />
+            )}
 
-          {/* Salvar / Salvo (visível apenas para caras que não são minhas) */}
-          {!isOwner && onToggleSave ? (
-            <button
-              type="button"
-              onClick={onToggleSave}
-              className={`cursor-pointer transition-colors font-medium flex items-center gap-1.5 ${
-                isSaved
-                  ? 'text-[#2B2420] font-semibold'
-                  : 'text-[#6F655C] hover:text-[#2B2420] underline'
-              }`}
-            >
-              <Bookmark
-                size={13}
-                className={isSaved ? 'text-[#2B2420] fill-[#2B2420]' : 'text-[#6F655C]'}
+            {/* Menu de Ações (com detecção de colisão que não cobre o texto do autor) */}
+            {menuItems.length > 0 ? (
+              <ActionMenu
+                ariaLabel="Opções do personagem"
+                items={menuItems}
               />
-              <span>{isSaved ? 'Salva' : 'Salvar'}</span>
-            </button>
-          ) : (
-            <div />
-          )}
-
-          {/* Menu de Ações (com detecção de colisão que não cobre o texto do autor) */}
-          <ActionMenu
-            ariaLabel="Opções do personagem"
-            items={[
-              ...(isOwner
-                ? [
-                    ...(onTogglePublic
-                      ? [
-                          {
-                            label: isPublic ? 'Tornar privada' : 'Tornar pública',
-                            onClick: onTogglePublic,
-                          },
-                        ]
-                      : []),
-                    ...(onDelete
-                      ? [
-                          {
-                            label: 'Excluir',
-                            onClick: onDelete,
-                            variant: 'danger' as const,
-                          },
-                        ]
-                      : []),
-                  ]
-                : isOfficial
-                ? [
-                    ...(onRemoveSaved
-                      ? [
-                          {
-                            label: 'Remover dos salvos',
-                            onClick: onRemoveSaved,
-                          },
-                        ]
-                      : []),
-                  ]
-                : [
-                    ...(onRemoveSaved && isSaved
-                      ? [
-                          {
-                            label: 'Remover dos salvos',
-                            onClick: onRemoveSaved,
-                          },
-                        ]
-                      : []),
-                    ...(onReport
-                      ? [
-                          {
-                            label: 'Denunciar',
-                            onClick: onReport,
-                            variant: 'danger' as const,
-                          },
-                        ]
-                      : []),
-                  ]),
-            ]}
-          />
-        </div>
+            ) : (
+              <div />
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

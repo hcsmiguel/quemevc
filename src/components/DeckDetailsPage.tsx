@@ -576,7 +576,6 @@ export const DeckDetailsPage: FC<DeckDetailsPageProps> = ({
           face={previewFace}
           isOpen={!!previewFace}
           isSaved={false}
-          isSelectionEnabled={false}
           onClose={() => setPreviewFace(null)}
           onToggleSave={() => {
             // Salvar cara individual se o usuário desejar

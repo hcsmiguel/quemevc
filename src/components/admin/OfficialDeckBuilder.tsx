@@ -1018,14 +1018,7 @@ export const OfficialDeckBuilder: React.FC<OfficialDeckBuilderProps> = ({
           isOpen={Boolean(previewFace)}
           face={previewFace}
           isSaved={false}
-          isSelected={selectedCatalogIds.has(previewFace.id)}
           onClose={() => setPreviewFace(null)}
-          onToggleSave={() => {}}
-          onToggleSelect={() => {
-            toggleCatalogFace(previewFace.id);
-            setPreviewFace(null);
-          }}
-          isSelectionEnabled={true}
         />
       )}
 

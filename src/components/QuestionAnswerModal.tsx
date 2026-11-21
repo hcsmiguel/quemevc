@@ -44,7 +44,7 @@ export const QuestionAnswerModal: FC<QuestionAnswerModalProps> = ({
   return (
     <div className="fixed inset-0 z-50 bg-[#2B2420]/60 backdrop-blur-xs flex items-center justify-center p-4">
       <div className="bg-[#FBF8F3] border border-[#E2DACD] rounded-[10px] max-w-md w-full p-6 text-center shadow-xl animate-in fade-in zoom-in-95 duration-150">
-        <div className="flex items-center justify-center gap-1.5 text-xs font-mono tabular-nums text-[#6F655C] mb-3">
+        <div className="flex items-center justify-center gap-1.5 text-xs font-sans tabular-nums text-[#6F655C] mb-3">
           <Clock size={12} className={countdown <= 5 ? 'text-[#8C2E2A] animate-spin' : 'text-[#6F655C]'} />
           <span>Responder em {countdown}s</span>
         </div>

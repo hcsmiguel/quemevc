@@ -389,7 +389,7 @@ export const Lobby: FC<LobbyProps> = ({
           Entrar na partida
         </h2>
         <p className="text-sm text-[#6F655C] font-sans mb-6">
-          Seu amigo te convidou para descobrir o personagem misterioso na sala <strong className="font-mono text-[#2B2420]">#{guestRoomCode}</strong>.
+          Seu amigo te convidou para descobrir o personagem misterioso na sala <strong className="font-sans font-semibold text-[#2B2420]">#{guestRoomCode}</strong>.
         </p>
 
         <div className="space-y-4 mb-6">
@@ -912,7 +912,7 @@ export const Lobby: FC<LobbyProps> = ({
                           handleJoinWithCode(val);
                         }
                       }}
-                      className="flex-1 h-9 px-3 bg-white border border-[#E2DACD] rounded-[4px] text-xs font-mono tracking-widest text-[#2B2420] uppercase tabular-nums focus:outline-none focus:border-[#2B2420]"
+                      className="flex-1 h-9 px-3 bg-white border border-[#E2DACD] rounded-[4px] text-xs font-sans font-medium tracking-widest text-[#2B2420] uppercase tabular-nums focus:outline-none focus:border-[#2B2420]"
                     />
                     <Button
                       type="submit"

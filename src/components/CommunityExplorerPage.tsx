@@ -1180,17 +1180,9 @@ export const CommunityExplorerPage: FC<CommunityExplorerPageProps> = ({
       <FacePreviewModal
         face={previewFace}
         isOpen={Boolean(previewFace)}
-        isSelected={
-          previewFace
-            ? selectedFaceKeySet.has(previewFace.image_url) || selectedFaceKeySet.has(previewFace.id)
-            : false
-        }
         isSaved={previewFace ? savedFaceUrls.has(previewFace.image_url) : false}
         triggerElement={previewTriggerEl}
         onClose={() => setPreviewFace(null)}
-        onToggleSelect={() => {
-          if (previewFace) handleToggleSelectCard(previewFace);
-        }}
         onToggleSave={() => {
           if (previewFace) handleToggleSaveFace(previewFace);
         }}

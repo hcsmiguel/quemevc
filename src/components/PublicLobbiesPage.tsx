@@ -141,7 +141,7 @@ export const PublicLobbiesPage: FC<PublicLobbiesPageProps> = ({
                       <span className="w-2 h-2 rounded-full bg-[#2E7D32] animate-pulse" />
                       Aberta
                     </span>
-                    <span className="text-[11px] font-mono text-[#8C786E] flex items-center gap-1">
+                    <span className="text-[11px] font-sans text-[#8C786E] flex items-center gap-1">
                       <Clock size={12} />
                       {getTimeAgo(room.created_at)}
                     </span>
@@ -156,7 +156,7 @@ export const PublicLobbiesPage: FC<PublicLobbiesPageProps> = ({
                         Sala de {room.host_name}
                       </h3>
                       <div className="flex items-center gap-2 text-xs font-semibold text-[#8C786E] mt-0.5">
-                        <span className="font-mono text-[#776156] bg-[#FAF6F0] px-2 py-0.5 rounded-lg border border-[#E8E0D8]">
+                        <span className="font-sans font-medium text-[#776156] bg-[#FAF6F0] px-2 py-0.5 rounded-lg border border-[#E8E0D8]">
                           #{room.room_code}
                         </span>
                         <span>•</span>

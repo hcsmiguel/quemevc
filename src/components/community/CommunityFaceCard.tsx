@@ -1,5 +1,5 @@
 import { useState, useRef, type FC, type MouseEvent, type TouchEvent, type KeyboardEvent } from 'react';
-import { Bookmark, Search, Check } from 'lucide-react';
+import { Bookmark, Eye, Check } from 'lucide-react';
 import type { SavedFace } from '../../services/auth';
 import { CaraLegenda } from './CaraLegenda';
 
@@ -158,7 +158,7 @@ export const CommunityFaceCard: FC<CommunityFaceCardProps> = ({
           </div>
         </button>
 
-        {/* Botão de Pré-visualização na Lupa (Desktop Hover) */}
+        {/* Botão de Pré-visualização no Olhinho (Desktop Hover) */}
         <button
           type="button"
           onClick={handlePreviewClick}
@@ -166,7 +166,7 @@ export const CommunityFaceCard: FC<CommunityFaceCardProps> = ({
           title="Pré-visualizar (tecla P)"
           className="hidden sm:flex absolute bottom-2 right-2 w-7 h-7 rounded-[6px] bg-[#FBF8F3]/90 hover:bg-[#FBF8F3] text-[#6F655C] hover:text-[#2B2420] items-center justify-center shadow-xs opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[#2B2420]"
         >
-          <Search size={13} />
+          <Eye size={13} />
         </button>
       </div>
 

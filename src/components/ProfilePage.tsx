@@ -1567,10 +1567,7 @@ export const ProfilePage: FC<ProfilePageProps> = ({
           isOwner={previewFace.origin === 'own'}
           isOfficial={previewFace.origin === 'official'}
           isPublic={previewFace.isPublic}
-          isSelected={selectedFaceIds.has(previewFace.id)}
-          isSelectionEnabled={previewFace.status !== 'unavailable'}
           onClose={() => setPreviewFace(null)}
-          onToggleSelect={() => handleToggleSelectFace(previewFace)}
           onTogglePublic={() => {
             setPreviewFace(null);
             handleToggleFaceVisibility(previewFace);

@@ -156,7 +156,7 @@ export const ReportModal: FC<ReportModalProps> = ({
                 <label className="text-xs font-sans text-[#6F655C]">
                   Detalhes adicionais (opcional):
                 </label>
-                <span className="text-[10px] font-mono text-[#A39A90]">
+                <span className="text-[10px] font-sans tabular-nums text-[#A39A90]">
                   {details.length}/250
                 </span>
               </div>

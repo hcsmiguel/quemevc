@@ -81,7 +81,7 @@ export const LegalModal: FC<LegalModalProps> = ({
                   1. Armazenamento Local no seu Navegador
                 </h3>
                 <p className="text-xs text-[#776156]">
-                  Guardamos apenas o seu <strong>apelido escolhido</strong> e a preferência de <strong>efeitos sonoros</strong> no <code className="bg-[#FAF6F0] border border-[#E8E0D8] text-[#382C26] px-1.5 py-0.5 rounded text-[11px] font-mono">localStorage</code> do seu navegador, exclusivamente para que você não precise redigitá-los toda vez que abrir o jogo.
+                  Guardamos apenas o seu <strong>apelido escolhido</strong> e a preferência de <strong>efeitos sonoros</strong> no <code className="bg-[#FAF6F0] border border-[#E8E0D8] text-[#382C26] px-1.5 py-0.5 rounded text-[11px] font-sans">localStorage</code> do seu navegador, exclusivamente para que você não precise redigitá-los toda vez que abrir o jogo.
                 </p>
               </div>
 

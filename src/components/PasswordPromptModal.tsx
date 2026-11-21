@@ -38,7 +38,7 @@ export const PasswordPromptModal: FC<PasswordPromptModalProps> = ({
           Sala protegida
         </h3>
         <p className="text-xs text-[#6F655C] font-sans mb-5 leading-relaxed">
-          A sala <strong className="font-mono text-[#2B2420]">#{roomCode}</strong> requer senha para entrar:
+          A sala <strong className="font-sans font-semibold text-[#2B2420]">#{roomCode}</strong> requer senha para entrar:
         </p>
 
         {errorMessage && (

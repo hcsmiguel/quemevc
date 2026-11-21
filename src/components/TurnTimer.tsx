@@ -69,7 +69,7 @@ export const TurnTimer: FC<TurnTimerProps> = ({
       />
 
       <span
-        className={`tabular-nums font-mono ${
+        className={`tabular-nums font-sans ${
           isUrgent ? 'font-bold text-[#8C2E2A]' : 'font-medium'
         }`}
       >
