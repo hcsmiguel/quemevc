@@ -7,6 +7,7 @@ import { CaraLegenda } from './community/CaraLegenda';
 import { FacePreviewModal } from './community/FacePreviewModal';
 import { Button } from './ui/Button';
 import { sounds } from '../utils/sound';
+import { getDeckSizeStatus, TAMANHO_MAXIMO_BARALHO } from '../constants/deck';
 
 export interface FacePickerModalProps {
   isOpen: boolean;
@@ -20,56 +21,6 @@ export interface FacePickerModalProps {
 }
 
 type PickerFilter = 'all' | 'mine' | 'saved';
-
-function getTargetInfo(count: number): { nextTarget: number; text: string } {
-  if (count === 0) {
-    return { nextTarget: 15, text: 'Nenhuma selecionada · faltam 15 para 15' };
-  }
-  if (count < 15) {
-    const diff = 15 - count;
-    return {
-      nextTarget: 15,
-      text: `${count} ${count === 1 ? 'selecionada' : 'selecionadas'} · faltam ${diff} para 15`,
-    };
-  }
-  if (count === 15) {
-    return { nextTarget: 15, text: '15 selecionadas · meta atingida' };
-  }
-  if (count < 30) {
-    const diff = 30 - count;
-    const over = count - 15;
-    return {
-      nextTarget: 30,
-      text: `${count} selecionadas · faltam ${diff} para 30, ou remova ${over} para 15`,
-    };
-  }
-  if (count === 30) {
-    return { nextTarget: 30, text: '30 selecionadas · meta atingida' };
-  }
-  if (count < 60) {
-    const diff = 60 - count;
-    const over = count - 30;
-    return {
-      nextTarget: 60,
-      text: `${count} selecionadas · faltam ${diff} para 60, ou remova ${over} para 30`,
-    };
-  }
-  if (count === 60) {
-    return { nextTarget: 60, text: '60 selecionadas · meta atingida' };
-  }
-  if (count < 90) {
-    const diff = 90 - count;
-    const over = count - 60;
-    return {
-      nextTarget: 90,
-      text: `${count} selecionadas · faltam ${diff} para 90, ou remova ${over} para 60`,
-    };
-  }
-  if (count === 90) {
-    return { nextTarget: 90, text: '90 selecionadas · meta atingida' };
-  }
-  return { nextTarget: 90, text: 'Máximo de 90 cartas atingido' };
-}
 
 export const FacePickerModal: FC<FacePickerModalProps> = ({
   isOpen,
@@ -213,7 +164,7 @@ export const FacePickerModal: FC<FacePickerModalProps> = ({
   if (!isOpen) return null;
 
   const visibleFaces = filteredList.slice(0, visibleCount);
-  const targetInfo = getTargetInfo(selectedCards.length);
+  const sizeStatus = getDeckSizeStatus(selectedCards.length);
 
   return (
     <div
@@ -403,6 +354,11 @@ export const FacePickerModal: FC<FacePickerModalProps> = ({
                     searchQuery={searchQuery}
                     onToggleSelect={() => {
                       if (!isUnavailable) {
+                        if (!isSelected && selectedCards.length >= TAMANHO_MAXIMO_BARALHO) {
+                          sounds.playWrong();
+                          alert(`Limite máximo de ${TAMANHO_MAXIMO_BARALHO} cartas atingido.`);
+                          return;
+                        }
                         sounds.playClick();
                         onToggleCard(face);
                       }
@@ -425,7 +381,7 @@ export const FacePickerModal: FC<FacePickerModalProps> = ({
         {/* RODAPÉ FIXO DO SELETOR */}
         <div className="pt-3.5 border-t border-[#E2DACD] flex items-center justify-between gap-3 shrink-0">
           <p className="text-xs sm:text-sm font-sans text-[#2B2420]" aria-live="polite">
-            {targetInfo.text}
+            {sizeStatus.text}
           </p>
           <Button variant="primary" onClick={onClose} className="min-w-[100px]">
             Concluir

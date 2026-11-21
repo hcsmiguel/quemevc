@@ -13,6 +13,7 @@ import { supabase } from './supabase';
 import type { SavedDeck, SavedFace } from './auth';
 import type { Character } from '../types/game';
 import { normalizeText } from '../utils/communitySearch';
+import { TAMANHO_MINIMO_BARALHO } from '../constants/deck';
 
 export type ItemOrigin = 'own' | 'saved' | 'official';
 export type FaceStatus = 'active' | 'private' | 'unavailable' | 'deleted';
@@ -318,19 +319,23 @@ export async function getProfileDecks(userId: string, username: string): Promise
     const isOwn = (row.author_name || '').toLowerCase() === (username || '').toLowerCase() || !row.author_name;
     const cards = Array.isArray(row.cards) ? row.cards : [];
     
-    // Verificar se alguma cara foi marcada como removida
-    const hasRemovedFaces = cards.some((c: any) => c.is_removed || c.name === 'Cara removida' || c.status === 'deleted');
+    // Verificar se alguma cara foi marcada como removida ou excluída
+    const validCards = cards.filter((c: any) => !c.is_removed && c.name !== 'Cara removida' && c.status !== 'deleted');
+    const hasRemovedFaces = cards.length > validCards.length;
     let deckStatus: DeckStatus = 'active';
-    if (hasRemovedFaces) {
+    // Regra flexível: continua jogável com N-removidas cartas se ainda restarem >= 15 cartas
+    if (validCards.length < TAMANHO_MINIMO_BARALHO) {
       deckStatus = 'needs_adjustment';
     }
+
+    const effectiveCards = hasRemovedFaces ? validCards : cards;
 
     if (isOwn) {
       ownDecks.push({
         id: row.id,
         name: row.name,
-        cardCount: row.card_count || cards.length,
-        cards,
+        cardCount: effectiveCards.length || row.card_count || cards.length,
+        cards: effectiveCards,
         authorName: row.author_name || username,
         isPublic: Boolean(row.is_public),
         origin: 'own',
@@ -342,8 +347,8 @@ export async function getProfileDecks(userId: string, username: string): Promise
       savedDecks.push({
         id: row.id,
         name: row.name,
-        cardCount: row.card_count || cards.length,
-        cards,
+        cardCount: effectiveCards.length || row.card_count || cards.length,
+        cards: effectiveCards,
         authorName: row.author_name,
         isPublic: Boolean(row.is_public),
         origin: 'saved',
@@ -391,20 +396,24 @@ export async function getProfileDecks(userId: string, username: string): Promise
           const isDeleted = (item as any).status === 'deleted' || item.is_hidden;
           const isPrivate = !item.is_public;
           const cards = Array.isArray(item.cards) ? item.cards : [];
-          const hasRemovedFaces = cards.some((c: any) => c.is_removed || c.name === 'Cara removida' || c.status === 'deleted');
+          const validCards = cards.filter((c: any) => !c.is_removed && c.name !== 'Cara removida' && c.status !== 'deleted');
+          const hasRemovedFaces = cards.length > validCards.length;
 
           let status: DeckStatus = 'active';
           if (isDeleted || isPrivate) {
             status = 'unavailable';
-          } else if (hasRemovedFaces) {
+          } else if (validCards.length < TAMANHO_MINIMO_BARALHO) {
+            // Só entra em "precisa de ajuste" se restarem menos de 15 cartas
             status = 'needs_adjustment';
           }
+
+          const effectiveCards = hasRemovedFaces ? validCards : cards;
 
           savedDecks.push({
             id: item.id,
             name: item.name,
-            cardCount: item.card_count || cards.length,
-            cards,
+            cardCount: effectiveCards.length || item.card_count || cards.length,
+            cards: effectiveCards,
             authorName: item.author_name || 'Comunidade',
             isPublic: item.is_public,
             origin: item.is_official ? 'official' : 'saved',

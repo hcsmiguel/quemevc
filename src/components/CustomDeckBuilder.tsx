@@ -8,8 +8,15 @@ import { ArrowLeft, X, Plus } from 'lucide-react';
 import { sounds } from '../utils/sound';
 import { Button } from './ui/Button';
 import { Checkbox } from './ui/Checkbox';
+import { CompleteUntilMenu } from './ui/CompleteUntilMenu';
 import { CaraLegenda } from './community/CaraLegenda';
 import { CommunityToast, type ToastData } from './community/CommunityToast';
+import {
+  TAMANHO_MINIMO_BARALHO,
+  TAMANHO_MAXIMO_BARALHO,
+  isDeckSizeValid,
+  getDeckSizeStatus,
+} from '../constants/deck';
 
 interface CustomDeckBuilderProps {
   targetCount?: DifficultyCount;
@@ -19,62 +26,6 @@ interface CustomDeckBuilderProps {
   isFromProfile?: boolean;
   onFinishDeck: (cards: Character[], deckName?: string, savedToProfile?: boolean) => void;
   onCancel: () => void;
-}
-
-const VALID_DECK_SIZES = [15, 30, 60, 90] as const;
-
-function getDynamicSelectionInfo(count: number): { nextTarget: number; text: string; isValid: boolean } {
-  if (count === 0) {
-    return { nextTarget: 15, text: 'Nenhuma carta escolhida · faltam 15 para 15', isValid: false };
-  }
-  if (count < 15) {
-    const diff = 15 - count;
-    return {
-      nextTarget: 15,
-      text: `${count} ${count === 1 ? 'carta' : 'cartas'} · faltam ${diff} para 15`,
-      isValid: false,
-    };
-  }
-  if (count === 15) {
-    return { nextTarget: 15, text: '15 cartas · meta atingida', isValid: true };
-  }
-  if (count < 30) {
-    const diff = 30 - count;
-    const over = count - 15;
-    return {
-      nextTarget: 30,
-      text: `${count} cartas · faltam ${diff} para 30, ou remova ${over} para 15`,
-      isValid: false,
-    };
-  }
-  if (count === 30) {
-    return { nextTarget: 30, text: '30 cartas · meta atingida', isValid: true };
-  }
-  if (count < 60) {
-    const diff = 60 - count;
-    const over = count - 30;
-    return {
-      nextTarget: 60,
-      text: `${count} cartas · faltam ${diff} para 60, ou remova ${over} para 30`,
-      isValid: false,
-    };
-  }
-  if (count === 60) {
-    return { nextTarget: 60, text: '60 cartas · meta atingida', isValid: true };
-  }
-  if (count < 90) {
-    const diff = 90 - count;
-    const over = count - 60;
-    return {
-      nextTarget: 90,
-      text: `${count} cartas · faltam ${diff} para 90, ou remova ${over} para 60`,
-      isValid: false,
-    };
-  }
-  if (count === 90) {
-    return { nextTarget: 90, text: '90 cartas · meta atingida', isValid: true };
-  }
-  return { nextTarget: 90, text: 'Máximo de 90 cartas atingido', isValid: false };
 }
 
 export const CustomDeckBuilder: FC<CustomDeckBuilderProps> = ({
@@ -231,10 +182,10 @@ export const CustomDeckBuilder: FC<CustomDeckBuilderProps> = ({
         )
       );
     } else {
-      if (cards.length >= 90) {
+      if (cards.length >= TAMANHO_MAXIMO_BARALHO) {
         setToast({
           id: 'max-cards-reached',
-          message: 'Máximo de 90 cartas atingido.',
+          message: `Máximo de ${TAMANHO_MAXIMO_BARALHO} cartas atingido.`,
         });
         return;
       }
@@ -286,12 +237,11 @@ export const CustomDeckBuilder: FC<CustomDeckBuilderProps> = ({
     });
   };
 
-  // Ação "Completar": preenche aleatoriamente com cartas disponíveis até a próxima meta
-  const handleComplete = () => {
+  // Ação "Completar até": preenche aleatoriamente com cartas disponíveis até a meta escolhida
+  const handleCompleteUntil = (targetCount: number) => {
     sounds.playClick();
     const currentCount = cards.length;
-    const nextTarget = VALID_DECK_SIZES.find((target) => target > currentCount) || 90;
-    const needed = nextTarget - currentCount;
+    const needed = targetCount - currentCount;
     if (needed <= 0) return;
 
     const existingKeys = new Set<string>();
@@ -395,20 +345,19 @@ export const CustomDeckBuilder: FC<CustomDeckBuilderProps> = ({
     });
   };
 
-  // Validação de salvamento
-  const selectionInfo = getDynamicSelectionInfo(cards.length);
-  const isDeckSizeValid = selectionInfo.isValid;
+  // Validação de salvamento (Regra central de tamanho: 15 a 90 cartas)
+  const deckStatus = getDeckSizeStatus(cards.length);
+  const isDeckCountValid = isDeckSizeValid(cards.length);
   const isNameValid = deckName.trim().length > 0;
-  const canSaveDeck = isDeckSizeValid && isNameValid;
+  const canSaveDeck = isDeckCountValid && isNameValid;
 
   const getDisabledReason = (): string | null => {
     if (!isNameValid) return 'Digite um nome para o baralho.';
-    if (!isDeckSizeValid) {
-      if (cards.length < 15) return `Faltam ${15 - cards.length} cartas para 15.`;
-      if (cards.length < 30) return `Faltam ${30 - cards.length} para 30, ou remova ${cards.length - 15} para 15.`;
-      if (cards.length < 60) return `Faltam ${60 - cards.length} para 60, ou remova ${cards.length - 30} para 30.`;
-      if (cards.length < 90) return `Faltam ${90 - cards.length} para 90, ou remova ${cards.length - 60} para 60.`;
-      return 'Máximo de 90 cartas permitido.';
+    if (!isDeckCountValid) {
+      if (cards.length < TAMANHO_MINIMO_BARALHO) {
+        return `Faltam ${TAMANHO_MINIMO_BARALHO - cards.length} cartas para o mínimo de ${TAMANHO_MINIMO_BARALHO}.`;
+      }
+      return `Máximo de ${TAMANHO_MAXIMO_BARALHO} cartas permitido.`;
     }
     return null;
   };
@@ -678,9 +627,9 @@ export const CustomDeckBuilder: FC<CustomDeckBuilderProps> = ({
           className="fixed bottom-0 left-0 right-0 z-40 bg-[#FBF8F3]/95 backdrop-blur-md border-t border-[#E2DACD] shadow-lg py-3 px-4 sm:px-8 pb-[max(0.75rem,env(safe-area-inset-bottom))]"
         >
           <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 text-xs sm:text-sm font-sans">
-            {/* Texto dinâmico de meta */}
+            {/* Texto dinâmico de estado */}
             <p className="text-[#2B2420] font-medium text-center sm:text-left" aria-live="polite">
-              {selectionInfo.text}
+              {deckStatus.text}
             </p>
 
             {/* Ações da barra */}
@@ -693,13 +642,12 @@ export const CustomDeckBuilder: FC<CustomDeckBuilderProps> = ({
                 Limpar
               </button>
 
-              <button
-                type="button"
-                onClick={handleComplete}
-                className="text-[#B4532F] hover:text-[#984323] transition-colors cursor-pointer font-medium hover:underline"
-              >
-                Completar
-              </button>
+              {/* Menu "Completar até" */}
+              <CompleteUntilMenu
+                currentCount={cards.length}
+                onSelectTarget={handleCompleteUntil}
+                direction="up"
+              />
 
               <Button
                 variant="primary"

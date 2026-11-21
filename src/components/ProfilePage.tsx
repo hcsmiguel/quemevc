@@ -22,6 +22,11 @@ import { sounds } from '../utils/sound';
 import { network } from '../services/network';
 import { normalizeText } from '../utils/communitySearch';
 import {
+  TAMANHO_MINIMO_BARALHO,
+  TAMANHO_MAXIMO_BARALHO,
+  isDeckSizeValid,
+} from '../constants/deck';
+import {
   getProfileFaces,
   getProfileDecks,
   saveFaceAsReference,
@@ -300,7 +305,7 @@ export const ProfilePage: FC<ProfilePageProps> = ({
   }, [selectedFacesList]);
 
   const isValidDeckSize = (count: number): boolean => {
-    return count === 15 || count === 30 || count === 60 || count === 90;
+    return isDeckSizeValid(count);
   };
 
   // --------------------------------------------------------------------------
@@ -1470,7 +1475,7 @@ export const ProfilePage: FC<ProfilePageProps> = ({
                     <span className="text-[#2E7D32] font-semibold">Tamanho válido para baralho</span>
                   ) : (
                     <span className="text-[#6F655C]">
-                      (precisa de 15, 30, 60 ou 90 cartas para criar baralho)
+                      (precisa de {TAMANHO_MINIMO_BARALHO} a {TAMANHO_MAXIMO_BARALHO} cartas para criar baralho)
                     </span>
                   )}
                 </div>
@@ -1517,7 +1522,7 @@ export const ProfilePage: FC<ProfilePageProps> = ({
                     Limpar
                   </button>
 
-                  {/* Criar Baralho (Exige 15, 30, 60 ou 90 cartas) */}
+                  {/* Criar Baralho (Exige de 15 a 90 cartas) */}
                   <Button
                     size="sm"
                     variant="primary"

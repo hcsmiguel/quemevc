@@ -1,11 +1,12 @@
 import type { FC } from 'react';
 import { Button } from '../ui/Button';
-import { computeSelectionGoal } from '../../utils/selectionRules';
+import { CompleteUntilMenu } from '../ui/CompleteUntilMenu';
+import { getDeckSizeStatus, TAMANHO_MAXIMO_BARALHO } from '../../constants/deck';
 
 interface CommunitySelectionBarProps {
   selectedCount: number;
   onClear: () => void;
-  onComplete: () => void;
+  onComplete: (target: number) => void;
   onSelectVisible: () => void;
   onCreateDeck: () => void;
   hasVisibleUnselected?: boolean;
@@ -21,7 +22,7 @@ export const CommunitySelectionBar: FC<CommunitySelectionBarProps> = ({
 }) => {
   if (selectedCount === 0) return null;
 
-  const goal = computeSelectionGoal(selectedCount);
+  const status = getDeckSizeStatus(selectedCount);
 
   return (
     <div
@@ -30,17 +31,16 @@ export const CommunitySelectionBar: FC<CommunitySelectionBarProps> = ({
       className="fixed bottom-0 left-0 right-0 z-40 bg-[#FBF8F3] border-t border-[#E2DACD] shadow-lg transition-transform duration-200 motion-reduce:transition-none pb-[calc(0.6rem+env(safe-area-inset-bottom))]"
     >
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-2.5 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-        {/* Lado Esquerdo: Contagem e Mensagem de Meta com aria-live */}
+        {/* Lado Esquerdo: Estado da seleção conforme regra de produto */}
         <div aria-live="polite" className="flex items-center gap-2 min-w-0">
-          <span className="text-xs sm:text-sm font-sans text-[#2B2420] truncate">
-            <strong className="font-semibold">{selectedCount} {selectedCount === 1 ? 'carta selecionada' : 'selecionadas'}</strong>
-            <span className="text-[#6F655C]"> · {goal.message}</span>
+          <span className="text-xs sm:text-sm font-sans text-[#2B2420] truncate font-medium">
+            {status.text}
           </span>
         </div>
 
-        {/* Lado Direito: Ações (Selecionar visíveis, Limpar, Completar, Criar baralho) */}
+        {/* Lado Direito: Ações (Selecionar visíveis, Limpar, Completar até, Criar baralho) */}
         <div className="flex items-center justify-end gap-3 sm:gap-4 flex-wrap">
-          {hasVisibleUnselected && selectedCount < 90 && (
+          {hasVisibleUnselected && selectedCount < TAMANHO_MAXIMO_BARALHO && (
             <button
               type="button"
               onClick={onSelectVisible}
@@ -59,31 +59,23 @@ export const CommunitySelectionBar: FC<CommunitySelectionBarProps> = ({
             Limpar
           </button>
 
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            onClick={onComplete}
-            disabled={goal.isValidSize || goal.isMaxReached}
-            title={
-              goal.isValidSize
-                ? 'A contagem já é um tamanho válido de baralho'
-                : 'Preenche aleatoriamente com cartas do banco até a próxima meta'
-            }
-          >
-            Completar
-          </Button>
+          {/* Menu "Completar até": 15 · 30 · 60 · 90 (oculto quando count >= 90) */}
+          <CompleteUntilMenu
+            currentCount={selectedCount}
+            onSelectTarget={onComplete}
+            direction="up"
+          />
 
           <Button
             type="button"
             variant="primary"
             size="sm"
             onClick={onCreateDeck}
-            disabled={!goal.isValidSize}
+            disabled={!status.canSave}
             title={
-              goal.isValidSize
+              status.canSave
                 ? 'Criar baralho com as cartas selecionadas'
-                : 'Selecione exatamente 15, 30, 60 ou 90 cartas para habilitar'
+                : 'Selecione de 15 a 90 cartas para habilitar'
             }
           >
             Criar baralho

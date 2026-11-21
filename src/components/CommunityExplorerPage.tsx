@@ -12,7 +12,7 @@ import {
   getRelevanceTier,
   getDeckRelevanceTier,
 } from '../utils/communitySearch';
-import { computeSelectionGoal } from '../utils/selectionRules';
+import { TAMANHO_MAXIMO_BARALHO } from '../constants/deck';
 import { CommunityFaceCard } from './community/CommunityFaceCard';
 import { CommunityDeckRow } from './community/CommunityDeckRow';
 import { CommunitySelectionBar } from './community/CommunitySelectionBar';
@@ -507,10 +507,10 @@ export const CommunityExplorerPage: FC<CommunityExplorerPageProps> = ({
         prev.filter((c) => c.imageUrl !== face.image_url && c.id !== face.id)
       );
     } else {
-      if (selectedCards.length >= 90) {
+      if (selectedCards.length >= TAMANHO_MAXIMO_BARALHO) {
         setToast({
           id: 'max-selected',
-          message: 'Máximo de 90 cartas atingido para um baralho.',
+          message: `Máximo de ${TAMANHO_MAXIMO_BARALHO} cartas atingido para um baralho.`,
         });
         return;
       }
@@ -537,13 +537,19 @@ export const CommunityExplorerPage: FC<CommunityExplorerPageProps> = ({
     });
   }, [selectedCards]);
 
-  const handleCompleteSelection = useCallback(() => {
-    const goal = computeSelectionGoal(selectedCards.length);
-    if (!goal.nextTarget || goal.missingToNext <= 0) return;
+  const handleCompleteSelection = useCallback((targetCount: number) => {
+    const currentCount = selectedCards.length;
+    const needed = targetCount - currentCount;
+    if (needed <= 0) return;
 
     // Buscar cartas do banco ainda não selecionadas
     const unselected = allFaces.filter(
-      (f) => !selectedFaceKeySet.has(f.image_url) && !selectedFaceKeySet.has(f.id)
+      (f) =>
+        !selectedFaceKeySet.has(f.image_url) &&
+        !selectedFaceKeySet.has(f.id) &&
+        f.name !== 'Cara removida' &&
+        (f as any).status !== 'deleted' &&
+        (f as any).status !== 'unavailable'
     );
 
     if (unselected.length === 0) {
@@ -556,18 +562,25 @@ export const CommunityExplorerPage: FC<CommunityExplorerPageProps> = ({
 
     // Embaralhar aleatoriamente
     const shuffled = [...unselected].sort(() => 0.5 - Math.random());
-    const needed = Math.min(goal.missingToNext, shuffled.length);
-    const toAdd: Character[] = shuffled.slice(0, needed).map((f) => ({
+    const countToAdd = Math.min(needed, shuffled.length);
+    const toAdd: Character[] = shuffled.slice(0, countToAdd).map((f) => ({
       id: f.id,
       name: f.name,
       imageUrl: f.image_url,
     }));
 
+    if (toAdd.length < needed) {
+      setToast({
+        id: 'partial-complete',
+        message: `Foram adicionadas ${toAdd.length} cartas (catálogo esgotado).`,
+      });
+    }
+
     setSelectedCards((prev) => [...prev, ...toAdd]);
   }, [selectedCards.length, allFaces, selectedFaceKeySet]);
 
   const handleSelectVisibleCards = useCallback(() => {
-    const maxAllowed = 90 - selectedCards.length;
+    const maxAllowed = TAMANHO_MAXIMO_BARALHO - selectedCards.length;
     if (maxAllowed <= 0) return;
 
     const visibleUnselected = visibleFaces.filter(
