@@ -17,6 +17,7 @@ import {
 import type { DifficultyCount, GameMode, RoomConfig } from '../types/game';
 import { auth, type AppUser, type SavedDeck } from '../services/auth';
 import { sounds } from '../utils/sound';
+import { ATALHOS_DE_TAMANHO } from '../constants/deck';
 
 interface CreateLobbyPageProps {
   playerName: string;
@@ -379,13 +380,13 @@ export const CreateLobbyPage: FC<CreateLobbyPageProps> = ({
                 </div>
               )}
 
-              {/* Opções de 30, 60 e 90 Caras para montar um novo */}
+              {/* Opções de atalhos de cartas para montar um novo */}
               <div>
                 <label className="block text-xs font-bold text-[#382C26] uppercase tracking-wider mb-1.5">
                   {(savedDecks.length > 0 || communityDecks.length > 0) ? 'Ou monte um baralho novo com:' : 'Quantidade de Caras Personalizadas:'}
                 </label>
-                <div className="grid grid-cols-3 gap-2">
-                  {([30, 60, 90] as const).map((count) => (
+                <div className="grid grid-cols-4 gap-2">
+                  {ATALHOS_DE_TAMANHO.map((count) => (
                     <button
                       key={count}
                       type="button"

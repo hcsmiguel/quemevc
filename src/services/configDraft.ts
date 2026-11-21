@@ -1,5 +1,10 @@
 import type { DifficultyCount, Character } from '../types/game';
 import type { SavedDeck } from './auth';
+import {
+  TAMANHO_MINIMO_BARALHO,
+  TAMANHO_MAXIMO_BARALHO,
+  getMatchCardCountOptions,
+} from '../constants/deck';
 
 export interface RoomConfigDraft {
   deckId?: string;
@@ -16,7 +21,7 @@ export interface RoomConfigDraft {
 const DEFAULT_DRAFT: RoomConfigDraft = {
   deckId: undefined,
   deckName: 'Aleatório #1',
-  cardCount: 30,
+  cardCount: TAMANHO_MAXIMO_BARALHO,
   customCards: undefined,
   isCallMode: false,
   hasPassword: false,
@@ -60,23 +65,25 @@ export function resetConfigDraft(): void {
 }
 
 /**
- * Ajusta a quantidade de cartas do rascunho para ser compatível com o tamanho do baralho:
- * Se a quantidade configurada exceder o total de cartas do baralho (ex.: 90 configurado e baralho com 30),
- * ajusta automaticamente para o maior tamanho válido (15, 30, 60, 90) que caiba no baralho.
+ * Ajusta a quantidade de cartas da partida com base no baralho escolhido:
+ * - As opções válidas são os atalhos <= N, e "Todas (N)" se N não for atalho.
+ * - Preserva a escolha anterior se ela continuar válida para o novo baralho.
+ * - Se a escolha anterior deixar de ser válida, seleciona a maior válida (todas as cartas do baralho).
  */
 export function clampCardCountToDeck(
   requestedCount: DifficultyCount,
   deckTotalCards: number
 ): { count: DifficultyCount; adjusted: boolean } {
-  const validSizes: DifficultyCount[] = [90, 60, 30, 15];
-  
-  if (requestedCount <= deckTotalCards) {
+  const options = getMatchCardCountOptions(deckTotalCards);
+  const isValid = options.some((opt) => opt.value === requestedCount);
+
+  if (isValid) {
     return { count: requestedCount, adjusted: false };
   }
 
-  // Encontra o maior tamanho válido menor ou igual ao tamanho do baralho
-  const bestFit = validSizes.find((size) => size <= deckTotalCards) || 15;
-  return { count: bestFit, adjusted: true };
+  // Se a escolha anterior deixar de ser válida, selecionar a maior válida
+  const highestValid = (options[options.length - 1]?.value || TAMANHO_MINIMO_BARALHO) as DifficultyCount;
+  return { count: highestValid, adjusted: true };
 }
 
 /**

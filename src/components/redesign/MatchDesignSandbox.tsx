@@ -5,6 +5,7 @@ import {
   type RedesignProposal,
   type RedesignTurnState,
 } from './MatchDesignToolbar';
+import type { AtalhoDeTamanho } from '../../constants/deck';
 import { MatchDesignA } from './MatchDesignA';
 import { MatchDesignB } from './MatchDesignB';
 import { MatchDesignC } from './MatchDesignC';
@@ -34,7 +35,7 @@ export const MatchDesignSandbox: FC<MatchDesignSandboxProps> = ({
   });
 
   // Quantidade de Cartas (15, 30, 60, 90)
-  const [cardCount, setCardCount] = useState<15 | 30 | 60 | 90>(30);
+  const [cardCount, setCardCount] = useState<AtalhoDeTamanho>(30);
 
   // Estados de Turno Simulados
   const [turnState, setTurnState] = useState<RedesignTurnState>('my_turn');

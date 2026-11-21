@@ -1,4 +1,4 @@
-import { useState, useEffect, type FC } from 'react';
+import { useState, useEffect, useMemo, type FC } from 'react';
 import {
   Copy,
   Check,
@@ -27,8 +27,11 @@ import {
   updateConfigDraft,
   resetConfigDraft,
   setChoiceMode,
-  clampCardCountToDeck,
 } from '../services/configDraft';
+import {
+  TAMANHO_MAXIMO_BARALHO,
+  getMatchCardCountOptions,
+} from '../constants/deck';
 
 interface LobbyProps {
   onJoinRoom: (roomCode: string, playerName: string, isHost: boolean, config: RoomConfig, password?: string) => void;
@@ -142,6 +145,7 @@ export const Lobby: FC<LobbyProps> = ({
   const [hostPassword, setHostPassword] = useState(() => initialDraft.password || '');
   const [showHostPassword, setShowHostPassword] = useState(false);
   const [hostPasswordError, setHostPasswordError] = useState<string | null>(null);
+  const [cardCountAdjustNotice, setCardCountAdjustNotice] = useState<string | null>(null);
 
   // Sincronizar rascunho em memória a cada alteração nas opções de configuração
   useEffect(() => {
@@ -156,15 +160,46 @@ export const Lobby: FC<LobbyProps> = ({
   }, [hostDeckName, hostCardCount, hostCustomCards, hostIsCallMode, hostHasPassword, hostPassword]);
 
   // Quantidade máxima de cartas disponíveis no baralho selecionado
-  const maxDeckCards = hostCustomCards && hostCustomCards.length > 0 ? hostCustomCards.length : 90;
+  const maxDeckCards = hostCustomCards && hostCustomCards.length > 0 ? hostCustomCards.length : TAMANHO_MAXIMO_BARALHO;
 
-  // Ajuste automático se a quantidade selecionada exceder o baralho
+  // Opções dinâmicas de quantidade de cartas para a partida
+  const matchOptions = useMemo(() => {
+    return getMatchCardCountOptions(maxDeckCards);
+  }, [maxDeckCards]);
+
+  // Ajuste automático se a quantidade selecionada não for mais uma opção válida
   useEffect(() => {
-    if (hostCardCount > maxDeckCards) {
-      const { count } = clampCardCountToDeck(hostCardCount, maxDeckCards);
-      setHostCardCount(count);
+    const isCurrentValid = matchOptions.some((opt) => opt.value === hostCardCount);
+    if (!isCurrentValid && matchOptions.length > 0) {
+      const highestOption = matchOptions[matchOptions.length - 1];
+      const highestValid = highestOption?.value || maxDeckCards;
+      setHostCardCount(highestValid);
+      setCardCountAdjustNotice(
+        `Quantidade ajustada para ${highestOption?.label || highestValid} devido ao tamanho do baralho.`
+      );
     }
-  }, [hostCardCount, maxDeckCards]);
+  }, [matchOptions, hostCardCount, maxDeckCards]);
+
+  const selectDeck = (deck: SavedDeck) => {
+    const deckCards = deck.cards || [];
+    const deckTotal = deckCards.length || deck.card_count || TAMANHO_MAXIMO_BARALHO;
+    setHostDeckName(deck.name);
+    setHostCustomCards(deckCards);
+
+    const options = getMatchCardCountOptions(deckTotal);
+    const isCurrentValid = options.some((opt) => opt.value === hostCardCount);
+
+    if (isCurrentValid) {
+      setCardCountAdjustNotice(null);
+    } else {
+      const highestOption = options[options.length - 1];
+      const highestValid = highestOption?.value || deckTotal;
+      setHostCardCount(highestValid);
+      setCardCountAdjustNotice(
+        `Quantidade ajustada para ${highestOption?.label || highestValid} devido ao tamanho do baralho.`
+      );
+    }
+  };
 
   // Menu de troca de baralho dentro de Configurar Partida
   const [showDeckPicker, setShowDeckPicker] = useState(false);
@@ -652,15 +687,13 @@ export const Lobby: FC<LobbyProps> = ({
                           key={deck.id}
                           onClick={() => {
                             sounds.playClick();
-                            setHostDeckName(deck.name);
-                            setHostCardCount((deck.card_count as DifficultyCount) || 30);
-                            setHostCustomCards(deck.cards);
+                            selectDeck(deck);
                             setShowDeckPicker(false);
                           }}
                           className="p-2.5 rounded-[6px] border border-[#E2DACD] bg-[#FBF8F3] hover:bg-white flex items-center justify-between text-xs cursor-pointer transition-colors"
                         >
                           <span className="font-medium text-[#2B2420] truncate">{deck.name}</span>
-                          <span className="text-[#6F655C] shrink-0">{deck.card_count} cartas</span>
+                          <span className="text-[#6F655C] shrink-0">{deck.card_count || deck.cards?.length} cartas</span>
                         </div>
                       ))}
                     </div>
@@ -677,22 +710,26 @@ export const Lobby: FC<LobbyProps> = ({
             </span>
             <SegmentedControl
               className="w-full"
-              options={[
-                { value: 15, label: '15 cartas', disabled: 15 > maxDeckCards },
-                { value: 30, label: '30 cartas', disabled: 30 > maxDeckCards },
-                { value: 60, label: '60 cartas', disabled: 60 > maxDeckCards },
-                { value: 90, label: '90 cartas', disabled: 90 > maxDeckCards },
-              ]}
+              options={matchOptions.map((opt) => ({
+                value: opt.value,
+                label: opt.label,
+              }))}
               value={hostCardCount}
               onChange={(count) => {
                 sounds.playClick();
+                setCardCountAdjustNotice(null);
                 setHostCardCount(count as DifficultyCount);
                 if (!hostCustomCards || hostCustomCards.length === 0) {
                   setHostCustomCards(MOCK_90_CHARACTERS.slice(0, count));
                 }
               }}
             />
-            {maxDeckCards < 90 && (
+            {cardCountAdjustNotice && (
+              <p className="text-xs text-[#B4532F] font-sans mt-2">
+                {cardCountAdjustNotice}
+              </p>
+            )}
+            {maxDeckCards < TAMANHO_MAXIMO_BARALHO && !cardCountAdjustNotice && (
               <p className="text-xs text-[#6F655C] font-sans mt-2">
                 Este baralho tem {maxDeckCards} cartas.
               </p>
@@ -971,9 +1008,7 @@ export const Lobby: FC<LobbyProps> = ({
                   key={deck.id}
                   onClick={() => {
                     sounds.playClick();
-                    setHostDeckName(deck.name);
-                    setHostCardCount((count as DifficultyCount) || 30);
-                    setHostCustomCards(deck.cards);
+                    selectDeck(deck);
                     handleStartConfiguring();
                   }}
                   className="p-4 rounded-[8px] border border-[#E2DACD] bg-[#FBF8F3] hover:border-[#2B2420] transition-colors cursor-pointer group flex flex-col justify-between"

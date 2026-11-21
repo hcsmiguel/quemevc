@@ -1,15 +1,16 @@
 import { useState, type FC } from 'react';
 import { Users, RefreshCw, ChevronUp, ChevronDown, CheckCircle2, XCircle, Clock } from 'lucide-react';
+import { ATALHOS_DE_TAMANHO, type AtalhoDeTamanho } from '../../constants/deck';
 
 export type RedesignProposal = 'a' | 'b' | 'c' | 'original';
 export type RedesignTurnState = 'my_turn' | 'opponent_turn' | 'waiting_reply' | 'answered_yes' | 'answered_no';
 
 interface MatchDesignToolbarProps {
   currentProposal: RedesignProposal;
-  cardCount: 15 | 30 | 60 | 90;
+  cardCount: AtalhoDeTamanho;
   turnState: RedesignTurnState;
   onSelectProposal: (proposal: RedesignProposal) => void;
-  onSelectCardCount: (count: 15 | 30 | 60 | 90) => void;
+  onSelectCardCount: (count: AtalhoDeTamanho) => void;
   onSelectTurnState: (state: RedesignTurnState) => void;
   onReset: () => void;
 }
@@ -109,7 +110,7 @@ export const MatchDesignToolbar: FC<MatchDesignToolbarProps> = ({
                 <span>Baralho:</span>
               </span>
               <div className="flex items-center gap-1 bg-white/10 p-0.5 rounded-lg">
-                {([15, 30, 60, 90] as const).map((cnt) => (
+                {ATALHOS_DE_TAMANHO.map((cnt) => (
                   <button
                     key={cnt}
                     type="button"
