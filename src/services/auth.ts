@@ -277,7 +277,12 @@ class AuthService {
         }
       }
 
-      const isAdmin = !error && !!data?.is_admin;
+      let isAdmin = !error && !!data?.is_admin;
+      if (!isAdmin && this.currentUser?.is_admin && error) {
+        // Se houve erro de rede/RLS transitório, preserva o status de admin se já validado anteriormente
+        isAdmin = true;
+      }
+
       if (isAdmin) {
         if (!this.currentUser && data) {
           const appUser: AppUser = {
@@ -299,7 +304,7 @@ class AuthService {
       }
       return isAdmin;
     } catch {
-      return false;
+      return Boolean(this.currentUser?.is_admin);
     }
   }
 

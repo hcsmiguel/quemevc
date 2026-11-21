@@ -35,7 +35,7 @@ import { OpponentLeftModal } from './components/OpponentLeftModal';
 import { PasswordPromptModal } from './components/PasswordPromptModal';
 import { Footer } from './components/Footer';
 import { LegalModal, type LegalTab } from './components/LegalModal';
-import { Volume2, VolumeX, User as UserIcon, LogOut, AlertTriangle, RotateCcw, Clock } from 'lucide-react';
+import { Volume2, VolumeX, User as UserIcon, LogOut, AlertTriangle, RotateCcw, Clock, Shield } from 'lucide-react';
 import type { SavedDeck } from './services/auth';
 import { MatchDesignSandbox } from './components/redesign/MatchDesignSandbox';
 import { MatchDesignB } from './components/redesign/MatchDesignB';
@@ -60,7 +60,7 @@ export function App() {
       if (user?.username) {
         setPlayerName(user.username);
       } else {
-        setPhase((prev) => (prev === 'PROFILE' ? 'LOBBY' : prev));
+        setPhase((prev) => (prev === 'PROFILE' || prev === 'ADMIN_PANEL' ? 'LOBBY' : prev));
       }
     });
     return () => unsubscribe();
@@ -100,6 +100,7 @@ export function App() {
     }
     if (path === '/lobbies') return 'PUBLIC_LOBBIES';
     if (path === '/comunidade' || path.startsWith('/comunidade/baralho/')) return 'COMMUNITY';
+    if (path === '/painel-admin') return 'ADMIN_PANEL';
     return 'LOBBY';
   });
   const [roomCode, setRoomCode] = useState<string>('');
@@ -296,6 +297,8 @@ export function App() {
           return currentPath;
         }
         return '/comunidade';
+      case 'ADMIN_PANEL':
+        return '/painel-admin';
       case 'CREATE_LOBBY':
       default:
         return '/';
@@ -398,6 +401,8 @@ export function App() {
         setPhase('PUBLIC_LOBBIES');
       } else if (path === '/comunidade' || path.startsWith('/comunidade/baralho/')) {
         setPhase('COMMUNITY');
+      } else if (path === '/painel-admin') {
+        setPhase('ADMIN_PANEL');
       } else {
         setPhase('LOBBY');
         setWaitingForPlayer(false);
@@ -1317,7 +1322,7 @@ export function App() {
       return;
     }
 
-    if (phase === 'PROFILE' || phase === 'PUBLIC_LOBBIES' || phase === 'CREATE_LOBBY' || phase === 'COMMUNITY') {
+    if (phase === 'PROFILE' || phase === 'PUBLIC_LOBBIES' || phase === 'CREATE_LOBBY' || phase === 'COMMUNITY' || phase === 'ADMIN_PANEL') {
       setPhase('LOBBY');
       return;
     }
@@ -1441,12 +1446,12 @@ export function App() {
   }
 
   // Renderizar Painel de Administrador (/painel-admin) - Estritamente Restrito a Administradores
-  if (currentPath === '/painel-admin') {
+  if (currentPath === '/painel-admin' || phase === 'ADMIN_PANEL') {
     return (
       <AdminLayout
         currentUser={currentUser}
         onBackToGame={() => {
-          window.history.replaceState(null, '', '/');
+          window.history.pushState(null, '', '/');
           setCurrentPath('/');
           setPhase('LOBBY');
         }}
@@ -1582,10 +1587,12 @@ export function App() {
                       onClick={() => {
                         window.history.pushState(null, '', '/painel-admin');
                         setCurrentPath('/painel-admin');
+                        setPhase('ADMIN_PANEL');
                       }}
-                      className="text-xs font-sans text-[#6F655C] hover:text-[#2B2420] transition-colors cursor-pointer px-2 py-1.5"
+                      className="flex items-center gap-1.5 text-xs font-sans text-[#6F655C] hover:text-[#2B2420] transition-colors cursor-pointer px-2 py-1.5"
                       title="Acessar Painel de Gestão (Admin)"
                     >
+                      <Shield size={14} className="sm:hidden text-[#6F655C]" />
                       <span className="hidden sm:inline">Painel Admin</span>
                     </button>
                   )}

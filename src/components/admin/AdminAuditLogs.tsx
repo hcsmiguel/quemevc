@@ -9,6 +9,9 @@ export const AdminAuditLogs: React.FC = () => {
     adminService.getAuditLogs(50).then((data) => {
       setLogs(data);
       setLoading(false);
+    }).catch((err) => {
+      console.warn('Erro ao carregar logs de auditoria:', err);
+      setLoading(false);
     });
   }, []);
 

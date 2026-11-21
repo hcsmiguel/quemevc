@@ -15,9 +15,14 @@ export const AdminOfficialFaces: React.FC = () => {
 
   const loadFaces = async () => {
     setLoading(true);
-    const data = await adminService.getOfficialFaces();
-    setFaces(data);
-    setLoading(false);
+    try {
+      const data = await adminService.getOfficialFaces();
+      setFaces(data);
+    } catch (err) {
+      console.warn('Erro ao carregar caras oficiais:', err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {

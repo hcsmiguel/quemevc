@@ -13,9 +13,14 @@ export const AdminReports: React.FC = () => {
 
   const loadReports = async () => {
     setLoading(true);
-    const data = await adminService.getReports(filter);
-    setReports(data);
-    setLoading(false);
+    try {
+      const data = await adminService.getReports(filter);
+      setReports(data);
+    } catch (err) {
+      console.warn('Erro ao carregar denúncias:', err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {

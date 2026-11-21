@@ -13,9 +13,14 @@ export const AdminAccounts: React.FC = () => {
 
   const loadUsers = async () => {
     setLoading(true);
-    const data = await adminService.getUsers(search);
-    setUsers(data);
-    setLoading(false);
+    try {
+      const data = await adminService.getUsers(search);
+      setUsers(data);
+    } catch (err) {
+      console.warn('Erro ao carregar usuários:', err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {

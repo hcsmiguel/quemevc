@@ -29,8 +29,8 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
   onBackToGame,
 }) => {
   const [activeTab, setActiveTab] = useState<AdminTab>('overview');
-  const [isVerifying, setIsVerifying] = useState(true);
-  const [isAuthorized, setIsAuthorized] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(!currentUser?.is_admin);
+  const [isAuthorized, setIsAuthorized] = useState(Boolean(currentUser?.is_admin));
   const [metrics, setMetrics] = useState<AdminOverviewMetrics>({
     officialDecksCount: 0,
     officialFacesCount: 0,
@@ -43,15 +43,23 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
 
   // Verificação contínua de autorização no Supabase
   const checkAccess = useCallback(async () => {
+    // Se o usuário atual já é admin confirmado em memória ou no perfil da sessão, manter o acesso
+    if (currentUser?.is_admin) {
+      setIsAuthorized(true);
+      setIsVerifying(false);
+      return;
+    }
+
     const authorized = await auth.verifyAdminStatus();
     if (!authorized) {
       setIsAuthorized(false);
+      setIsVerifying(false);
       onBackToGame();
       return;
     }
     setIsAuthorized(true);
     setIsVerifying(false);
-  }, [onBackToGame]);
+  }, [currentUser, onBackToGame]);
 
   // Carregar dados da visão geral
   const loadData = useCallback(async () => {
@@ -63,6 +71,8 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
       ]);
       setMetrics(metricsData);
       setAuditLogs(logsData);
+    } catch (err) {
+      console.warn('Falha ao carregar métricas ou logs administrativos:', err);
     } finally {
       setIsRefreshing(false);
     }

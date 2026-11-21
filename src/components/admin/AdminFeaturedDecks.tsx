@@ -14,13 +14,18 @@ export const AdminFeaturedDecks: React.FC = () => {
 
   const loadData = async () => {
     setLoading(true);
-    const [featured, eligible] = await Promise.all([
-      adminService.getFeaturedDecks(),
-      adminService.getEligibleDecksForFeatured(),
-    ]);
-    setFeaturedDecks(featured);
-    setEligibleDecks(eligible);
-    setLoading(false);
+    try {
+      const [featured, eligible] = await Promise.all([
+        adminService.getFeaturedDecks(),
+        adminService.getEligibleDecksForFeatured(),
+      ]);
+      setFeaturedDecks(featured);
+      setEligibleDecks(eligible);
+    } catch (err) {
+      console.warn('Erro ao carregar destaques da home:', err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {

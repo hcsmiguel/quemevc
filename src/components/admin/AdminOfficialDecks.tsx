@@ -34,15 +34,20 @@ export const AdminOfficialDecks: React.FC = () => {
 
   const loadOfficialDecks = async () => {
     setLoading(true);
-    const data = await adminService.getOfficialDecks();
-    setDecks(data);
-    setLoading(false);
+    try {
+      const data = await adminService.getOfficialDecks();
+      setDecks(data);
+    } catch (err) {
+      console.warn('Erro ao carregar baralhos oficiais:', err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
     loadOfficialDecks();
-    adminService.getOfficialFaces().then(setOfficialFaces);
-    auth.getPublicFaces().then(setCommunityFaces);
+    adminService.getOfficialFaces().then(setOfficialFaces).catch(() => {});
+    auth.getPublicFaces().then(setCommunityFaces).catch(() => {});
   }, []);
 
   const handleStartNewDeck = () => {
