@@ -22,6 +22,13 @@ import { SegmentedControl } from './ui/SegmentedControl';
 import { Radio } from './ui/Radio';
 import { Checkbox } from './ui/Checkbox';
 import { HeroGamePreview } from './HeroGamePreview';
+import {
+  getConfigDraft,
+  updateConfigDraft,
+  resetConfigDraft,
+  setChoiceMode,
+  clampCardCountToDeck,
+} from '../services/configDraft';
 
 interface LobbyProps {
   onJoinRoom: (roomCode: string, playerName: string, isHost: boolean, config: RoomConfig, password?: string) => void;
@@ -117,19 +124,47 @@ export const Lobby: FC<LobbyProps> = ({
     }
   }, [propIsConfiguringRoom]);
 
-  const [hostDeckName, setHostDeckName] = useState(() => (roomConfig?.deckName && roomConfig.deckName !== 'Turma do Clássico') ? roomConfig.deckName : 'Aleatório #1');
-  const [hostCardCount, setHostCardCount] = useState<DifficultyCount>(() => (roomConfig?.cardCount as DifficultyCount) || 30);
+  const initialDraft = getConfigDraft();
+
+  const [hostDeckName, setHostDeckName] = useState(() => (roomConfig?.deckName && roomConfig.deckName !== 'Turma do Clássico') ? roomConfig.deckName : (initialDraft.deckName || 'Aleatório #1'));
+  const [hostCardCount, setHostCardCount] = useState<DifficultyCount>(() => (roomConfig?.cardCount as DifficultyCount) || initialDraft.cardCount || 30);
   const [hostCustomCards, setHostCustomCards] = useState<Character[]>(() => {
+    if (initialDraft.customCards && initialDraft.customCards.length > 0) {
+      return initialDraft.customCards;
+    }
     if (roomConfig?.customCards && roomConfig.customCards.length > 0) {
       return roomConfig.customCards;
     }
     return MOCK_90_CHARACTERS.slice(0, 30);
   });
-  const [hostIsCallMode, setHostIsCallMode] = useState(() => Boolean(roomConfig?.isCallMode));
-  const [hostHasPassword, setHostHasPassword] = useState(false);
-  const [hostPassword, setHostPassword] = useState('');
+  const [hostIsCallMode, setHostIsCallMode] = useState(() => initialDraft.isCallMode !== undefined ? initialDraft.isCallMode : Boolean(roomConfig?.isCallMode));
+  const [hostHasPassword, setHostHasPassword] = useState(() => initialDraft.hasPassword || false);
+  const [hostPassword, setHostPassword] = useState(() => initialDraft.password || '');
   const [showHostPassword, setShowHostPassword] = useState(false);
   const [hostPasswordError, setHostPasswordError] = useState<string | null>(null);
+
+  // Sincronizar rascunho em memória a cada alteração nas opções de configuração
+  useEffect(() => {
+    updateConfigDraft({
+      deckName: hostDeckName,
+      cardCount: hostCardCount,
+      customCards: hostCustomCards,
+      isCallMode: hostIsCallMode,
+      hasPassword: hostHasPassword,
+      password: hostPassword,
+    });
+  }, [hostDeckName, hostCardCount, hostCustomCards, hostIsCallMode, hostHasPassword, hostPassword]);
+
+  // Quantidade máxima de cartas disponíveis no baralho selecionado
+  const maxDeckCards = hostCustomCards && hostCustomCards.length > 0 ? hostCustomCards.length : 90;
+
+  // Ajuste automático se a quantidade selecionada exceder o baralho
+  useEffect(() => {
+    if (hostCardCount > maxDeckCards) {
+      const { count } = clampCardCountToDeck(hostCardCount, maxDeckCards);
+      setHostCardCount(count);
+    }
+  }, [hostCardCount, maxDeckCards]);
 
   // Menu de troca de baralho dentro de Configurar Partida
   const [showDeckPicker, setShowDeckPicker] = useState(false);
@@ -215,6 +250,7 @@ export const Lobby: FC<LobbyProps> = ({
 
   const handleCancelConfiguring = () => {
     sounds.playClick();
+    resetConfigDraft();
     setLocalIsConfiguring(false);
     if (onCancelConfiguringRoom) {
       onCancelConfiguringRoom();
@@ -242,6 +278,7 @@ export const Lobby: FC<LobbyProps> = ({
 
     try {
       const code = await network.generateUniqueRoomCode();
+      resetConfigDraft();
       if (onCancelConfiguringRoom) onCancelConfiguringRoom();
       setLocalIsConfiguring(false);
       onJoinRoom(code, playerName, true, {
@@ -255,6 +292,7 @@ export const Lobby: FC<LobbyProps> = ({
       });
     } catch {
       const randomCode = Math.floor(100000 + Math.random() * 900000).toString();
+      resetConfigDraft();
       if (onCancelConfiguringRoom) onCancelConfiguringRoom();
       setLocalIsConfiguring(false);
       onJoinRoom(randomCode, playerName, true, {
@@ -569,6 +607,7 @@ export const Lobby: FC<LobbyProps> = ({
                     type="button"
                     onClick={() => {
                       sounds.playClick();
+                      setChoiceMode(true);
                       onOpenCommunity();
                     }}
                     className="flex-1 p-3 text-left border border-[#E2DACD] rounded-[6px] bg-[#FBF8F3] hover:bg-white hover:border-[#2B2420] transition-colors cursor-pointer"
@@ -626,7 +665,7 @@ export const Lobby: FC<LobbyProps> = ({
             )}
           </div>
 
-          {/* 2. Quantidade de Cartas */}
+          {/* 2. Quantidade de Cartas (com compatibilidade com o tamanho do baralho) */}
           <div className="border-b border-[#E2DACD] pb-5">
             <span className="text-xs font-medium text-[#6F655C] uppercase tracking-wider block mb-2.5">
               Quantidade de cartas
@@ -634,18 +673,25 @@ export const Lobby: FC<LobbyProps> = ({
             <SegmentedControl
               className="w-full"
               options={[
-                { value: 15, label: '15 cartas' },
-                { value: 30, label: '30 cartas' },
-                { value: 60, label: '60 cartas' },
-                { value: 90, label: '90 cartas' },
+                { value: 15, label: '15 cartas', disabled: 15 > maxDeckCards },
+                { value: 30, label: '30 cartas', disabled: 30 > maxDeckCards },
+                { value: 60, label: '60 cartas', disabled: 60 > maxDeckCards },
+                { value: 90, label: '90 cartas', disabled: 90 > maxDeckCards },
               ]}
               value={hostCardCount}
               onChange={(count) => {
                 sounds.playClick();
                 setHostCardCount(count as DifficultyCount);
-                setHostCustomCards(MOCK_90_CHARACTERS.slice(0, count));
+                if (!hostCustomCards || hostCustomCards.length === 0) {
+                  setHostCustomCards(MOCK_90_CHARACTERS.slice(0, count));
+                }
               }}
             />
+            {maxDeckCards < 90 && (
+              <p className="text-xs text-[#6F655C] font-sans mt-2">
+                Este baralho tem {maxDeckCards} cartas.
+              </p>
+            )}
           </div>
 
           {/* 3. Dinâmica da Rodada */}
@@ -928,8 +974,8 @@ export const Lobby: FC<LobbyProps> = ({
                   className="p-4 rounded-[8px] border border-[#E2DACD] bg-[#FBF8F3] hover:border-[#2B2420] transition-colors cursor-pointer group flex flex-col justify-between"
                 >
                   <div>
-                    <span className="text-[10px] font-medium text-[#6F655C] uppercase tracking-wider block mb-1">
-                      {isOfficial ? 'Oficial' : 'Comunidade'} · {count} cartas
+                    <span className="text-[10px] font-medium text-[#6F655C] tracking-wider block mb-1">
+                      {isOfficial ? <span className="text-[#2B2420] font-medium">Tá na Cara!</span> : 'Comunidade'} · {count} cartas
                     </span>
                     <h3 className="font-serif text-base text-[#2B2420] group-hover:text-[#B4532F] transition-colors mb-1 truncate">
                       {deck.name}
@@ -942,12 +988,13 @@ export const Lobby: FC<LobbyProps> = ({
                   <div className="mt-4 pt-3 border-t border-[#E2DACD]/80 flex items-center justify-between">
                     <div className="flex items-center -space-x-1.5">
                       {deck.cards.slice(0, 3).map((card, i) => (
-                        <img
-                          key={card.id || i}
-                          src={card.imageUrl}
-                          alt={card.name}
-                          className="w-7 h-7 rounded-full border border-white object-cover"
-                        />
+                        <div key={card.id || i} className="w-7 h-7 rounded-full cara-frame-thumb overflow-hidden shrink-0">
+                          <img
+                            src={card.imageUrl}
+                            alt={card.name}
+                            className="w-full h-full object-cover cara-img"
+                          />
+                        </div>
                       ))}
                     </div>
                     <span className="text-xs font-semibold text-[#B4532F] group-hover:underline">Jogar</span>
@@ -969,8 +1016,8 @@ export const Lobby: FC<LobbyProps> = ({
                 className="p-4 rounded-[8px] border border-[#E2DACD] bg-[#FBF8F3] hover:border-[#2B2420] transition-colors cursor-pointer group flex flex-col justify-between"
               >
                 <div>
-                  <span className="text-[10px] font-medium text-[#6F655C] uppercase tracking-wider block mb-1">
-                    Oficial · 30 cartas
+                  <span className="text-[10px] font-medium text-[#6F655C] tracking-wider block mb-1">
+                    <span className="text-[#2B2420] font-medium">Tá na Cara!</span> · 30 cartas
                   </span>
                   <h3 className="font-serif text-base text-[#2B2420] group-hover:text-[#B4532F] transition-colors mb-1">
                     Personalidades & Memes

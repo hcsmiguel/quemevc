@@ -15,16 +15,13 @@ const AvatarComponent: FC<AvatarProps> = ({ character, size, className = '' }) =
   if (character.imageUrl) {
     return (
       <div
-        className={`relative rounded-2xl overflow-hidden flex items-center justify-center select-none bg-slate-900 border border-slate-700/80 shrink-0 ${className}`}
-        style={{
-          ...sizeStyle,
-          boxShadow: 'inset 0 2px 4px rgba(255,255,255,0.1), 0 4px 6px -1px rgba(0,0,0,0.3)',
-        }}
+        className={`relative cara-frame-thumb overflow-hidden flex items-center justify-center select-none bg-[#FAF6F0] shrink-0 ${className}`}
+        style={sizeStyle}
       >
         <img
           src={character.imageUrl}
           alt={character.name}
-          className="w-full h-full object-cover object-center pointer-events-none"
+          className="w-full h-full object-cover object-center cara-img pointer-events-none"
           loading="lazy"
         />
       </div>

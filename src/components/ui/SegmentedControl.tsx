@@ -2,6 +2,7 @@
 export interface SegmentedOption<T extends string | number> {
   value: T;
   label: string;
+  disabled?: boolean;
 }
 
 interface SegmentedControlProps<T extends string | number> {
@@ -25,11 +26,14 @@ export function SegmentedControl<T extends string | number>({
           <button
             key={String(opt.value)}
             type="button"
-            onClick={() => onChange(opt.value)}
-            className={`px-3 py-1.5 text-xs font-sans font-medium rounded-[5px] transition-all cursor-pointer ${
-              active
-                ? 'bg-[#2B2420] text-white shadow-2xs font-semibold'
-                : 'text-[#6F655C] hover:text-[#2B2420] bg-transparent'
+            disabled={opt.disabled}
+            onClick={() => !opt.disabled && onChange(opt.value)}
+            className={`px-3 py-1.5 text-xs font-sans font-medium rounded-[5px] transition-all ${
+              opt.disabled
+                ? 'opacity-35 cursor-not-allowed bg-transparent text-[#A39A90]'
+                : active
+                ? 'bg-[#2B2420] text-white shadow-2xs font-semibold cursor-pointer'
+                : 'text-[#6F655C] hover:text-[#2B2420] bg-transparent cursor-pointer'
             }`}
           >
             {opt.label}

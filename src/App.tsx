@@ -26,11 +26,16 @@ import { ImportSharedDeckModal } from './components/ImportSharedDeckModal';
 import { CustomDeckBuilder } from './components/CustomDeckBuilder';
 import { PublicLobbiesPage } from './components/PublicLobbiesPage';
 import { CommunityExplorerPage } from './components/CommunityExplorerPage';
+import { DeckDetailsPage } from './components/DeckDetailsPage';
+import {
+  applyDeckToDraft,
+  isChoiceMode,
+} from './services/configDraft';
 import { OpponentLeftModal } from './components/OpponentLeftModal';
 import { PasswordPromptModal } from './components/PasswordPromptModal';
 import { Footer } from './components/Footer';
 import { LegalModal, type LegalTab } from './components/LegalModal';
-import { Volume2, VolumeX, User as UserIcon, LogOut, AlertTriangle, RotateCcw, Clock, Shield } from 'lucide-react';
+import { Volume2, VolumeX, User as UserIcon, LogOut, AlertTriangle, RotateCcw, Clock } from 'lucide-react';
 import type { SavedDeck } from './services/auth';
 import { MatchDesignSandbox } from './components/redesign/MatchDesignSandbox';
 import { MatchDesignB } from './components/redesign/MatchDesignB';
@@ -94,7 +99,7 @@ export function App() {
       return 'LOBBY';
     }
     if (path === '/lobbies') return 'PUBLIC_LOBBIES';
-    if (path === '/comunidade') return 'COMMUNITY';
+    if (path === '/comunidade' || path.startsWith('/comunidade/baralho/')) return 'COMMUNITY';
     return 'LOBBY';
   });
   const [roomCode, setRoomCode] = useState<string>('');
@@ -287,6 +292,9 @@ export function App() {
       case 'PUBLIC_LOBBIES':
         return '/lobbies';
       case 'COMMUNITY':
+        if (currentPath.startsWith('/comunidade/baralho/')) {
+          return currentPath;
+        }
         return '/comunidade';
       case 'CREATE_LOBBY':
       default:
@@ -297,25 +305,50 @@ export function App() {
   // Atualizar URL na barra de endereços dinamicamente quando a fase mudar
   useEffect(() => {
     const targetPath = getPathForPhase(phase);
-    const currentPath = window.location.pathname;
+    const browserPath = window.location.pathname;
 
     const url = new URL(window.location.href);
-    // Se não há importDeckId ativo, remover import_deck da URL
     if (!importDeckId) {
       url.searchParams.delete('import_deck');
     }
 
-    const newSearch = url.search ? url.search : '';
+    // Navegação entre rotas diferentes: limpar query params que não pertencem à rota destino
+    let newSearch = '';
+    if (browserPath === targetPath) {
+      newSearch = url.search ? url.search : '';
+    } else {
+      if (targetPath === '/perfil') {
+        const allowed = ['aba', 'filtro', 'ordem', 'q'];
+        const p = new URLSearchParams();
+        allowed.forEach((key) => {
+          const val = url.searchParams.get(key);
+          if (val) p.set(key, val);
+        });
+        newSearch = p.toString() ? `?${p.toString()}` : '';
+      } else if (targetPath === '/comunidade') {
+        const allowed = ['aba', 'origem', 'filtro', 'ordem', 'q'];
+        const p = new URLSearchParams();
+        allowed.forEach((key) => {
+          const val = url.searchParams.get(key);
+          if (val) p.set(key, val);
+        });
+        newSearch = p.toString() ? `?${p.toString()}` : '';
+      } else {
+        newSearch = '';
+      }
+    }
+
     const newUrl = `${targetPath}${newSearch}`;
 
-    if (currentPath !== targetPath || (!importDeckId && window.location.search.includes('import_deck'))) {
+    if (browserPath !== targetPath || (!importDeckId && window.location.search.includes('import_deck'))) {
       if (waitingForPlayer && targetPath === '/') {
         window.history.replaceState({ phase, path: targetPath }, '', newUrl);
       } else {
         window.history.pushState({ phase, path: targetPath }, '', newUrl);
       }
+      setCurrentPath(targetPath);
     }
-  }, [phase, importDeckId, waitingForPlayer]);
+  }, [phase, importDeckId, waitingForPlayer, currentPath]);
 
   // Se o modal de importação for fechado, limpar ?import_deck da URL para evitar que F5 reabra o modal
   useEffect(() => {
@@ -343,18 +376,14 @@ export function App() {
         return;
       }
 
-      // Se estava em telas auxiliares (comunidade, perfil, lobbies) e voltou no navegador:
-      if (phase === 'COMMUNITY' || phase === 'PROFILE' || phase === 'PUBLIC_LOBBIES') {
-        setPhase('LOBBY');
-        return;
-      }
-
       if (waitingForPlayer) {
         handleExitToLobby();
         return;
       }
 
       const path = window.location.pathname.toLowerCase();
+      setCurrentPath(path);
+
       if (path === '/perfil') {
         if (currentUser) {
           setPhase('PROFILE');
@@ -367,7 +396,7 @@ export function App() {
         setPhase('LOBBY');
       } else if (path === '/lobbies') {
         setPhase('PUBLIC_LOBBIES');
-      } else if (path === '/comunidade') {
+      } else if (path === '/comunidade' || path.startsWith('/comunidade/baralho/')) {
         setPhase('COMMUNITY');
       } else {
         setPhase('LOBBY');
@@ -377,7 +406,7 @@ export function App() {
 
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-  }, [phase, currentUser]);
+  }, [phase, currentUser, waitingForPlayer]);
 
   // Ação centralizada para reconectar à partida
   const handleReconnectMatch = async (session: any) => {
@@ -1338,44 +1367,53 @@ export function App() {
     hasStartedGameRef.current = false;
   };
 
-  // PONTO 2.b: Iniciar partida diretamente com um baralho personalizado salvo ou aplicar na sala aberta
+  // REGRA CENTRAL: "Jogar" ou "Usar este baralho" NUNCA cria sala nem inicia partida diretamente.
+  // Sempre redireciona para a tela "Configurar Partida" com o baralho pré-selecionado no rascunho.
   const handlePlaySavedDeck = async (savedDeck: SavedDeck) => {
     setIsBuildingDeck(false);
 
-    // Se já estiver com uma sala de espera aberta como anfitrião, aplica o baralho à sala atual e retorna instantaneamente
+    // Se já estiver com uma sala de espera aberta como anfitrião, aplica o baralho à sala atual e retorna
     if (waitingForPlayer && roomCode && isHost) {
+      const { draft } = applyDeckToDraft(savedDeck);
       const updatedConfig: RoomConfig = {
         ...roomConfig,
         mode: 'custom',
-        cardCount: (savedDeck.card_count as DifficultyCount) || 15,
-        deckName: savedDeck.name,
-        customCards: savedDeck.cards,
+        cardCount: draft.cardCount,
+        deckName: draft.deckName,
+        customCards: draft.customCards,
       };
       setRoomConfig(updatedConfig);
       const syncedDeck = getDeckByDifficulty(updatedConfig.cardCount, updatedConfig.customCards);
       setActiveDeck(syncedDeck);
       setPhase('LOBBY');
+      window.history.pushState(null, '', '/');
+      setCurrentPath('/');
       sounds.playClick();
-      // Sincroniza em background sem travar o redirecionamento
       network.syncRoomState({
         config: updatedConfig,
       }).catch((err) => console.error('Erro ao sincronizar baralho:', err));
       return;
     }
 
-    // Seleciona o baralho e abre a tela de Configurar Partida (o anfitrião revisa as opções antes de gerar a sala)
+    // Aplica o baralho ao rascunho com verificação de compatibilidade de quantidade
+    const isChoice = isChoiceMode();
+    const { draft } = applyDeckToDraft(savedDeck, { isChoiceMode: isChoice });
+
     const updatedConfig: RoomConfig = {
       ...roomConfig,
       mode: 'custom',
-      cardCount: (savedDeck.card_count as DifficultyCount) || 30,
-      deckName: savedDeck.name,
-      customCards: savedDeck.cards,
+      cardCount: draft.cardCount,
+      deckName: draft.deckName,
+      customCards: draft.customCards,
+      isCallMode: draft.isCallMode,
     };
     setRoomConfig(updatedConfig);
-    const syncedDeck = getDeckByDifficulty(updatedConfig.cardCount, updatedConfig.customCards);
+    const syncedDeck = getDeckByDifficulty(draft.cardCount, draft.customCards);
     setActiveDeck(syncedDeck);
     setIsConfiguringRoom(true);
     setPhase('LOBBY');
+    window.history.pushState(null, '', '/');
+    setCurrentPath('/');
     sounds.playClick();
   };
 
@@ -1545,10 +1583,9 @@ export function App() {
                         window.history.pushState(null, '', '/painel-admin');
                         setCurrentPath('/painel-admin');
                       }}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-[6px] bg-[#FDF5F2] hover:bg-[#F9ECE7] text-[#B4532F] border border-[#F3D7CD] text-xs font-bold transition-all cursor-pointer shrink-0 min-h-[38px] shadow-2xs"
+                      className="text-xs font-sans text-[#6F655C] hover:text-[#2B2420] transition-colors cursor-pointer px-2 py-1.5"
                       title="Acessar Painel de Gestão (Admin)"
                     >
-                      <Shield size={14} className="text-[#B4532F]" />
                       <span className="hidden sm:inline">Painel Admin</span>
                     </button>
                   )}
@@ -1592,7 +1629,7 @@ export function App() {
             </button>
 
             {/* Botão no Canto Superior Direito para Voltar ao Menu Principal */}
-            {phase !== 'PROFILE' && (phase !== 'LOBBY' || waitingForPlayer || isBuildingDeck) && (
+            {phase !== 'PROFILE' && phase !== 'COMMUNITY' && (phase !== 'LOBBY' || waitingForPlayer || isBuildingDeck) && (
               <button
                 onClick={handleNavigateToMainMenu}
                 title="Voltar ao Menu Principal"
@@ -1745,8 +1782,18 @@ export function App() {
         {phase === 'PROFILE' && currentUser && !isBuildingDeck && (
           <ProfilePage
             currentUser={currentUser}
-            onBackToLobby={() => setPhase('LOBBY')}
+            onBackToLobby={() => {
+              window.history.pushState(null, '', '/');
+              setCurrentPath('/');
+              setPhase('LOBBY');
+            }}
             onPlayDeck={(deck) => handlePlaySavedDeck(deck)}
+            onViewDeck={(deck) => {
+              const newUrl = `/comunidade/baralho/${deck.id}`;
+              window.history.pushState(null, '', newUrl);
+              setCurrentPath(newUrl);
+              setPhase('COMMUNITY');
+            }}
             onEditDeck={(deck) => {
               setEditingDeck(deck);
               setDeckTargetCount(deck.card_count as DifficultyCount);
@@ -1764,31 +1811,90 @@ export function App() {
         {/* 1.3 LOBBIES PÚBLICOS (Ponto 4.a) */}
         {phase === 'PUBLIC_LOBBIES' && !isBuildingDeck && (
           <PublicLobbiesPage
-            onBackToLobby={() => setPhase('LOBBY')}
+            onBackToLobby={() => {
+              window.history.pushState(null, '', '/');
+              setCurrentPath('/');
+              setPhase('LOBBY');
+            }}
             onJoinLobby={(code) => {
               handleJoinRoom(code, playerName || currentUser?.username || 'Convidado', false, {
                 mode: 'standard',
                 cardCount: 15,
               });
             }}
-            onCreateRoomDirectly={() => setPhase('LOBBY')}
+            onCreateRoomDirectly={() => {
+              window.history.pushState(null, '', '/');
+              setCurrentPath('/');
+              setPhase('LOBBY');
+            }}
           />
         )}
 
-        {/* 1.4 EXPLORAR COMUNIDADE */}
+        {/* 1.4 EXPLORAR COMUNIDADE E PÁGINA DO BARALHO */}
         {phase === 'COMMUNITY' && !isBuildingDeck && (
-          <div className="animate-in fade-in duration-150 flex-1 flex flex-col">
-            <CommunityExplorerPage
-              currentUser={currentUser}
-              isConfiguring={isConfiguringRoom}
-              onBackToHome={() => setPhase('LOBBY')}
-              onOpenLogin={() => setLoginModalOpen(true)}
-              onPlayDeck={(deck) => {
-                handlePlaySavedDeck(deck);
-              }}
-              onGoToProfile={() => setPhase('PROFILE')}
-            />
-          </div>
+          currentPath.startsWith('/comunidade/baralho/') ? (
+            <div className="animate-in fade-in duration-150 flex-1 flex flex-col">
+              <DeckDetailsPage
+                deckId={currentPath.replace('/comunidade/baralho/', '').split('?')[0]}
+                currentUser={currentUser}
+                onBack={() => {
+                  if (window.history.length > 1) {
+                    window.history.back();
+                  } else {
+                    window.history.pushState(null, '', '/comunidade');
+                    setCurrentPath('/comunidade');
+                  }
+                }}
+                onNavigateToDeck={(nextId) => {
+                  const newUrl = `/comunidade/baralho/${nextId}`;
+                  window.history.pushState(null, '', newUrl);
+                  setCurrentPath(newUrl);
+                }}
+                onUseDeckInConfiguration={(deck) => {
+                  handlePlaySavedDeck(deck);
+                }}
+                onPlayDeck={(deck) => {
+                  handlePlaySavedDeck(deck);
+                }}
+                onEditDeck={(deck) => {
+                  setEditingDeck(deck);
+                  setDeckTargetCount(deck.card_count as DifficultyCount);
+                  setIsBuildingDeck(true);
+                }}
+                onOpenLogin={() => setLoginModalOpen(true)}
+                onGoToCommunity={() => {
+                  window.history.pushState(null, '', '/comunidade');
+                  setCurrentPath('/comunidade');
+                }}
+              />
+            </div>
+          ) : (
+            <div className="animate-in fade-in duration-150 flex-1 flex flex-col">
+              <CommunityExplorerPage
+                currentUser={currentUser}
+                isConfiguring={isConfiguringRoom}
+                onBackToHome={() => {
+                  window.history.pushState(null, '', '/');
+                  setCurrentPath('/');
+                  setPhase('LOBBY');
+                }}
+                onOpenLogin={() => setLoginModalOpen(true)}
+                onPlayDeck={(deck) => {
+                  handlePlaySavedDeck(deck);
+                }}
+                onViewDeck={(deck) => {
+                  const newUrl = `/comunidade/baralho/${deck.id}`;
+                  window.history.pushState(null, '', newUrl);
+                  setCurrentPath(newUrl);
+                }}
+                onGoToProfile={() => {
+                  window.history.pushState(null, '', '/perfil');
+                  setCurrentPath('/perfil');
+                  setPhase('PROFILE');
+                }}
+              />
+            </div>
+          )
         )}
 
         {/* 2. ESCOLHA DO PERSONAGEM SECRETO */}

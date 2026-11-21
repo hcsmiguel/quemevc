@@ -1,5 +1,6 @@
 import { supabase, hashPassword } from './supabase';
 import type { Character } from '../types/game';
+import { MOCK_90_CHARACTERS } from '../components/redesign/mockData';
 
 export interface AppUser {
   id: string;
@@ -58,6 +59,8 @@ export interface SavedFace {
   created_at: string;
   is_public?: boolean;
   author_name?: string;
+  is_official?: boolean;
+  is_hidden?: boolean;
 }
 
 export // Cache em memória para transições ultra-rápidas e instantâneas da Comunidade
@@ -589,6 +592,21 @@ class AuthService {
 
   // PONTO 3.d: Buscar Baralho por ID para Compartilhamento
   public async getDeckById(deckId: string): Promise<SavedDeck | null> {
+    if (deckId === 'official_deck_classic') {
+      return {
+        id: 'official_deck_classic',
+        user_id: 'admin_official',
+        name: 'Tá na Cara! Clássico',
+        card_count: 90,
+        cards: MOCK_90_CHARACTERS,
+        created_at: new Date(2026, 0, 1).toISOString(),
+        is_public: true,
+        is_official: true,
+        author_name: 'Tá na Cara!',
+        description: 'Baralho oficial completo com 90 personalidades clássicas.',
+      };
+    }
+
     try {
       const { data, error } = await supabase
         .from('saved_decks')

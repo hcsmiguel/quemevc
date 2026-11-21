@@ -1,5 +1,5 @@
 import type { FC } from 'react';
-import { AlertCircle, Layers, Smile } from 'lucide-react';
+import { Button } from './ui/Button';
 
 interface AccountLimitModalProps {
   isOpen: boolean;
@@ -19,53 +19,47 @@ export const AccountLimitModal: FC<AccountLimitModalProps> = ({
   const isDeck = type === 'deck';
 
   return (
-    <div className="fixed inset-0 z-50 bg-[#382C26]/40 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
-      <div className="bg-white border border-[#E8E0D8] rounded-3xl max-w-sm w-full p-6 shadow-xl text-center animate-in zoom-in-95 flex flex-col items-center">
-        {/* Ícone */}
-        <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-3.5 bg-[#FFE8E0] text-[#C25E3E] border border-[#FFB59A]/40 shadow-xs">
-          {isDeck ? <Layers size={26} /> : <Smile size={26} />}
-        </div>
-
-        {/* Tag de Alerta */}
-        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#FFE8E0] border border-[#FFB59A] text-[#C25E3E] text-xs font-bold uppercase tracking-wider mb-2">
-          <AlertCircle size={13} />
-          <span>Limite da Conta Atingido</span>
-        </div>
-
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="account-limit-title"
+      className="fixed inset-0 z-50 bg-[#2B2420]/45 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150"
+    >
+      <div className="bg-[#FBF8F3] border border-[#E2DACD] rounded-[12px] max-w-sm w-full p-5 sm:p-6 shadow-xl text-center relative flex flex-col items-center">
         {/* Título */}
-        <h3 className="text-base sm:text-lg font-bold text-[#382C26] mb-2 leading-tight">
-          {isDeck ? 'Máximo de 10 Baralhos Salvos' : 'Máximo de 360 Caras Salvas'}
+        <h3 id="account-limit-title" className="font-serif text-lg text-[#2B2420] font-normal mb-2 leading-snug">
+          {isDeck ? 'Limite de 10 baralhos atingido' : 'Limite de 360 cartas atingido'}
         </h3>
 
         {/* Descrição */}
-        <p className="text-xs text-[#8C786E] leading-relaxed mb-6">
+        <p className="text-xs font-sans text-[#6F655C] leading-relaxed mb-6">
           {isDeck
-            ? 'Você já possui o limite de 10 baralhos salvos no seu perfil. Para criar ou salvar um novo baralho, você precisa excluir ou editar algum baralho antigo.'
-            : 'Você já possui o limite de 360 caras salvas no seu perfil. Para cadastrar novas caras, exclua as fotos que não utiliza mais.'}
+            ? 'Você já possui o limite de 10 baralhos salvos no seu perfil. Para criar ou salvar um novo baralho, é necessário excluir algum baralho antigo.'
+            : 'Você já possui o limite de 360 cartas salvas no seu perfil. Para cadastrar ou salvar novas cartas, exclua as que não utiliza mais.'}
         </p>
 
         {/* Botões */}
-        <div className="w-full flex flex-col gap-2">
+        <div className="w-full flex items-center justify-end gap-3 pt-2 border-t border-[#E2DACD]/60">
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-xs font-sans text-[#6F655C] hover:text-[#2B2420] underline cursor-pointer py-1.5"
+          >
+            Fechar
+          </button>
           {onGoToProfile && (
-            <button
+            <Button
               type="button"
+              variant="primary"
+              size="sm"
               onClick={() => {
                 onClose();
                 onGoToProfile();
               }}
-              className="w-full py-3 px-4 rounded-xl bg-[#C25E3E] hover:bg-[#A94E31] text-white font-bold text-xs uppercase tracking-wider transition-all cursor-pointer shadow-none"
             >
-              Gerenciar no Meu Perfil
-            </button>
+              Gerenciar no perfil
+            </Button>
           )}
-
-          <button
-            type="button"
-            onClick={onClose}
-            className="w-full py-2.5 px-4 rounded-xl text-[#8C786E] hover:text-[#382C26] font-bold text-xs transition-colors cursor-pointer"
-          >
-            Entendi, Fechar
-          </button>
         </div>
       </div>
     </div>

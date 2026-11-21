@@ -1,7 +1,7 @@
 import { useState, type FC } from 'react';
-import { Flag, X, Check, Loader2, AlertTriangle } from 'lucide-react';
+import { X, Check, Loader2 } from 'lucide-react';
 import { auth, type AppUser } from '../services/auth';
-import { sounds } from '../utils/sound';
+import { Button } from './ui/Button';
 
 export interface ReportItemTarget {
   type: 'deck' | 'face';
@@ -50,7 +50,6 @@ export const ReportModal: FC<ReportModalProps> = ({
     e.preventDefault();
     if (!selectedReason) return;
 
-    sounds.playClick();
     setSubmitting(true);
 
     try {
@@ -63,11 +62,9 @@ export const ReportModal: FC<ReportModalProps> = ({
         reason: selectedReason,
         details: details.trim() || undefined,
       });
-      sounds.playWin();
       setSubmitted(true);
     } catch (err) {
       console.warn('Erro ao enviar denúncia:', err);
-      // Fallback gracioso
       setSubmitted(true);
     } finally {
       setSubmitting(false);
@@ -75,72 +72,68 @@ export const ReportModal: FC<ReportModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-[#382C26]/40 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
-      <div className="bg-white border border-[#E8E0D8] rounded-3xl max-w-sm w-full p-5 sm:p-6 shadow-xl animate-in zoom-in-95 relative text-left">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="report-modal-title"
+      className="fixed inset-0 z-50 bg-[#2B2420]/45 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150"
+    >
+      <div className="bg-[#FBF8F3] border border-[#E2DACD] rounded-[12px] max-w-sm w-full p-5 sm:p-6 shadow-xl relative text-left">
         {/* Botão Fechar */}
         <button
+          type="button"
           onClick={handleClose}
-          className="absolute top-4 right-4 p-1.5 text-[#8C786E] hover:text-[#382C26] rounded-xl hover:bg-[#FAF6F0] transition-colors"
+          aria-label="Fechar modal"
+          className="absolute top-4 right-4 p-1.5 text-[#6F655C] hover:text-[#2B2420] rounded-[6px] transition-colors cursor-pointer"
         >
-          <X size={18} />
+          <X size={16} />
         </button>
 
         {submitted ? (
-          <div className="py-6 text-center flex flex-col items-center">
-            <div className="w-12 h-12 rounded-2xl bg-[#FFE8E0] text-[#C25E3E] flex items-center justify-center mb-3 border border-[#FFB59A]/40 shadow-xs">
-              <Check size={24} />
+          <div className="py-4 text-center flex flex-col items-center">
+            <div className="w-10 h-10 rounded-full bg-[#2B2420] text-white flex items-center justify-center mb-3">
+              <Check size={20} />
             </div>
-            <h3 className="text-base font-bold text-[#382C26] mb-1">
-              Denúncia Enviada
+            <h3 className="font-serif text-lg text-[#2B2420] font-normal mb-1">
+              Denúncia enviada
             </h3>
-            <p className="text-xs text-[#8C786E] mb-5 leading-relaxed">
-              Obrigado por ajudar a manter a comunidade do <strong>Tá na Cara!</strong> segura e divertida para todos.
+            <p className="text-xs font-sans text-[#6F655C] mb-5 leading-relaxed">
+              Obrigado por ajudar a manter a comunidade do Tá na Cara! segura para todos.
             </p>
-            <button
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
               onClick={handleClose}
-              className="py-2 px-5 rounded-xl bg-[#382C26] hover:bg-[#2A211C] text-white font-bold text-xs uppercase tracking-wider transition-all cursor-pointer shadow-none"
             >
               Concluir
-            </button>
+            </Button>
           </div>
         ) : (
           <form onSubmit={handleSubmit}>
             {/* Header */}
-            <div className="flex items-center gap-2.5 mb-3.5 pr-6">
-              <div className="w-9 h-9 rounded-xl bg-[#FFE8E0] text-[#C25E3E] flex items-center justify-center border border-[#FFB59A]/40 shadow-xs shrink-0">
-                <Flag size={18} />
-              </div>
-              <div className="min-w-0">
-                <h3 className="text-sm font-bold text-[#382C26] truncate">
-                  Denunciar {item.type === 'deck' ? 'Baralho' : 'Personagem'}
-                </h3>
-                <p className="text-[11px] text-[#8C786E] truncate">
-                  "{item.name}" {item.authorName && `por @${item.authorName}`}
-                </p>
-              </div>
-            </div>
-
-            {/* Aviso informativo */}
-            <div className="mb-4 p-3 bg-[#FAF6F0] border border-[#E8E0D8] rounded-2xl flex items-start gap-2.5">
-              <AlertTriangle size={15} className="text-[#C25E3E] shrink-0 mt-0.5" />
-              <p className="text-[11px] text-[#776156] leading-relaxed">
-                Ajude-nos a identificar conteúdos inadequados ou que violem os termos de uso do jogo.
+            <div className="mb-4 pr-6">
+              <h3 id="report-modal-title" className="font-serif text-lg text-[#2B2420] font-normal leading-snug">
+                Denunciar {item.type === 'deck' ? 'baralho' : 'personagem'}
+              </h3>
+              <p className="text-xs font-sans text-[#6F655C] truncate mt-0.5">
+                "{item.name}" {item.authorName && `· por ${item.authorName}`}
               </p>
             </div>
 
             {/* Seleção do Motivo */}
             <div className="mb-4">
-              <label className="block text-xs font-bold text-[#776156] uppercase tracking-wider mb-2">
+              <label className="block text-xs font-sans font-medium text-[#2B2420] mb-2">
                 Qual o motivo da denúncia?
               </label>
               <div className="space-y-1.5">
                 {REPORT_REASONS.map((reason) => (
                   <label
                     key={reason}
-                    className={`flex items-center gap-2.5 p-2.5 rounded-xl border transition-all cursor-pointer text-xs font-medium ${
+                    className={`flex items-center gap-2 p-2 rounded-[6px] border transition-colors cursor-pointer text-xs font-sans ${
                       selectedReason === reason
-                        ? 'border-[#C25E3E] bg-[#FFE8E0]/40 text-[#382C26]'
-                        : 'border-[#E8E0D8] hover:border-[#D4C7BC] text-[#776156] bg-white'
+                        ? 'border-[#2B2420] bg-white text-[#2B2420] font-medium'
+                        : 'border-[#E2DACD] hover:border-[#6F655C] text-[#6F655C] bg-[#FBF8F3]'
                     }`}
                   >
                     <input
@@ -149,7 +142,7 @@ export const ReportModal: FC<ReportModalProps> = ({
                       value={reason}
                       checked={selectedReason === reason}
                       onChange={() => setSelectedReason(reason)}
-                      className="accent-[#C25E3E] cursor-pointer"
+                      className="accent-[#2B2420] cursor-pointer"
                     />
                     <span className="leading-snug">{reason}</span>
                   </label>
@@ -158,49 +151,49 @@ export const ReportModal: FC<ReportModalProps> = ({
             </div>
 
             {/* Detalhes opcionais */}
-            <div className="mb-5">
-              <label className="block text-[11px] font-bold text-[#776156] mb-1">
-                Detalhes adicionais (opcional):
-              </label>
+            <div className="mb-4">
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-xs font-sans text-[#6F655C]">
+                  Detalhes adicionais (opcional):
+                </label>
+                <span className="text-[10px] font-mono text-[#A39A90]">
+                  {details.length}/250
+                </span>
+              </div>
               <textarea
                 value={details}
                 onChange={(e) => setDetails(e.target.value.slice(0, 250))}
                 rows={2}
-                placeholder="Descreva brevemente o problema, se achar relevante..."
-                className="w-full text-xs bg-[#FAF6F0] border border-[#E8E0D8] rounded-xl p-2.5 focus:outline-none focus:bg-white focus:border-[#C25E3E] transition-colors resize-none placeholder-[#8C786E] text-[#382C26]"
+                placeholder="Descreva brevemente o problema, se desejar..."
+                className="w-full text-xs font-sans bg-white border border-[#E2DACD] focus:border-[#2B2420] rounded-[6px] p-2.5 outline-none transition-colors resize-none placeholder-[#A39A90] text-[#2B2420]"
               />
-              <div className="text-[10px] text-[#8C786E] text-right mt-0.5">
-                {details.length}/250
-              </div>
             </div>
 
             {/* Ações */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center justify-end gap-3 pt-2 border-t border-[#E2DACD]/60">
               <button
                 type="button"
                 onClick={handleClose}
                 disabled={submitting}
-                className="w-1/3 py-2.5 px-3 rounded-xl border border-[#E8E0D8] hover:border-[#D4C7BC] text-[#776156] font-bold text-xs transition-colors cursor-pointer"
+                className="text-xs font-sans text-[#6F655C] hover:text-[#2B2420] underline cursor-pointer py-1.5"
               >
                 Cancelar
               </button>
-              <button
+              <Button
                 type="submit"
+                variant="primary"
+                size="sm"
                 disabled={submitting}
-                className="w-2/3 py-2.5 px-3 rounded-xl bg-[#C25E3E] hover:bg-[#A94E31] text-white font-bold text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 shadow-none"
               >
                 {submitting ? (
                   <>
-                    <Loader2 size={14} className="animate-spin" />
+                    <Loader2 size={13} className="animate-spin mr-1.5" />
                     <span>Enviando...</span>
                   </>
                 ) : (
-                  <>
-                    <Flag size={14} />
-                    <span>Enviar Denúncia</span>
-                  </>
+                  <span>Enviar denúncia</span>
                 )}
-              </button>
+              </Button>
             </div>
           </form>
         )}

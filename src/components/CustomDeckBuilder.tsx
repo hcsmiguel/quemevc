@@ -86,6 +86,7 @@ export const CustomDeckBuilder: FC<CustomDeckBuilderProps> = ({
   const [faceSearchQuery, setFaceSearchQuery] = useState('');
   const [loadingFaces, setLoadingFaces] = useState(false);
   const [isFacePickerOpen, setIsFacePickerOpen] = useState(false);
+  const [privateFacesToPublish, setPrivateFacesToPublish] = useState<SavedFace[] | null>(null);
 
   // Edição de nome da carta
   const [editingCardId, setEditingCardId] = useState<string | null>(null);
@@ -128,7 +129,9 @@ export const CustomDeckBuilder: FC<CustomDeckBuilderProps> = ({
 
   useEffect(() => {
     if (currentUser) {
-      auth.getUserSavedFaces(currentUser.id).then(setSavedFaces);
+      auth.getUserSavedFaces(currentUser.id).then((loaded) => {
+        setSavedFaces(loaded.filter((f) => !f.is_hidden && f.name !== 'Cara removida' && (f as any).status !== 'deleted'));
+      });
     }
   }, [currentUser]);
 
@@ -304,14 +307,8 @@ export const CustomDeckBuilder: FC<CustomDeckBuilderProps> = ({
   const isComplete = cards.length >= targetCount;
   const isFormValid = isComplete && !isTitleMissing;
 
-  const handleConfirm = async () => {
-    if (!isComplete || isTitleMissing) {
-      if (isTitleMissing) sounds.playWrong();
-      return;
-    }
-    sounds.playWin();
+  const proceedSaveDeck = async (publishAsPublic: boolean) => {
     setIsSavingDeck(true);
-
     const finalDeckName = deckName.trim().slice(0, 35) || `Baralho ${targetCount} Caras`;
 
     if (initialDeck && currentUser) {
@@ -322,7 +319,7 @@ export const CustomDeckBuilder: FC<CustomDeckBuilderProps> = ({
           finalDeckName,
           targetCount,
           cards.slice(0, targetCount),
-          isPublicDeck
+          publishAsPublic
         );
       } catch (err) {
         console.warn('Erro ao atualizar baralho:', err);
@@ -342,7 +339,7 @@ export const CustomDeckBuilder: FC<CustomDeckBuilderProps> = ({
           finalDeckName,
           targetCount,
           cards.slice(0, targetCount),
-          isPublicDeck,
+          publishAsPublic,
           currentUser.username
         );
       } catch (err) {
@@ -353,6 +350,27 @@ export const CustomDeckBuilder: FC<CustomDeckBuilderProps> = ({
     setIsSavingDeck(false);
     localStorage.removeItem(DRAFT_KEY);
     onFinishDeck(cards.slice(0, targetCount), finalDeckName, isFromProfile || saveToProfile);
+  };
+
+  const handleConfirm = async () => {
+    if (!isComplete || isTitleMissing) {
+      if (isTitleMissing) sounds.playWrong();
+      return;
+    }
+    sounds.playWin();
+
+    // Consistência de Visibilidade: baralho público com caras privadas
+    if (isPublicDeck && currentUser) {
+      const privateFacesInDeck = savedFaces.filter(
+        (sf) => !sf.is_public && cards.slice(0, targetCount).some((c) => c.name === sf.name || c.imageUrl === sf.image_url)
+      );
+      if (privateFacesInDeck.length > 0) {
+        setPrivateFacesToPublish(privateFacesInDeck);
+        return;
+      }
+    }
+
+    await proceedSaveDeck(isPublicDeck);
   };
 
   const filteredSavedFaces = savedFaces.filter((f) =>
@@ -544,7 +562,7 @@ export const CustomDeckBuilder: FC<CustomDeckBuilderProps> = ({
             key={char.id || index}
             className="p-2 rounded-[8px] border border-[#E2DACD] bg-[#FBF8F3] hover:border-[#2B2420] transition-colors flex flex-col items-center text-center relative group select-none min-h-[160px] justify-between"
           >
-            <div className="w-full aspect-square rounded-[6px] overflow-hidden bg-white border border-[#E2DACD]/80 mb-1.5 relative">
+            <div className="w-full aspect-square rounded-[6px] cara-frame-thumb overflow-hidden bg-[#FAF6F0] mb-1.5 relative">
               <Avatar character={char} className="w-full h-full object-cover" />
 
               {/* Botão substituir foto */}
@@ -707,15 +725,15 @@ export const CustomDeckBuilder: FC<CustomDeckBuilderProps> = ({
                             : 'bg-white border-[#E2DACD] hover:border-[#2B2420]'
                         }`}
                       >
-                        <div className="w-full aspect-square rounded-[4px] overflow-hidden bg-white mb-1.5 border border-[#E2DACD]/60 relative">
-                          <img src={face.image_url} alt={face.name} className="w-full h-full object-cover" />
+                        <div className="w-full aspect-square rounded-[6px] cara-frame-thumb overflow-hidden bg-[#FAF6F0] mb-1.5 relative">
+                          <img src={face.image_url} alt={face.name} className="w-full h-full object-cover cara-img" />
                           {isAdded && (
                             <div className="absolute inset-0 bg-[#2E7D32]/20 flex items-center justify-center">
                               <Check size={16} className="text-[#2E7D32]" />
                             </div>
                           )}
                         </div>
-                        <span className="text-[11px] font-sans font-medium text-[#2B2420] truncate w-full">
+                        <span className="text-[12px] font-sans font-medium text-[#2B2420] truncate w-full" title={face.name}>
                           {face.name}
                         </span>
                       </button>
@@ -762,6 +780,53 @@ export const CustomDeckBuilder: FC<CustomDeckBuilderProps> = ({
         }}
         onCancel={() => setDuplicateWarningFace(null)}
       />
+
+      {/* Modal de Consistência de Visibilidade */}
+      {privateFacesToPublish && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 bg-[#2B2420]/45 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150"
+        >
+          <div className="bg-[#FBF8F3] border border-[#E2DACD] rounded-[12px] max-w-sm w-full p-5 shadow-xl text-left">
+            <h3 className="font-serif text-lg text-[#2B2420] font-normal mb-2 leading-snug">
+              Consistência de visibilidade
+            </h3>
+            <p className="text-xs font-sans text-[#6F655C] mb-4 leading-relaxed">
+              Este baralho tem {privateFacesToPublish.length}{' '}
+              {privateFacesToPublish.length === 1 ? 'cara privada' : 'caras privadas'}. Para torná-lo público na comunidade, elas também serão tornadas públicas.
+            </p>
+            <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-2 pt-2 border-t border-[#E2DACD]/60">
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => {
+                  setIsPublicDeck(false);
+                  setPrivateFacesToPublish(null);
+                  proceedSaveDeck(false);
+                }}
+              >
+                Manter baralho privado
+              </Button>
+              <Button
+                size="sm"
+                variant="primary"
+                onClick={async () => {
+                  if (currentUser) {
+                    for (const f of privateFacesToPublish) {
+                      await auth.toggleFacePublic(f.id, currentUser.id, true);
+                    }
+                  }
+                  setPrivateFacesToPublish(null);
+                  proceedSaveDeck(true);
+                }}
+              >
+                Tornar públicas e publicar
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

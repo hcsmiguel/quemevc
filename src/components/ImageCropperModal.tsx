@@ -12,28 +12,6 @@ interface ImageCropperModalProps {
   initialImageSrc?: string | null;
 }
 
-// Fallback universal para desenhar retângulos com cantos arredondados no canvas (iOS/Android)
-const drawRoundedRect = (
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  w: number,
-  h: number,
-  r: number
-) => {
-  if (typeof ctx.roundRect === 'function') {
-    ctx.roundRect(x, y, w, h, r);
-  } else {
-    ctx.beginPath();
-    ctx.moveTo(x + r, y);
-    ctx.arcTo(x + w, y, x + w, y + h, r);
-    ctx.arcTo(x + w, y + h, x, y + h, r);
-    ctx.arcTo(x, y + h, x, y, r);
-    ctx.arcTo(x, y, x + w, y, r);
-    ctx.closePath();
-  }
-};
-
 export const ImageCropperModal: FC<ImageCropperModalProps> = ({
   onSaveCharacter,
   onClose,
@@ -170,13 +148,8 @@ export const ImageCropperModal: FC<ImageCropperModalProps> = ({
     canvas.height = size;
 
     ctx.clearRect(0, 0, size, size);
-    ctx.fillStyle = '#0f172a';
+    ctx.fillStyle = '#FAF6F0';
     ctx.fillRect(0, 0, size, size);
-
-    ctx.save();
-    ctx.beginPath();
-    drawRoundedRect(ctx, 15, 15, size - 30, size - 30, 28);
-    ctx.clip();
 
     const scale = (size / Math.min(img.width, img.height)) * zoom;
     const drawW = img.width * scale;
@@ -185,13 +158,6 @@ export const ImageCropperModal: FC<ImageCropperModalProps> = ({
     const drawY = (size - drawH) / 2 + offset.y;
 
     ctx.drawImage(img, drawX, drawY, drawW, drawH);
-    ctx.restore();
-
-    ctx.strokeStyle = '#0284c7';
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    drawRoundedRect(ctx, 15, 15, size - 30, size - 30, 28);
-    ctx.stroke();
   };
 
   // Manipuladores de Mouse (Desktop)
@@ -231,19 +197,28 @@ export const ImageCropperModal: FC<ImageCropperModalProps> = ({
   const handleTouchEnd = () => setIsDragging(false);
 
   const handleSave = async () => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+    const img = imgRef.current;
+    if (!img) return;
 
     setIsUploading(true);
     sounds.playClick();
 
     const finalCanvas = document.createElement('canvas');
-    finalCanvas.width = 270;
-    finalCanvas.height = 270;
+    finalCanvas.width = 300;
+    finalCanvas.height = 300;
     const finalCtx = finalCanvas.getContext('2d');
 
     if (finalCtx) {
-      finalCtx.drawImage(canvas, 15, 15, 270, 270, 0, 0, 270, 270);
+      finalCtx.fillStyle = '#FAF6F0';
+      finalCtx.fillRect(0, 0, 300, 300);
+
+      const scale = (300 / Math.min(img.width, img.height)) * zoom;
+      const drawW = img.width * scale;
+      const drawH = img.height * scale;
+      const drawX = (300 - drawW) / 2 + offset.x;
+      const drawY = (300 - drawH) / 2 + offset.y;
+
+      finalCtx.drawImage(img, drawX, drawY, drawW, drawH);
     }
 
     finalCanvas.toBlob(async (blob) => {
@@ -362,7 +337,7 @@ export const ImageCropperModal: FC<ImageCropperModalProps> = ({
           <div className="flex flex-col items-center gap-3">
             {/* Canvas Interativo com Suporte a Mouse e Touch */}
             <div
-              className="relative cursor-move select-none rounded-2xl overflow-hidden border border-[#E8E0D8] bg-[#382C26] shadow-inner flex items-center justify-center"
+              className="relative cursor-move select-none rounded-2xl overflow-hidden border border-[#E2DACD] bg-[#FAF6F0] shadow-inner flex items-center justify-center"
               style={{ touchAction: 'none' }}
               onMouseDown={handleMouseDown}
               onMouseMove={handleMouseMove}

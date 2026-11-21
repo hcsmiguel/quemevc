@@ -89,7 +89,7 @@ export const SecretSelectionModal: FC<SecretSelectionModalProps> = ({
                       : 'border-[#E2DACD] hover:border-[#2B2420]/40'
                   } ${isReady ? 'pointer-events-none opacity-60' : ''}`}
                 >
-                  <div className="w-full aspect-square rounded-[6px] overflow-hidden mb-1.5 bg-[#F6F2EA] flex items-center justify-center">
+                  <div className="w-full aspect-square rounded-[6px] cara-frame-thumb overflow-hidden mb-1.5 bg-[#FAF6F0] flex items-center justify-center">
                     <Avatar character={char} className="w-full h-full object-cover" />
                   </div>
                   <span className="text-xs font-sans font-medium text-[#2B2420] truncate w-full px-0.5">

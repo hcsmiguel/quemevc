@@ -40,18 +40,18 @@ const CardComponent: FC<CardProps> = ({
       } ${disabled ? 'cursor-not-allowed opacity-30' : ''}`}
       style={{ touchAction: 'manipulation' }}
     >
-      {/* Moldura da Imagem com proporção 1:1 e carregamento rápido */}
-      <div className="w-full aspect-square rounded-[6px] overflow-hidden bg-white mb-1.5 border border-[#E2DACD]/70 flex items-center justify-center relative">
+      {/* Moldura da Imagem com proporção 1:1 e acabamento neutro do design system */}
+      <div className="w-full aspect-square rounded-[6px] cara-frame-thumb overflow-hidden bg-[#FAF6F0] mb-1.5 flex items-center justify-center relative">
         {character.imageUrl ? (
           <img
             src={character.imageUrl}
             alt={fullName}
             loading="lazy"
             decoding="async"
-            className={`w-full h-full object-cover transition-transform duration-150 pointer-events-none ${
+            className={`w-full h-full object-cover cara-img transition-transform duration-150 pointer-events-none ${
               isDown
                 ? 'grayscale-[85%] brightness-90'
-                : 'group-hover:scale-105'
+                : 'group-hover:scale-[1.12]'
             }`}
           />
         ) : (
