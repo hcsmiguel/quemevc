@@ -83,6 +83,24 @@ assertEqual(
   '15 cartas deve usar 5 cols no desktop (3 linhas exatas) e 3 cols no mobile (5 linhas exatas)'
 );
 
+assertEqual(
+  getBoardGridClasses(22),
+  'grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6',
+  '22 cartas (faixa 16..30) deve usar grid responsivo equilibrado'
+);
+
+assertEqual(
+  getBoardGridClasses(40),
+  'grid-cols-3 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-10',
+  '40 cartas (faixa 31..60) deve usar grid responsivo até 10 cols'
+);
+
+assertEqual(
+  getBoardGridClasses(75),
+  'grid-cols-3 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-10',
+  '75 cartas (faixa 61..90) deve usar grid responsivo até 10 cols'
+);
+
 console.log('✓ getBoardGridClasses passou em todos os testes');
 
 // 3. Testes de Tempo de Exibição do Balão de Chat (Item 8)

@@ -31,7 +31,7 @@ export interface Character {
 export type CardStatus = 'normal' | 'suspect' | 'discard' | 'target';
 
 export type GameMode = 'standard' | 'custom';
-export type DifficultyCount = 15 | 30 | 45 | 60 | 90;
+export type DifficultyCount = number;
 
 export interface RoomConfig {
   mode: GameMode;
