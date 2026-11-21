@@ -523,6 +523,34 @@ export const ProfilePage: FC<ProfilePageProps> = ({
     return () => window.removeEventListener('paste', handlePaste);
   }, [activeTab, isAddingFace]);
 
+  const handleSaveBatchFaces = (
+    savedBatch: Array<{ id: string; name: string; imageUrl: string; isExistingReference?: boolean }>
+  ) => {
+    setIsAddingFace(false);
+    if (!savedBatch || savedBatch.length === 0) return;
+
+    const newProfileFaces: ProfileFaceItem[] = savedBatch.map((f) => ({
+      id: f.id,
+      name: f.name,
+      imageUrl: f.imageUrl,
+      authorName: currentUser.username,
+      isPublic: false,
+      origin: f.isExistingReference ? 'saved' : 'own',
+      status: 'private',
+      createdAt: new Date().toISOString(),
+    }));
+
+    setFaces((prev) => [...newProfileFaces, ...prev]);
+
+    setToast({
+      id: `batch-saved-${Date.now()}`,
+      message:
+        savedBatch.length === 1
+          ? `"${savedBatch[0].name}" adicionada ao seu banco de caras.`
+          : `${savedBatch.length} caras adicionadas ao seu banco de caras.`,
+    });
+  };
+
   const handleSaveCroppedFace = async (newChar: Character) => {
     setIsAddingFace(false);
 
@@ -1653,8 +1681,10 @@ export const ProfilePage: FC<ProfilePageProps> = ({
       {isAddingFace && (
         <ImageCropperModal
           roomCode="profile"
+          currentUser={currentUser}
           initialImageSrc={droppedInitialImage}
           onSaveCharacter={handleSaveCroppedFace}
+          onSaveBatch={handleSaveBatchFaces}
           onClose={() => {
             setIsAddingFace(false);
             setDroppedInitialImage(null);
