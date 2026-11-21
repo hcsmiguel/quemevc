@@ -7,6 +7,7 @@ import { ActionMenu } from '../community/ActionMenu';
 import { OfficialDeckBuilder } from './OfficialDeckBuilder';
 import { sounds } from '../../utils/sound';
 import { AlertTriangle, Plus, ExternalLink } from 'lucide-react';
+import { TAMANHO_MINIMO_BARALHO, TAMANHO_MAXIMO_BARALHO } from '../../constants/deck';
 
 export const AdminOfficialDecks: React.FC = () => {
   const [decks, setDecks] = useState<SavedDeck[]>([]);
@@ -145,7 +146,7 @@ export const AdminOfficialDecks: React.FC = () => {
           <div className="flex items-center gap-2">
             <AlertTriangle size={15} className="text-amber-700 shrink-0" />
             <span>
-              <strong>Atenção:</strong> {brokenDecksCount} baralho(s) precisa(m) de ajuste devido a cartas indisponíveis e está(ão) oculto(s) para os jogadores na Comunidade e na Home.
+              <strong>Atenção:</strong> {brokenDecksCount} baralho(s) precisa(m) de ajuste por ter menos de {TAMANHO_MINIMO_BARALHO} cartas válidas e está(ão) oculto(s) para os jogadores na Comunidade e na Home.
             </span>
           </div>
         </div>
@@ -162,7 +163,7 @@ export const AdminOfficialDecks: React.FC = () => {
             Nenhum baralho cadastrado ainda
           </h3>
           <p className="text-xs text-[#6F655C] max-w-sm mx-auto">
-            Crie seu primeiro baralho com 15, 30, 60 ou 90 cartas para disponibilizar aos jogadores.
+            Crie seu primeiro baralho com de {TAMANHO_MINIMO_BARALHO} a {TAMANHO_MAXIMO_BARALHO} cartas para disponibilizar aos jogadores.
           </p>
           <Button size="sm" variant="primary" onClick={handleStartCreate}>
             Criar baralho agora
@@ -176,6 +177,7 @@ export const AdminOfficialDecks: React.FC = () => {
             const remainingCount = cardList.length - 6;
             const integrity = integrityMap.get(deck.id);
             const needsAdjustment = integrity?.needsAdjustment || false;
+            const brokenCount = integrity?.brokenCards.length || 0;
             const isFeatured = Boolean(deck.is_featured);
 
             return (
@@ -203,13 +205,18 @@ export const AdminOfficialDecks: React.FC = () => {
                       {deck.name}
                     </h3>
 
-                    {/* Aviso de Baralho que Precisa de Ajuste */}
-                    {needsAdjustment && (
+                    {/* Aviso de Baralho que Precisa de Ajuste ou Perdeu Cartas */}
+                    {needsAdjustment ? (
+                      <span className="text-[11px] font-medium text-rose-800 bg-rose-100/80 px-2 py-0.5 rounded-md border border-rose-300/60 inline-flex items-center gap-1">
+                        <AlertTriangle size={12} className="text-rose-700" />
+                        <span>Precisa de ajuste ({brokenCount} indisponível · menos de {TAMANHO_MINIMO_BARALHO} cartas)</span>
+                      </span>
+                    ) : brokenCount > 0 ? (
                       <span className="text-[11px] font-medium text-amber-800 bg-amber-100/80 px-2 py-0.5 rounded-md border border-amber-300/60 inline-flex items-center gap-1">
                         <AlertTriangle size={12} className="text-amber-700" />
-                        <span>Precisa de ajuste ({integrity?.brokenCards.length} indisponível)</span>
+                        <span>{brokenCount} {brokenCount === 1 ? 'carta indisponível' : 'cartas indisponíveis'} · jogável ({cardList.length - brokenCount} cartas)</span>
                       </span>
-                    )}
+                    ) : null}
                   </div>
 
                   <p className="text-xs font-sans text-[#6F655C] mt-0.5 truncate">

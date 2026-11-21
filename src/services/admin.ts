@@ -1,6 +1,11 @@
 import { supabase } from './supabase';
 import { auth, type SavedDeck, type SavedFace } from './auth';
 import type { Character } from '../types/game';
+import {
+  TAMANHO_MINIMO_BARALHO,
+  TAMANHO_MAXIMO_BARALHO,
+  isDeckSizeValid,
+} from '../constants/deck';
 
 export interface AdminAuditLog {
   id: string;
@@ -388,8 +393,13 @@ export class AdminService {
       }
     }
 
+    const validCardsCount = cardList.length - brokenCards.length;
+    // Regra flexível: só entra em "precisa de ajuste" se restarem MENOS de 15 cartas válidas.
+    // Se restarem 15 ou mais, o baralho continua jogável normalmente.
+    const needsAdjustment = validCardsCount < TAMANHO_MINIMO_BARALHO;
+
     return {
-      needsAdjustment: brokenCards.length > 0,
+      needsAdjustment,
       brokenCards,
     };
   }
@@ -405,8 +415,8 @@ export class AdminService {
     const cleanName = payload.name.trim().slice(0, 35);
     const totalCardsCount = payload.selectedCatalogFaces.length + payload.draftFaces.length;
 
-    if (![15, 30, 60, 90].includes(totalCardsCount)) {
-      throw new Error(`Quantidade de cartas inválida: ${totalCardsCount}. O baralho precisa ter exatamente 15, 30, 60 ou 90 cartas.`);
+    if (!isDeckSizeValid(totalCardsCount)) {
+      throw new Error(`Quantidade de cartas inválida: ${totalCardsCount}. O baralho precisa ter de ${TAMANHO_MINIMO_BARALHO} a ${TAMANHO_MAXIMO_BARALHO} cartas.`);
     }
 
     // 1. Tentar execução atômica via RPC no servidor

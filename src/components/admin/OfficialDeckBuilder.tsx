@@ -3,12 +3,18 @@ import { adminService, type SaveOfficialDeckPayload, type OfficialDeckDraftFace 
 import type { SavedFace, SavedDeck } from '../../services/auth';
 import type { Character } from '../../types/game';
 import { Button } from '../ui/Button';
+import { CompleteUntilMenu } from '../ui/CompleteUntilMenu';
 import { CaraLegenda } from '../community/CaraLegenda';
 import { FacePreviewModal } from '../community/FacePreviewModal';
 import { ImageCropperModal, type CroppedFaceResult } from '../ImageCropperModal';
 import { normalizeText, getRelevanceTier } from '../../utils/communitySearch';
 import { calculateImageHash } from '../../utils/imageHash';
 import { sounds } from '../../utils/sound';
+import {
+  TAMANHO_MINIMO_BARALHO,
+  TAMANHO_MAXIMO_BARALHO,
+  getDeckSizeStatus,
+} from '../../constants/deck';
 import {
   ArrowLeft,
   Search,
@@ -29,7 +35,6 @@ interface OfficialDeckBuilderProps {
 }
 
 const ITEMS_PER_BATCH = 36;
-const TARGET_COUNTS = [15, 30, 60, 90] as const;
 
 export const OfficialDeckBuilder: React.FC<OfficialDeckBuilderProps> = ({
   editingDeck,
@@ -112,37 +117,9 @@ export const OfficialDeckBuilder: React.FC<OfficialDeckBuilderProps> = ({
   // Total de cartas atualmente selecionadas
   const totalSelectedCount = selectedCatalogIds.size + selectedDraftIds.size;
 
-  // Cálculo da meta e progresso
-  const progressInfo = useMemo(() => {
-    const count = totalSelectedCount;
-    if (count === 0) {
-      return { text: '0 de 15 cartas · faltam 15', canSave: false };
-    }
-    if (count < 15) {
-      return { text: `${count} de 15 cartas · faltam ${15 - count}`, canSave: false };
-    }
-    if (count === 15) {
-      return { text: '15 de 15 cartas · pronto para salvar (ou continue para 30)', canSave: true };
-    }
-    if (count < 30) {
-      return { text: `${count} de 30 cartas · faltam ${30 - count}`, canSave: false };
-    }
-    if (count === 30) {
-      return { text: '30 de 30 cartas · pronto para salvar (ou continue para 60)', canSave: true };
-    }
-    if (count < 60) {
-      return { text: `${count} de 60 cartas · faltam ${60 - count}`, canSave: false };
-    }
-    if (count === 60) {
-      return { text: '60 de 60 cartas · pronto para salvar (ou continue para 90)', canSave: true };
-    }
-    if (count < 90) {
-      return { text: `${count} de 90 cartas · faltam ${90 - count}`, canSave: false };
-    }
-    if (count === 90) {
-      return { text: '90 de 90 cartas · pronto para salvar (limite máximo)', canSave: true };
-    }
-    return { text: `${count} cartas · excedeu o limite máximo de 90`, canSave: false };
+  // Estado e validação da seleção conforme a regra central (15 a 90 cartas)
+  const deckSizeStatus = useMemo(() => {
+    return getDeckSizeStatus(totalSelectedCount);
   }, [totalSelectedCount]);
 
   // Filtragem e ordenação do catálogo
@@ -210,9 +187,9 @@ export const OfficialDeckBuilder: React.FC<OfficialDeckBuilderProps> = ({
       if (next.has(faceId)) {
         next.delete(faceId);
       } else {
-        if (next.size + selectedDraftIds.size >= 90) {
+        if (next.size + selectedDraftIds.size >= TAMANHO_MAXIMO_BARALHO) {
           sounds.playWrong();
-          alert('Limite máximo de 90 cartas atingido para este baralho.');
+          alert(`Limite máximo de ${TAMANHO_MAXIMO_BARALHO} cartas atingido para este baralho.`);
           return prev;
         }
         next.add(faceId);
@@ -368,22 +345,17 @@ export const OfficialDeckBuilder: React.FC<OfficialDeckBuilderProps> = ({
     });
   };
 
-  // Completar seleção aleatoriamente até a próxima meta
-  const handleCompleteSelection = () => {
+  // Completar seleção aleatoriamente até a meta escolhida no menu "Completar até"
+  const handleCompleteSelection = (targetCount: number) => {
     sounds.playClick();
     const currentCount = totalSelectedCount;
-    const nextTarget = TARGET_COUNTS.find((t) => t > currentCount);
-    if (!nextTarget) {
-      alert('O baralho já possui a quantidade máxima de 90 cartas.');
-      return;
-    }
+    const needed = targetCount - currentCount;
+    if (needed <= 0) return;
 
-    const needed = nextTarget - currentCount;
     const availableFaces = catalogFaces.filter((f) => !selectedCatalogIds.has(f.id));
 
     if (availableFaces.length < needed) {
       alert(`Catálogo possui apenas ${availableFaces.length} cartas disponíveis para preenchimento.`);
-      return;
     }
 
     // Embaralhar disponíveis e selecionar
@@ -403,7 +375,7 @@ export const OfficialDeckBuilder: React.FC<OfficialDeckBuilderProps> = ({
     setSelectedCatalogIds((prev) => {
       const next = new Set(prev);
       for (const face of visibleCatalogFaces) {
-        if (next.size + selectedDraftIds.size >= 90) break;
+        if (next.size + selectedDraftIds.size >= TAMANHO_MAXIMO_BARALHO) break;
         next.add(face.id);
       }
       return next;
@@ -465,9 +437,9 @@ export const OfficialDeckBuilder: React.FC<OfficialDeckBuilderProps> = ({
       return;
     }
 
-    if (!progressInfo.canSave) {
+    if (!deckSizeStatus.canSave) {
       sounds.playWrong();
-      setErrorMessage('O baralho precisa ter exatamente 15, 30, 60 ou 90 cartas para ser salvo.');
+      setErrorMessage(`O baralho precisa ter de ${TAMANHO_MINIMO_BARALHO} a ${TAMANHO_MAXIMO_BARALHO} cartas para ser salvo.`);
       return;
     }
 
@@ -574,7 +546,7 @@ export const OfficialDeckBuilder: React.FC<OfficialDeckBuilderProps> = ({
           <Button
             variant="primary"
             size="md"
-            disabled={!progressInfo.canSave || isSaving}
+            disabled={!deckSizeStatus.canSave || isSaving}
             onClick={handleSaveDeck}
             className="w-full md:w-auto"
           >
@@ -582,7 +554,7 @@ export const OfficialDeckBuilder: React.FC<OfficialDeckBuilderProps> = ({
           </Button>
 
           <span className="text-xs font-sans text-[#6F655C]">
-            {progressInfo.text}
+            {deckSizeStatus.text}
           </span>
         </div>
       </div>
@@ -974,24 +946,21 @@ export const OfficialDeckBuilder: React.FC<OfficialDeckBuilderProps> = ({
       {totalSelectedCount > 0 && (
         <div className="sticky bottom-4 z-20 bg-[#2B2420] text-white rounded-2xl px-4 sm:px-6 py-3 shadow-xl border border-white/10 flex flex-col sm:flex-row items-center justify-between gap-3 animate-in slide-in-from-bottom duration-200">
           <div className="flex items-center gap-3">
-            <span className="text-sm font-bold font-sans">
-              {totalSelectedCount} carta(s) selecionada(s)
-            </span>
-            <span className="text-xs text-[#E2DACD]">
-              · {progressInfo.text}
+            <span className="text-sm font-medium font-sans">
+              {deckSizeStatus.text}
             </span>
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
-            <button
-              type="button"
-              onClick={handleCompleteSelection}
-              className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-xs font-medium transition-colors cursor-pointer"
-            >
-              Completar meta
-            </button>
+            {/* Menu "Completar até": 15 · 30 · 60 · 90 (oculto quando totalSelectedCount >= 90) */}
+            <CompleteUntilMenu
+              currentCount={totalSelectedCount}
+              onSelectTarget={handleCompleteSelection}
+              theme="dark"
+              direction="up"
+            />
 
-            {activeTab === 'catalog' && (
+            {activeTab === 'catalog' && totalSelectedCount < TAMANHO_MAXIMO_BARALHO && (
               <button
                 type="button"
                 onClick={handleSelectVisible}
