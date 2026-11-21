@@ -1,9 +1,11 @@
 import type { SavedDeck, SavedFace } from './auth';
 
+export type CommunitySourceFilter = 'todos' | 'tanacara' | 'comunidade' | 'salvos';
+
 export interface CommunityCachedState {
   scrollPosition: number;
   activeTab: 'decks' | 'faces';
-  sourceFilter: 'todos' | 'oficiais' | 'comunidade' | 'salvos';
+  sourceFilter: CommunitySourceFilter | 'oficiais';
   sortOrder: 'recentes' | 'salvas' | 'az';
   searchQuery: string;
   allDecks?: SavedDeck[];

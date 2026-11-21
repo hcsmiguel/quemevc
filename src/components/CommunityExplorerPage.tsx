@@ -30,9 +30,10 @@ import {
   saveDeckAsReference,
   removeSavedDeckReference,
 } from '../services/dataAdapter';
+import { adminService } from '../services/admin';
 
 export type CommunityTab = 'decks' | 'faces';
-export type SourceFilter = 'todos' | 'oficiais' | 'comunidade' | 'salvos';
+export type SourceFilter = 'todos' | 'tanacara' | 'comunidade' | 'salvos';
 export type SortOrder = 'recentes' | 'salvas' | 'az';
 
 interface CommunityExplorerPageProps {
@@ -69,10 +70,14 @@ export const CommunityExplorerPage: FC<CommunityExplorerPageProps> = ({
     const tab: CommunityTab = abaParam ? (abaParam === 'caras' ? 'faces' : 'decks') : (cached?.activeTab || 'decks');
 
     const origemParam = params.get('origem');
-    const origem: SourceFilter =
-      origemParam === 'oficiais' || origemParam === 'comunidade' || origemParam === 'salvos'
-        ? origemParam
-        : (cached?.sourceFilter || 'todos');
+    let origem: SourceFilter = 'todos';
+    if (origemParam === 'tanacara' || origemParam === 'oficiais') {
+      origem = 'tanacara';
+    } else if (origemParam === 'comunidade' || origemParam === 'salvos') {
+      origem = origemParam;
+    } else if (cached?.sourceFilter) {
+      origem = cached.sourceFilter === 'oficiais' ? 'tanacara' : (cached.sourceFilter as SourceFilter);
+    }
 
     const ordemParam = params.get('ordem');
     const ordem: SortOrder =
@@ -234,7 +239,7 @@ export const CommunityExplorerPage: FC<CommunityExplorerPageProps> = ({
           is_public: true,
           is_official: true,
           author_name: 'Tá na Cara!',
-          description: 'Baralho oficial completo com 90 personalidades clássicas.',
+          description: 'Baralho completo com 90 personalidades clássicas.',
         };
         combinedDecks = [fallbackOfficialDeck, ...combinedDecks];
       }
@@ -328,11 +333,9 @@ export const CommunityExplorerPage: FC<CommunityExplorerPageProps> = ({
     const query = debouncedQuery.trim();
 
     return allFaces.filter((face) => {
-      // Filtro de Origem
-      if (sourceFilter === 'oficiais') {
-        if (!face.is_official) return false;
-      } else if (sourceFilter === 'comunidade') {
-        if (face.is_official) return false;
+      // Filtro de Origem: Todas (inclui Tá na Cara!), Da comunidade (apenas jogadores), Salvas
+      if (sourceFilter === 'comunidade') {
+        if (face.is_official || face.author_name === 'Tá na Cara!') return false;
       } else if (sourceFilter === 'salvos') {
         if (!currentUser) return false;
         const isUserFace =
@@ -350,7 +353,7 @@ export const CommunityExplorerPage: FC<CommunityExplorerPageProps> = ({
     });
   }, [allFaces, sourceFilter, debouncedQuery, currentUser, savedFaceUrls]);
 
-  // Ordenação de Caras com Relevância em primeiro lugar quando houver busca
+  // Ordenação de Caras com Relevância em primeiro lugar quando houver busca (sem prioridade para oficiais)
   const sortedFaces = useMemo(() => {
     const query = debouncedQuery.trim();
     const list = [...filteredFaces];
@@ -365,16 +368,7 @@ export const CommunityExplorerPage: FC<CommunityExplorerPageProps> = ({
         }
       }
 
-      // 2. Oficiais sempre listados primeiro se filtro for "Todos"
-      if (sourceFilter === 'todos') {
-        const isOffA = a.is_official ? 1 : 0;
-        const isOffB = b.is_official ? 1 : 0;
-        if (isOffA !== isOffB) {
-          return isOffB - isOffA;
-        }
-      }
-
-      // 3. Desempate pela ordenação selecionada
+      // 2. Desempate pela ordenação selecionada (Mais recentes · Mais salvas · A–Z)
       if (sortOrder === 'az') {
         return a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'base' });
       }
@@ -394,7 +388,7 @@ export const CommunityExplorerPage: FC<CommunityExplorerPageProps> = ({
     });
 
     return list;
-  }, [filteredFaces, debouncedQuery, sourceFilter, sortOrder, faceSaveCounts]);
+  }, [filteredFaces, debouncedQuery, sortOrder, faceSaveCounts]);
 
   const visibleFaces = useMemo(() => {
     return sortedFaces.slice(0, visibleCount);
@@ -409,11 +403,21 @@ export const CommunityExplorerPage: FC<CommunityExplorerPageProps> = ({
     return allDecks.filter((deck) => {
       if (deck.is_hidden) return false;
 
+      const isTNC = Boolean(deck.is_official || deck.author_name === 'Tá na Cara!');
+
+      // Baralho do dono "Tá na Cara!" em estado "precisa de ajuste" fica OCULTO para jogadores normais
+      if (isTNC && allFaces.length > 0) {
+        const integrity = adminService.checkDeckBrokenCards(deck, allFaces);
+        if (integrity.needsAdjustment) {
+          return false;
+        }
+      }
+
       // Filtro de Origem
-      if (sourceFilter === 'oficiais') {
-        if (!deck.is_official) return false;
+      if (sourceFilter === 'tanacara') {
+        if (!isTNC) return false;
       } else if (sourceFilter === 'comunidade') {
-        if (deck.is_official) return false;
+        if (isTNC) return false;
       } else if (sourceFilter === 'salvos') {
         if (!currentUser) return false;
         const isUserDeck =
@@ -429,7 +433,7 @@ export const CommunityExplorerPage: FC<CommunityExplorerPageProps> = ({
 
       return true;
     });
-  }, [allDecks, sourceFilter, debouncedQuery, currentUser, savedDeckIds]);
+  }, [allDecks, allFaces, sourceFilter, debouncedQuery, currentUser, savedDeckIds]);
 
   const sortedDecks = useMemo(() => {
     const query = debouncedQuery.trim();
@@ -445,12 +449,12 @@ export const CommunityExplorerPage: FC<CommunityExplorerPageProps> = ({
         }
       }
 
-      // 2. Oficiais SEMPRE listados antes dos da comunidade quando filtro for "Todos"
+      // 2. Baralhos do dono Tá na Cara! SEMPRE listados antes dos da comunidade quando filtro for "Todos"
       if (sourceFilter === 'todos') {
-        const isOffA = a.is_official ? 1 : 0;
-        const isOffB = b.is_official ? 1 : 0;
-        if (isOffA !== isOffB) {
-          return isOffB - isOffA;
+        const isTncA = (a.is_official || a.author_name === 'Tá na Cara!') ? 1 : 0;
+        const isTncB = (b.is_official || b.author_name === 'Tá na Cara!') ? 1 : 0;
+        if (isTncA !== isTncB) {
+          return isTncB - isTncA;
         }
       }
 
@@ -896,27 +900,35 @@ export const CommunityExplorerPage: FC<CommunityExplorerPageProps> = ({
 
       {/* 4. Linha de Controles em Texto: Filtro de Origem à Esquerda e Ordenação à Direita */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs font-sans text-[#6F655C] mb-6">
-        {/* Filtro de Origem: Todos · Oficiais · Da comunidade · Salvos */}
+        {/* Filtro de Origem: Baralhos (Todos · Tá na Cara! · Da comunidade · Salvos) / Caras (Todas · Da comunidade · Salvas) */}
         <div className="flex items-center gap-1.5 flex-wrap" role="group" aria-label="Filtro de origem">
           <button
             type="button"
             onClick={() => setSourceFilter('todos')}
             className={`cursor-pointer transition-colors ${
-              sourceFilter === 'todos' ? 'text-[#2B2420] font-semibold' : 'text-[#6F655C] hover:text-[#2B2420]'
+              sourceFilter === 'todos' || (activeTab === 'faces' && sourceFilter === 'tanacara')
+                ? 'text-[#2B2420] font-semibold'
+                : 'text-[#6F655C] hover:text-[#2B2420]'
             }`}
           >
-            Todos
+            {activeTab === 'decks' ? 'Todos' : 'Todas'}
           </button>
-          <span>·</span>
-          <button
-            type="button"
-            onClick={() => setSourceFilter('oficiais')}
-            className={`cursor-pointer transition-colors ${
-              sourceFilter === 'oficiais' ? 'text-[#2B2420] font-semibold' : 'text-[#6F655C] hover:text-[#2B2420]'
-            }`}
-          >
-            Oficiais
-          </button>
+
+          {activeTab === 'decks' && (
+            <>
+              <span>·</span>
+              <button
+                type="button"
+                onClick={() => setSourceFilter('tanacara')}
+                className={`cursor-pointer transition-colors ${
+                  sourceFilter === 'tanacara' ? 'text-[#2B2420] font-semibold' : 'text-[#6F655C] hover:text-[#2B2420]'
+                }`}
+              >
+                Tá na Cara!
+              </button>
+            </>
+          )}
+
           <span>·</span>
           <button
             type="button"
@@ -935,7 +947,7 @@ export const CommunityExplorerPage: FC<CommunityExplorerPageProps> = ({
               sourceFilter === 'salvos' ? 'text-[#2B2420] font-semibold' : 'text-[#6F655C] hover:text-[#2B2420]'
             }`}
           >
-            Salvos
+            {activeTab === 'decks' ? 'Salvos' : 'Salvas'}
           </button>
         </div>
 

@@ -315,7 +315,7 @@ export const DeckDetailsPage: FC<DeckDetailsPageProps> = ({
   }
 
   const isOwner = currentUser && deck.user_id === currentUser.id;
-  const isOfficial = deck.is_official;
+  const isOfficial = Boolean(deck.is_official || deck.author_name === 'Tá na Cara!');
   const totalCardsCount = deck.cards?.length || deck.card_count || 0;
 
   return (

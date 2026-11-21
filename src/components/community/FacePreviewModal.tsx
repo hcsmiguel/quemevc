@@ -114,7 +114,7 @@ export const FacePreviewModal: FC<FacePreviewModalProps> = ({
 
         {/* Autor */}
         <p className="text-xs font-sans mt-0.5">
-          {face.is_official ? (
+          {face.is_official || face.author_name === 'Tá na Cara!' ? (
             <span className="text-[#2B2420] font-medium">Tá na Cara!</span>
           ) : (
             <span className="text-[#6F655C]">por {face.author_name?.trim() ? face.author_name : 'Comunidade'}</span>

@@ -171,7 +171,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
                   : 'text-[#6F655C] hover:bg-white hover:text-[#2B2420]'
               }`}
             >
-              Baralhos Oficiais
+              Baralhos Tá na Cara!
             </button>
 
             <button
@@ -182,7 +182,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
                   : 'text-[#6F655C] hover:bg-white hover:text-[#2B2420]'
               }`}
             >
-              Caras Oficiais
+              Banco de Caras (Legado)
             </button>
 
             <button

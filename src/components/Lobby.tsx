@@ -179,11 +179,16 @@ export const Lobby: FC<LobbyProps> = ({
           .from('saved_decks')
           .select('*')
           .eq('is_featured', true)
-          .eq('is_official', true)
+          .or('is_official.eq.true,author_name.eq.Tá na Cara!')
           .eq('is_hidden', false)
           .order('featured_order', { ascending: true });
         if (data && data.length > 0) {
-          setDynamicFeaturedDecks(data as SavedDeck[]);
+          // Filtrar baralhos quebrados (que contenham cartas inexistentes ou privadas)
+          const validDecks = (data as SavedDeck[]).filter((d) => {
+            const cards = d.cards || [];
+            return cards.every((c) => Boolean(c.imageUrl && c.name));
+          });
+          setDynamicFeaturedDecks(validDecks);
         }
       } catch {
         // ignore
@@ -958,7 +963,7 @@ export const Lobby: FC<LobbyProps> = ({
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {dynamicFeaturedDecks.length > 0 ? (
             dynamicFeaturedDecks.map((deck) => {
-              const isOfficial = Boolean((deck as any).is_official);
+              const isOfficial = Boolean((deck as any).is_official || (deck as any).author_name === 'Tá na Cara!');
               const count = deck.card_count || deck.cards.length;
 
               return (

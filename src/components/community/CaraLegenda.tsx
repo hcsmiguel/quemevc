@@ -51,7 +51,7 @@ export const CaraLegenda: FC<CaraLegendaProps> = ({
       ) : (
         showAuthor && (authorName !== undefined || isOfficial !== undefined) && (
           <p className="text-[12px] font-sans truncate mt-0.5 leading-tight">
-            {isOfficial ? (
+            {(isOfficial || authorName === 'Tá na Cara!') ? (
               <span className="text-[#2B2420] font-medium">Tá na Cara!</span>
             ) : (
               <span className="text-[#6F655C] font-normal">

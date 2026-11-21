@@ -51,7 +51,7 @@ export const CommunityDeckRow: FC<CommunityDeckRowProps> = ({
         </h3>
         <p className="text-xs font-sans text-[#6F655C] mt-0.5 truncate">
           <span>{deck.card_count || cardList.length} cartas · </span>
-          {deck.is_official ? (
+          {deck.is_official || deck.author_name === 'Tá na Cara!' ? (
             <span>
               por <span className="text-[#2B2420] font-medium">Tá na Cara!</span>
             </span>

@@ -238,7 +238,7 @@ export const CreateLobbyPage: FC<CreateLobbyPageProps> = ({
             >
               <LayoutGrid size={22} className={mode === 'standard' ? 'text-[#C25E3E]' : 'text-[#8C786E]'} />
               <span className="text-xs font-bold">Modo Clássico</span>
-              <span className="text-[10px] text-[#8C786E]">15 Personagens oficiais</span>
+              <span className="text-[10px] text-[#8C786E]">15 Cartas clássicas</span>
             </button>
 
             <button

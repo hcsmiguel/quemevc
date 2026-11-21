@@ -608,7 +608,7 @@ class AuthService {
         is_public: true,
         is_official: true,
         author_name: 'Tá na Cara!',
-        description: 'Baralho oficial completo com 90 personalidades clássicas.',
+        description: 'Baralho completo com 90 personalidades clássicas.',
       };
     }
 

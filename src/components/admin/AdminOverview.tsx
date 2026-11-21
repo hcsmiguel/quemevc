@@ -20,19 +20,19 @@ export const AdminOverview: React.FC<AdminOverviewProps> = ({
           Painel de Gestão do Jogo
         </h2>
         <p className="text-xs text-[#6F655C] mt-1">
-          Acompanhamento central de baralhos e caras oficiais, curadoria da Home, moderação e integridade da comunidade.
+          Acompanhamento central de baralhos do Tá na Cara!, curadoria da Home, moderação e integridade da comunidade.
         </p>
       </div>
 
       {/* Grid de Métricas Principais (Sem Ícones Genéricos de IA) */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-3.5">
-        {/* Card 1: Baralhos Oficiais */}
+        {/* Card 1: Baralhos Tá na Cara! */}
         <div
           onClick={() => onNavigateTab('official_decks')}
           className="bg-white border border-[#E2DACD] rounded-xl p-4 hover:border-[#2B2420] transition-colors cursor-pointer shadow-2xs"
         >
           <span className="text-[11px] font-bold uppercase tracking-wider text-[#6F655C] block mb-2">
-            Baralhos Oficiais
+            Baralhos Tá na Cara!
           </span>
           <div className="text-3xl font-serif text-[#2B2420]">
             {metrics.officialDecksCount}
@@ -42,19 +42,19 @@ export const AdminOverview: React.FC<AdminOverviewProps> = ({
           </span>
         </div>
 
-        {/* Card 2: Caras Oficiais */}
+        {/* Card 2: Banco de Caras (Legado) */}
         <div
           onClick={() => onNavigateTab('official_faces')}
           className="bg-white border border-[#E2DACD] rounded-xl p-4 hover:border-[#2B2420] transition-colors cursor-pointer shadow-2xs"
         >
           <span className="text-[11px] font-bold uppercase tracking-wider text-[#6F655C] block mb-2">
-            Caras Oficiais
+            Caras (Legado)
           </span>
           <div className="text-3xl font-serif text-[#2B2420]">
             {metrics.officialFacesCount}
           </div>
           <span className="text-xs text-[#B4532F] font-medium mt-2 inline-block hover:underline">
-            Gerenciar fotos →
+            Ver fotos legadas →
           </span>
         </div>
 
@@ -123,7 +123,7 @@ export const AdminOverview: React.FC<AdminOverviewProps> = ({
               >
                 <div>
                   <span className="text-xs font-bold text-[#2B2420] block">
-                    Criar Baralho Oficial
+                    Criar Baralho Tá na Cara!
                   </span>
                   <span className="text-[11px] text-[#6F655C]">
                     Montar coleção de 15 a 90 cartas
@@ -139,10 +139,10 @@ export const AdminOverview: React.FC<AdminOverviewProps> = ({
               >
                 <div>
                   <span className="text-xs font-bold text-[#2B2420] block">
-                    Criar Cara Oficial
+                    Banco de Caras (Legado)
                   </span>
                   <span className="text-[11px] text-[#6F655C]">
-                    Subir nova foto para o acervo
+                    Consultar acervo histórico descontinuado
                   </span>
                 </div>
                 <span className="text-xs text-[#B4532F] font-bold">→</span>
@@ -158,7 +158,7 @@ export const AdminOverview: React.FC<AdminOverviewProps> = ({
                     Organizar Destaques da Home
                   </span>
                   <span className="text-[11px] text-[#6F655C]">
-                    Definir ordem dos baralhos oficiais
+                    Definir ordem dos baralhos em destaque
                   </span>
                 </div>
                 <span className="text-xs text-[#B4532F] font-bold">→</span>
@@ -183,8 +183,8 @@ export const AdminOverview: React.FC<AdminOverviewProps> = ({
           </div>
 
           <div className="mt-6 pt-4 border-t border-[#E2DACD]/60 text-[11px] text-[#6F655C] space-y-1">
-            <p>• Baralhos e Caras Oficiais têm autoria padronizada como <strong>Tá na Cara!</strong>.</p>
-            <p>• Destaques da Home exibem somente baralhos oficiais em tempo real.</p>
+            <p>• Baralhos têm autoria padronizada como <strong>Tá na Cara!</strong>.</p>
+            <p>• Destaques da Home exibem baralhos selecionados em tempo real.</p>
           </div>
         </div>
 
@@ -210,7 +210,7 @@ export const AdminOverview: React.FC<AdminOverviewProps> = ({
                 Nenhuma ação recente registrada
               </p>
               <p className="text-xs text-[#6F655C] max-w-sm">
-                Todas as alterações em baralhos, caras oficiais, destaques, denúncias e banimentos são registradas automaticamente.
+                Todas as alterações em baralhos, destaques da Home, denúncias e banimentos são registradas automaticamente.
               </p>
             </div>
           ) : (

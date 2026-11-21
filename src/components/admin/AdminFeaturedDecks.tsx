@@ -100,7 +100,7 @@ export const AdminFeaturedDecks: React.FC = () => {
             Destaques da Página Inicial (Home)
           </h2>
           <p className="text-xs text-[#6F655C] mt-0.5">
-            Defina quais baralhos oficiais do Tá na Cara! aparecem na Home e em qual ordem.
+            Defina quais baralhos do Tá na Cara! aparecem na Home e em qual ordem.
           </p>
         </div>
 
@@ -113,7 +113,7 @@ export const AdminFeaturedDecks: React.FC = () => {
               setIsAddModalOpen(true);
             }}
           >
-            Adicionar Baralho Oficial
+            Adicionar Baralho à Home
           </Button>
 
           <Button
@@ -140,17 +140,17 @@ export const AdminFeaturedDecks: React.FC = () => {
       ) : featuredDecks.length === 0 ? (
         <div className="bg-white border border-[#E2DACD] rounded-2xl p-10 text-center space-y-3">
           <h3 className="font-serif text-base text-[#2B2420]">
-            Nenhum baralho oficial fixado na Home
+            Nenhum baralho fixado na Home
           </h3>
           <p className="text-xs text-[#6F655C] max-w-sm mx-auto">
-            Selecione quais baralhos oficiais publicados devem aparecer na primeira dobra para os jogadores.
+            Selecione quais baralhos publicados do Tá na Cara! devem aparecer na primeira dobra para os jogadores.
           </p>
           <Button
             size="sm"
             variant="primary"
             onClick={() => setIsAddModalOpen(true)}
           >
-            Selecionar Baralhos Oficiais
+            Selecionar Baralhos
           </Button>
         </div>
       ) : (
@@ -186,9 +186,6 @@ export const AdminFeaturedDecks: React.FC = () => {
                       <h4 className="font-serif text-sm text-[#2B2420] truncate">
                         {deck.name}
                       </h4>
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-[#B4532F] bg-[#FDF5F2] border border-[#F3D7CD] px-1.5 py-0.2 rounded">
-                        Oficial
-                      </span>
                     </div>
                     <p className="text-[11px] text-[#6F655C] truncate">
                       {deck.card_count || deck.cards.length} cartas · Autor: Tá na Cara!
@@ -229,13 +226,13 @@ export const AdminFeaturedDecks: React.FC = () => {
         </div>
       )}
 
-      {/* Modal para Adicionar Baralho Oficial aos Destaques */}
+      {/* Modal para Adicionar Baralho aos Destaques */}
       {isAddModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#2B2420]/40 backdrop-blur-xs animate-in fade-in duration-150">
           <div className="bg-[#FBF8F3] border border-[#E2DACD] rounded-2xl max-w-xl w-full p-6 max-h-[80vh] flex flex-col shadow-xl">
             <div className="flex items-center justify-between pb-3 border-b border-[#E2DACD]">
               <h3 className="font-serif text-lg text-[#2B2420]">
-                Selecionar Baralho Oficial para a Home
+                Selecionar Baralho para a Home
               </h3>
               <button
                 onClick={() => setIsAddModalOpen(false)}
@@ -246,13 +243,13 @@ export const AdminFeaturedDecks: React.FC = () => {
             </div>
 
             <p className="text-xs text-[#6F655C] my-3">
-              Somente baralhos oficiais do Tá na Cara! que estejam publicados podem ser exibidos na página inicial.
+              Somente baralhos do Tá na Cara! que estejam publicados podem ser exibidos na página inicial.
             </p>
 
             <div className="flex-1 overflow-y-auto space-y-2 pr-1">
               {nonFeaturedEligible.length === 0 ? (
                 <div className="py-8 text-center text-xs text-[#6F655C]">
-                  Nenhum baralho oficial publicado disponível. Publique um baralho oficial primeiro no menu "Baralhos Oficiais".
+                  Nenhum baralho publicado disponível. Publique um baralho primeiro no menu "Baralhos Tá na Cara!".
                 </div>
               ) : (
                 nonFeaturedEligible.map((deck) => (
@@ -265,9 +262,6 @@ export const AdminFeaturedDecks: React.FC = () => {
                         <h4 className="font-serif text-sm text-[#2B2420] truncate">
                           {deck.name}
                         </h4>
-                        <span className="text-[9px] font-bold uppercase tracking-wider text-[#B4532F] bg-[#FDF5F2] border border-[#F3D7CD] px-1.5 py-0.2 rounded">
-                          Oficial
-                        </span>
                       </div>
                       <p className="text-[11px] text-[#6F655C]">
                         {deck.card_count || deck.cards.length} cartas
